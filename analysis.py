@@ -275,7 +275,7 @@ class MultiColumnCartaoAnalyzer:
         self.analyzer = analyzer
         self.alternativas = ['A', 'B', 'C', 'D', 'E']
     
-    def analisar_cartao_multicolunas(self, image, binary, debug_image, num_questoes, num_colunas, sensitivity):
+    def analisar_cartao_multicolunas(self, image, binary, debug_image, num_questoes, num_colunas, sensitivity, threshold=150):
         """
         Analisa um cartão resposta com múltiplas colunas
         
@@ -286,6 +286,7 @@ class MultiColumnCartaoAnalyzer:
             num_questoes: Número total de questões
             num_colunas: Número de colunas no cartão
             sensitivity: Sensibilidade para detecção de marcações (0-1)
+            threshold: Valor de limiar para binarização da imagem (padrão: 150)
             
         Returns:
             resultados: Dicionário com resultados para todas as questões
@@ -296,7 +297,7 @@ class MultiColumnCartaoAnalyzer:
         # Se for apenas uma coluna, use o método original
         if num_colunas <= 1:
             return self.analyzer.analisar_cartao_melhorado(image, binary, debug_image, 
-                                                          num_questoes, num_colunas, sensitivity)
+                                                        num_questoes, num_colunas, sensitivity)
         
         # Obter uma segmentação inteligente das colunas
         regioes_colunas = segmentar_colunas(binary, num_colunas)

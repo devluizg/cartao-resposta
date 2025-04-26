@@ -130,24 +130,26 @@ class CartaoRespostaReader:
     def display_image(self, cv_image, window=None):
         h, w = cv_image.shape[:2]
         max_h, max_w = 600, 800
-        
+
         if h > max_h or w > max_w:
             scale = min(max_h / h, max_w / w)
             new_h, new_w = int(h * scale), int(w * scale)
             cv_image = cv2.resize(cv_image, (new_w, new_h))
-        
+
         pil_image = Image.fromarray(cv_image)
         photo = ImageTk.PhotoImage(pil_image)
-        
+
         if window is None:
             self.image_label.config(image=photo)
             self.image_label.image = photo
         else:
-            window.title("Imagem Processada")
+            # Remover ou comentar esta linha:
+            # window.title("Imagem Processada")  ← Erro aqui
             label = ttk.Label(window)
             label.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
             label.config(image=photo)
             label.image = photo
+
     
     def process_image(self):
         if not self.image_path:
