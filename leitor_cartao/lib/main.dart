@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:logging/logging.dart' show Logger;
 
 final Logger _logger = Logger('CartaoRespostaApp');
@@ -41,6 +42,11 @@ class _TelaInicialState extends State<TelaInicial> {
   String? _mensagemErro;
   Map<String, dynamic>? _resultados;
 
+  // Imagens processadas recebidas do servidor
+  Uint8List? _imagemOriginalProcessada;
+  Uint8List? _imagemBinarizada;
+  bool _temImagensProcessadas = false;
+
   // Controladores para os campos de entrada
   final TextEditingController _numQuestoesController =
       TextEditingController(text: "10");
@@ -66,6 +72,7 @@ class _TelaInicialState extends State<TelaInicial> {
           _imagemSelecionada = File(imagem.path);
           _mensagemErro = null;
           _resultados = null;
+          _temImagensProcessadas = false;
         });
       }
     } catch (e) {
@@ -89,6 +96,7 @@ class _TelaInicialState extends State<TelaInicial> {
           _imagemSelecionada = File(imagem.path);
           _mensagemErro = null;
           _resultados = null;
+          _temImagensProcessadas = false;
         });
       }
     } catch (e) {
@@ -110,6 +118,7 @@ class _TelaInicialState extends State<TelaInicial> {
       _enviando = true;
       _mensagemErro = null;
       _resultados = null;
+      _temImagensProcessadas = false;
     });
 
     try {
@@ -135,17 +144,39 @@ class _TelaInicialState extends State<TelaInicial> {
       request.fields['num_questoes'] = _numQuestoesController.text;
       request.fields['num_colunas'] = _numColunasController.text;
       request.fields['threshold'] = _thresholdController.text;
+      // Adicionar campo para requisitar imagens processadas
+      request.fields['retornar_imagens'] = 'true';
 
       // Enviar a requisição
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
-      _logger.info('Resposta do servidor: ${response.body}');
+      _logger.info('Resposta do servidor: ${response.statusCode}');
 
       if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
         setState(() {
-          _resultados = json.decode(response.body);
+          _resultados = responseData;
           _enviando = false;
+
+          // Modificação aqui - verificar de forma mais robusta a existência das imagens
+          _temImagensProcessadas =
+              responseData.containsKey('imagem_original_base64') &&
+                  responseData.containsKey('imagem_binaria_base64') &&
+                  responseData['imagem_original_base64'] != null &&
+                  responseData['imagem_binaria_base64'] != null;
+
+          if (_temImagensProcessadas) {
+            try {
+              _imagemOriginalProcessada =
+                  base64Decode(responseData['imagem_original_base64']);
+              _imagemBinarizada =
+                  base64Decode(responseData['imagem_binaria_base64']);
+            } catch (e) {
+              _temImagensProcessadas = false;
+              _logger.warning('Erro ao decodificar imagens: $e');
+            }
+          }
         });
       } else {
         setState(() {
@@ -160,6 +191,29 @@ class _TelaInicialState extends State<TelaInicial> {
         _enviando = false;
       });
     }
+  }
+
+  void _visualizarProcessamento() {
+    if (_imagemOriginalProcessada == null || _imagemBinarizada == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'As imagens processadas não estão disponíveis. Tente processar novamente.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ImagensProcessadasScreen(
+          imagemOriginal: _imagemOriginalProcessada!,
+          imagemBinaria: _imagemBinarizada!,
+        ),
+      ),
+    );
   }
 
   @override
@@ -303,6 +357,25 @@ class _TelaInicialState extends State<TelaInicial> {
               ),
             ),
 
+            const SizedBox(height: 10),
+
+            // Botão para visualizar processamento
+            ElevatedButton.icon(
+              onPressed: (_imagemOriginalProcessada != null &&
+                      _imagemBinarizada != null)
+                  ? _visualizarProcessamento
+                  : null,
+              icon: const Icon(Icons.image_search),
+              label: const Text('Ver Processamento'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: Colors.grey.shade300,
+                disabledForegroundColor: Colors.grey.shade600,
+              ),
+            ),
+
             // Exibição de erro
             if (_mensagemErro != null)
               Container(
@@ -436,5 +509,97 @@ class _TelaInicialState extends State<TelaInicial> {
     _thresholdController.dispose();
     _enderecoIPController.dispose();
     super.dispose();
+  }
+}
+
+class ImagensProcessadasScreen extends StatelessWidget {
+  final Uint8List imagemOriginal;
+  final Uint8List imagemBinaria;
+
+  const ImagensProcessadasScreen(
+      {super.key, required this.imagemOriginal, required this.imagemBinaria});
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Imagens Processadas'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Original', icon: Icon(Icons.image)),
+              Tab(text: 'Processada', icon: Icon(Icons.filter)),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            // Tab da imagem original
+            Center(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        'Imagem Original com Marcações',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    InteractiveViewer(
+                      minScale: 0.5,
+                      maxScale: 4.0,
+                      boundaryMargin: const EdgeInsets.all(20.0),
+                      child: Image.memory(
+                        imagemOriginal,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Tab da imagem processada (binarizada)
+            Center(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        'Imagem Binarizada',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    InteractiveViewer(
+                      minScale: 0.5,
+                      maxScale: 4.0,
+                      boundaryMargin: const EdgeInsets.all(20.0),
+                      child: Image.memory(
+                        imagemBinaria,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          tooltip: 'Voltar',
+          child: const Icon(Icons.arrow_back),
+        ),
+      ),
+    );
   }
 }
