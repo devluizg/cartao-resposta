@@ -175,10 +175,13 @@ class CartaoRespostaReader:
             
             if self.auto_detect_var.get():
                 detected_cols = detectar_colunas(binary)
-                if detected_cols != num_colunas:
-                    num_colunas = detected_cols
-                    self.num_colunas_var.set(str(num_colunas))
-                    self.status_var.set(f"Detectadas {num_colunas} colunas automaticamente")
+                self.num_colunas_var.set(str(detected_cols))
+                num_colunas = detected_cols
+                self.status_var.set(f"Detectadas {num_colunas} colunas automaticamente")
+            else:
+                # Usa exatamente o que o usuário informou
+                self.status_var.set(f"Usando {num_colunas} colunas informadas manualmente")
+
             
             self.resultados = self.multi_analyzer.analisar_cartao_multicolunas(
                 image, binary, debug_image, num_questoes, num_colunas, sensitivity

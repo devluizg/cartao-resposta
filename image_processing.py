@@ -279,7 +279,7 @@ def detectar_bolhas_avancado(binary, debug_image=None, threshold=100, sensitivit
 
 def agrupar_bolhas_por_questoes(bolhas, num_questoes=10, num_alternativas=5):
     """
-    Agrupa bolhas por questões usando clustering hierárquico com melhor filtragem.
+    Agrupa bolhas por questões usando clustering adaptativo.
     
     Args:
         bolhas: Lista de dicionários com informações das bolhas
@@ -289,6 +289,10 @@ def agrupar_bolhas_por_questoes(bolhas, num_questoes=10, num_alternativas=5):
     Returns:
         questoes: Lista de listas de bolhas agrupadas por questão
     """
+    import numpy as np
+    from collections import defaultdict
+    from sklearn.cluster import DBSCAN
+
     if not bolhas:
         return []
     
@@ -298,25 +302,40 @@ def agrupar_bolhas_por_questoes(bolhas, num_questoes=10, num_alternativas=5):
     else:
         centros = np.array([[bolha['x'], bolha['y']] for bolha in bolhas])
     
-    # Aplicar DBSCAN para agrupar por coordenada Y (linhas/questões)
-    sorted_y = np.sort([c[1] for c in centros])
-    y_diffs = np.diff(sorted_y)
+    # Análise preliminar de distribuição dos pontos para configurar melhor o DBSCAN
+    y_coords = np.array([c[1] for c in centros])
+    y_sorted = np.sort(y_coords)
+    y_diffs = np.diff(y_sorted)
     
+    # Adaptação automática do epsilon baseada na estrutura do documento
     if len(y_diffs) > 0:
-        median_diff = np.median(y_diffs)
-        # Garantir que epsilon seja sempre > 0
-        epsilon = max(median_diff * 0.6, 5.0)  # Mínimo de 5.0 pixels
+        # Análise da distribuição vertical para determinar o agrupamento
+        # Usar percentil para reduzir influência de outliers
+        epsilon = np.percentile(y_diffs, 25) * 0.75  # 75% do primeiro quartil
+        epsilon = max(epsilon, 10.0)  # Mínimo de 10 pixels para evitar micro-agrupamentos
     else:
-        epsilon = 20
+        epsilon = 20.0  # Valor padrão para poucos pontos
     
-    y_coords = np.array([[c[1]] for c in centros])
-    db = DBSCAN(eps=epsilon, min_samples=2).fit(y_coords)
+    # Agrupar pontos verticalmente (por linhas/questões)
+    y_only = y_coords.reshape(-1, 1)
+    db = DBSCAN(eps=epsilon, min_samples=min(2, len(bolhas)//num_questoes)).fit(y_only)
     
+    # Lidar com casos onde DBSCAN produz mais clusters que questões esperadas
     labels = db.labels_
+    unique_labels = np.unique(labels)
+    num_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)
     
+    # Se temos significativamente mais clusters que questões, ajustar epsilon e recalcular
+    if num_clusters > num_questoes * 1.5 and num_clusters > 1:
+        # Aumentar epsilon gradualmente
+        epsilon *= 1.5
+        db = DBSCAN(eps=epsilon, min_samples=min(2, len(bolhas)//num_questoes)).fit(y_only)
+        labels = db.labels_
+    
+    # Agrupar bolhas por clusters
     clusters = defaultdict(list)
     for i, bolha in enumerate(bolhas):
-        if labels[i] != -1:
+        if labels[i] != -1:  # Ignorar outliers
             clusters[labels[i]].append(bolha)
     
     # Ordenar clusters por posição vertical
@@ -325,121 +344,159 @@ def agrupar_bolhas_por_questoes(bolhas, num_questoes=10, num_alternativas=5):
         key=lambda cluster: np.mean([b['centro'][1] if 'centro' in b else b['y'] for b in cluster])
     )
     
+    # Verificação para caso de falta ou excesso de clusters
+    if len(sorted_clusters) != num_questoes:
+        print(f"Aviso: Detectadas {len(sorted_clusters)} linhas de questões (esperado {num_questoes}).")
+        
+        # Caso 1: Mais clusters que questões esperadas
+        if len(sorted_clusters) > num_questoes:
+            # Manter apenas os clusters mais populosos ou melhor formados
+            clusters_scores = []
+            for cluster in sorted_clusters:
+                # Calcular score baseado em número de bolhas e alinhamento horizontal
+                num_bolhas = len(cluster)
+                if num_bolhas >= num_alternativas:
+                    # Calcular variância das coordenadas X para ver se estão bem alinhadas horizontalmente
+                    x_coords = [b['centro'][0] if 'centro' in b else b['x'] for b in cluster]
+                    # Calcular distâncias entre pontos consecutivos ordenados
+                    x_sorted = np.sort(x_coords)
+                    x_diffs = np.diff(x_sorted)
+                    # Calcular desvio padrão das diferenças (quanto menor, mais uniforme)
+                    x_std = np.std(x_diffs) if len(x_diffs) > 0 else float('inf')
+                    score = num_bolhas / (1 + x_std/100)  # Score maior para mais bolhas e menor variância
+                else:
+                    score = num_bolhas / num_alternativas  # Score proporcional para clusters incompletos
+                
+                clusters_scores.append((cluster, score))
+            
+            # Ordenar clusters por score e manter apenas os melhores
+            sorted_clusters = [c for c, _ in sorted(clusters_scores, key=lambda x: x[1], reverse=True)[:num_questoes]]
+            # Reordenar verticalmente
+            sorted_clusters = sorted(
+                sorted_clusters,
+                key=lambda cluster: np.mean([b['centro'][1] if 'centro' in b else b['y'] for b in cluster])
+            )
+        
+        # Caso 2: Menos clusters que questões esperadas
+        # Neste caso, mantemos o que temos e processamos normalmente
+        # O código que recebe o resultado precisará lidar com questões faltantes
+    
     # Limitar ao número de questões esperado
     sorted_clusters = sorted_clusters[:num_questoes]
     
     questoes = []
     for cluster in sorted_clusters:
         # Ordenar bolhas horizontalmente
+        if not cluster:
+            questoes.append([])
+            continue
+            
         if 'centro' in cluster[0]:
             bolhas_ordenadas = sorted(cluster, key=lambda b: b['centro'][0])
         else:
             bolhas_ordenadas = sorted(cluster, key=lambda b: b['x'])
         
-        # Se há mais alternativas que o esperado, precisamos filtrar
+        # Se há mais alternativas que o esperado, filtrar
         if len(bolhas_ordenadas) > num_alternativas:
-            print(f"Aviso: Encontradas {len(bolhas_ordenadas)} alternativas (esperado {num_alternativas}).")
+            # Cálculo de divisão horizontal equidistante
+            x_min = min(b['centro'][0] if 'centro' in b else b['x'] for b in bolhas_ordenadas)
+            x_max = max(b['centro'][0] if 'centro' in b else b['x'] for b in bolhas_ordenadas)
+            largura_total = max(1, x_max - x_min)  # Evitar divisão por zero
+            largura_grupo = largura_total / num_alternativas
             
-            # Método 1: Agrupamento horizontal mais robusto
-            x_coords = np.array([b['centro'][0] if 'centro' in b else b['x'] for b in bolhas_ordenadas])
-            x_coords = x_coords.reshape(-1, 1)
+            # Agrupar bolhas em buckets equidistantes
+            buckets = [[] for _ in range(num_alternativas)]
+            for bolha in bolhas_ordenadas:
+                x = bolha['centro'][0] if 'centro' in bolha else bolha['x']
+                # Calcular em qual bucket a bolha pertence
+                idx = min(int((x - x_min) / largura_grupo), num_alternativas - 1)
+                buckets[idx].append(bolha)
             
-            # Tentar agrupar horizontalmente para identificar alternativas próximas/duplicadas
-            # Garantir que eps seja sempre > 0
-            x_db = DBSCAN(eps=20, min_samples=1).fit(x_coords)
-            x_labels = x_db.labels_
+            # Selecionar a melhor bolha de cada bucket (maior taxa de preenchimento)
+            bolhas_selecionadas = []
+            for bucket in buckets:
+                if bucket:
+                    melhor_bolha = max(bucket, 
+                                      key=lambda b: b.get('fill_rate', b.get('preenchimento', 0)))
+                    bolhas_selecionadas.append(melhor_bolha)
             
-            # Agrupar bolhas horizontalmente próximas
-            x_clusters = defaultdict(list)
-            for i, bolha in enumerate(bolhas_ordenadas):
-                x_clusters[x_labels[i]].append(bolha)
-            
-            # Para cada cluster horizontal, manter apenas a bolha com maior taxa de preenchimento
-            bolhas_filtradas = []
-            for x_cluster in x_clusters.values():
-                if len(x_cluster) > 0:
-                    melhor_bolha = max(x_cluster, key=lambda b: b.get('fill_rate', b.get('preenchimento', 0)))
-                    bolhas_filtradas.append(melhor_bolha)
-            
-            # Ordenar novamente e limitar ao número esperado de alternativas
-            if 'centro' in bolhas_filtradas[0]:
-                bolhas_filtradas = sorted(bolhas_filtradas, key=lambda b: b['centro'][0])
-            else:
-                bolhas_filtradas = sorted(bolhas_filtradas, key=lambda b: b['x'])
-            
-            # Ainda pode haver mais que o esperado após filtragem, então limitamos
-            if len(bolhas_filtradas) > num_alternativas:
-                # Dividir em grupos equidistantes
-                x_min = min(b['centro'][0] if 'centro' in b else b['x'] for b in bolhas_filtradas)
-                x_max = max(b['centro'][0] if 'centro' in b else b['x'] for b in bolhas_filtradas)
-                largura_total = x_max - x_min
-                largura_grupo = largura_total / num_alternativas
-                
-                grupos_alternativas = [[] for _ in range(num_alternativas)]
-                for bolha in bolhas_filtradas:
-                    x = bolha['centro'][0] if 'centro' in bolha else bolha['x']
-                    # Determinar em qual grupo esta bolha deve ficar
-                    idx_grupo = min(int((x - x_min) / largura_grupo), num_alternativas - 1)
-                    grupos_alternativas[idx_grupo].append(bolha)
-                
-                # De cada grupo, selecionar a bolha com maior preenchimento
-                bolhas_finais = []
-                for grupo in grupos_alternativas:
-                    if grupo:
-                        melhor_bolha = max(grupo, key=lambda b: b.get('fill_rate', b.get('preenchimento', 0)))
-                        bolhas_finais.append(melhor_bolha)
-                    else:
-                        # Se algum grupo ficou vazio, tentar preenchê-lo com None
-                        bolhas_finais.append(None)
-                
-                # Remover Nones e ordenar novamente
-                bolhas_finais = [b for b in bolhas_finais if b is not None]
-                if bolhas_finais and 'centro' in bolhas_finais[0]:
-                    bolhas_finais = sorted(bolhas_finais, key=lambda b: b['centro'][0])
-                else:
-                    bolhas_finais = sorted(bolhas_finais, key=lambda b: b['x'])
-                
-                bolhas_ordenadas = bolhas_finais[:num_alternativas]
-            else:
-                bolhas_ordenadas = bolhas_filtradas[:num_alternativas]
-            
-        # Se há menos alternativas que o esperado, precisamos preencher com bolhas sintéticas
-        elif len(bolhas_ordenadas) < num_alternativas:
-            print(f"Aviso: Encontradas apenas {len(bolhas_ordenadas)} de {num_alternativas} alternativas.")
-            
-            # Tentar estimar posições das bolhas faltantes
+            bolhas_ordenadas = sorted(bolhas_selecionadas, 
+                                     key=lambda b: b['centro'][0] if 'centro' in b else b['x'])
+        
+        # Se há menos alternativas que o esperado, preencher com bolhas sintéticas
+        if len(bolhas_ordenadas) < num_alternativas:
+            # Calcular o espaçamento horizontal ideal se tivermos pelo menos 2 bolhas
             if len(bolhas_ordenadas) >= 2:
-                # Calcular espaçamento horizontal médio
                 x_coords = [b['centro'][0] if 'centro' in b else b['x'] for b in bolhas_ordenadas]
-                x_diffs = np.diff(sorted(x_coords))
+                x_sorted = np.sort(x_coords)
+                x_diffs = np.diff(x_sorted)
                 if len(x_diffs) > 0:
                     espaco_medio = np.mean(x_diffs)
-                    raio_medio = np.mean([b['radius'] for b in bolhas_ordenadas if 'radius' in b])
+                    y_medio = np.mean([b['centro'][1] if 'centro' in b else b['y'] for b in bolhas_ordenadas])
+                    raio_medio = np.mean([b.get('radius', 10) for b in bolhas_ordenadas])
                     
-                    # Estimar posições completas
-                    x_min = min(x_coords)
-                    posicoes_ideais = [x_min + i * espaco_medio for i in range(num_alternativas)]
-                    
-                    # Criar bolhas sintéticas para posições faltantes
-                    bolhas_completas = []
-                    for i, pos_x in enumerate(posicoes_ideais):
-                        # Verificar se já existe uma bolha próxima a esta posição
-                        bolha_existente = None
-                        for bolha in bolhas_ordenadas:
-                            x = bolha['centro'][0] if 'centro' in bolha else bolha['x']
-                            if abs(x - pos_x) < espaco_medio * 0.3:  # Tolerância
-                                bolha_existente = bolha
-                                break
+                    # Estimar todas as posições esperadas
+                    x_coords_esperados = []
+                    # Encontrar a posição inicial mais provável
+                    if len(x_coords) >= num_alternativas:
+                        # Se temos bolhas suficientes, usar as primeiras como base
+                        inicio = np.min(x_coords)
+                    else:
+                        # Caso contrário, estimar pelas distâncias
+                        possiveis_inicios = [x_sorted[0] - i * espaco_medio for i in range(num_alternativas)]
+                        # Escolher o início que faz mais sentido (bolhas existentes se encaixam melhor)
+                        melhor_inicio = x_sorted[0]
+                        melhor_score = float('inf')
                         
-                        if bolha_existente:
-                            bolhas_completas.append(bolha_existente)
+                        for inicio in possiveis_inicios:
+                            posicoes = [inicio + i * espaco_medio for i in range(num_alternativas)]
+                            # Calcular erro como soma das distâncias mínimas
+                            erros = []
+                            for pos in posicoes:
+                                min_dist = min([abs(pos - x) for x in x_coords], default=float('inf'))
+                                erros.append(min_dist)
+                            score = sum(erros)
+                            if score < melhor_score:
+                                melhor_score = score
+                                melhor_inicio = inicio
+                        
+                        inicio = max(0, melhor_inicio)  # Garantir que não seja negativo
+                    
+                    # Gerar posições esperadas
+                    x_coords_esperados = [inicio + i * espaco_medio for i in range(num_alternativas)]
+                    
+                    # Criar mapeamento das posições existentes para esperadas
+                    bolhas_completas = []
+                    bolhas_usadas = set()
+                    
+                    for x_esperado in x_coords_esperados:
+                        # Encontrar a bolha mais próxima desta posição esperada
+                        melhor_bolha = None
+                        menor_distancia = float('inf')
+                        
+                        for i, bolha in enumerate(bolhas_ordenadas):
+                            if i in bolhas_usadas:
+                                continue
+                                
+                            x_atual = bolha['centro'][0] if 'centro' in bolha else bolha['x']
+                            distancia = abs(x_atual - x_esperado)
+                            
+                            # Considerar apenas bolhas próximas o suficiente
+                            if distancia < espaco_medio * 0.5 and distancia < menor_distancia:
+                                menor_distancia = distancia
+                                melhor_bolha = bolha
+                        
+                        if melhor_bolha:
+                            # Adicionar bolha existente
+                            idx = bolhas_ordenadas.index(melhor_bolha)
+                            bolhas_usadas.add(idx)
+                            bolhas_completas.append(melhor_bolha)
                         else:
-                            # Criar uma bolha sintética com fill_rate baixo
-                            y_medio = np.mean([b['centro'][1] if 'centro' in b else b['y'] for b in bolhas_ordenadas])
+                            # Adicionar bolha sintética
                             bolha_sintetica = {
-                                'x': int(pos_x),
+                                'x': int(x_esperado),
                                 'y': int(y_medio),
-                                'centro': (int(pos_x), int(y_medio)),
+                                'centro': (int(x_esperado), int(y_medio)),
                                 'radius': int(raio_medio),
                                 'fill_rate': 0.0,
                                 'filled': False,
@@ -447,19 +504,18 @@ def agrupar_bolhas_por_questoes(bolhas, num_questoes=10, num_alternativas=5):
                             }
                             bolhas_completas.append(bolha_sintetica)
                     
-                    # Reordenar bolhas
-                    if 'centro' in bolhas_completas[0]:
-                        bolhas_ordenadas = sorted(bolhas_completas, key=lambda b: b['centro'][0])
-                    else:
-                        bolhas_ordenadas = sorted(bolhas_completas, key=lambda b: b['x'])
-            
-        questoes.append(bolhas_ordenadas)
+                    # Usar as bolhas complementadas
+                    if bolhas_completas:
+                        bolhas_ordenadas = sorted(bolhas_completas, 
+                                                key=lambda b: b['centro'][0] if 'centro' in b else b['x'])
+        
+        questoes.append(bolhas_ordenadas[:num_alternativas])
     
     return questoes
 
 def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 'E']):
     """
-    Analisa as questões agrupadas para determinar respostas marcadas com regras aprimoradas.
+    Analisa as questões agrupadas para determinar respostas marcadas com análise estatística robusta.
     
     Args:
         questoes: Lista de listas de bolhas agrupadas por questão
@@ -470,12 +526,32 @@ def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 
         resultados: Dicionário com resultados por questão
         confianca: Dicionário com níveis de confiança por questão
     """
+    import numpy as np
+    
     resultados = {}
     confianca = {}
     
+    # Inicializar resultados
     for q in range(1, num_questoes + 1):
         resultados[q] = None
         confianca[q] = 0.0
+    
+    # Estatísticas globais para análise adaptativa
+    todas_taxas = []
+    for questao in questoes:
+        for bolha in questao:
+            if 'sintetica' not in bolha or not bolha['sintetica']:
+                taxa = bolha.get('fill_rate', bolha.get('preenchimento', 0.0))
+                todas_taxas.append(taxa)
+    
+    # Determinar threshold adaptativo com base em todas as bolhas
+    if todas_taxas:
+        media_global = np.mean(todas_taxas)
+        desvio_global = np.std(todas_taxas)
+        # Threshold base ajustado à distribuição dos dados
+        threshold_base = max(0.3, media_global + 0.5 * desvio_global)
+    else:
+        threshold_base = 0.3  # Valor padrão se não houver dados
     
     for i, questao in enumerate(questoes):
         num_questao = i + 1
@@ -492,11 +568,12 @@ def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 
         second_max = 0.0
         preenchimentos = []
         
-        # Listar todos os preenchimentos para análise estatística
+        # Coletar todos os preenchimentos para análise
         for j, bolha in enumerate(questao):
             if j >= len(alternativas):
                 break
                 
+            # Ignorar bolhas sintéticas na avaliação
             if 'sintetica' in bolha and bolha['sintetica']:
                 preenchimento = 0.0
             else:
@@ -511,45 +588,48 @@ def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 
             elif preenchimento > second_max:
                 second_max = preenchimento
         
-        # Análise estatística para identificar outliers (bolhas marcadas)
+        # Análise estatística para identificar marcações
         if preenchimentos:
-            media = np.mean(preenchimentos)
-            desvio = np.std(preenchimentos)
+            # Análise específica da questão
+            media_questao = np.mean(preenchimentos)
+            desvio_questao = np.std(preenchimentos)
             
-            # Definir threshold adaptativo
-            threshold_base = 0.3  # Valor base
-            
-            # Se há alto contraste entre as bolhas, usamos threshold mais alto
-            if max_preenchimento > 0.5 and desvio > 0.15:
-                threshold = max(threshold_base, media + 1.5 * desvio)
+            # Definir threshold de forma adaptativa
+            if desvio_questao > 0.1 and max_preenchimento > 0.4:
+                # Alta variação e preenchimento significativo: provavelmente há uma resposta
+                threshold = media_questao + 0.8 * desvio_questao
             else:
-                threshold = threshold_base
+                # Baixa variação ou preenchimento fraco: usar threshold base mais rigoroso
+                threshold = max(threshold_base, media_questao + 1.0 * desvio_questao)
             
-            # Calcular medida de confiança
+            # Calcular medida de confiança normalizada
             if second_max > 0:
-                diferenca = max_preenchimento - second_max
-                nivel_confianca = diferenca / max(max_preenchimento, 0.1)  # Normalizado
+                # Diferença normalizada entre os dois maiores valores
+                diferenca_norm = (max_preenchimento - second_max) / max(max_preenchimento, 0.1)
+                nivel_confianca = min(1.0, diferenca_norm * 2)  # Multiplicador para destacar diferenças
             else:
                 nivel_confianca = 1.0 if max_preenchimento > threshold else 0.0
             
-            nivel_confianca = min(max(nivel_confianca, 0.0), 1.0)
+            nivel_confianca = min(max(nivel_confianca, 0.0), 1.0)  # Limitar entre 0 e 1
             
             # Determinar se há uma bolha significativamente preenchida
             if alt_index >= 0 and max_preenchimento > threshold:
                 resultados[num_questao] = alternativas[alt_index]
                 confianca[num_questao] = nivel_confianca
-                
-                # Informação para depuração
-                print(f"Q{num_questao}: Alternativa {alternativas[alt_index]} selecionada com preench. {max_preenchimento:.2f} (confiança: {nivel_confianca:.2f})")
-                print(f"   Preenchimentos: {[f'{p:.2f}' for p in preenchimentos]}")
+                # Para debug
+                if len(preenchimentos) > 1:
+                    taxa_formatada = [f"{p:.2f}" for p in preenchimentos]
+                    print(f"Q{num_questao}: Alternativa {alternativas[alt_index]} (preench. {max_preenchimento:.2f}, conf. {nivel_confianca:.2f}, threshold {threshold:.2f})")
+                    print(f"   Preenchimentos: {taxa_formatada}")
             else:
+                # Para debug
                 print(f"Q{num_questao}: Nenhuma alternativa atinge o threshold ({threshold:.2f}). Maior: {max_preenchimento:.2f}")
     
     return resultados, confianca
 
 def validar_resultados(resultados, confianca, num_questoes, num_alternativas=5):
     """
-    Valida e corrige resultados com baixa confiança ou padrões improváveis.
+    Valida e corrige resultados com análise estatística e detecção de anomalias.
     
     Args:
         resultados: Dicionário com resultados por questão
@@ -560,24 +640,48 @@ def validar_resultados(resultados, confianca, num_questoes, num_alternativas=5):
     Returns:
         resultados_corrigidos: Dicionário com resultados após validação
     """
+    import numpy as np
+    from collections import Counter
+    
     resultados_corrigidos = resultados.copy()
     
+    # Análise de confiança
+    valores_confianca = [v for v in confianca.values() if v > 0]
+    if valores_confianca:
+        media_confianca = np.mean(valores_confianca)
+        limite_suspeito = max(0.2, media_confianca * 0.5)  # Adapta ao conjunto de dados
+    else:
+        limite_suspeito = 0.2  # Valor default
+    
+    # Marcar respostas com baixa confiança
     for q in range(1, num_questoes + 1):
-        if q in confianca and confianca[q] < 0.2:
-            resultados_corrigidos[q] = f"{resultados[q]}?" if resultados[q] else None
+        if q in confianca and confianca[q] < limite_suspeito and resultados[q] is not None:
+            resultados_corrigidos[q] = f"{resultados[q]}?"
     
-    contagem = {'A': 0, 'B': 0, 'C': 0, 'D': 0, 'E': 0, None: 0}
-    for alt in resultados.values():
-        if alt in contagem:
-            contagem[alt] += 1
-        elif alt and alt.endswith('?'):
-            base_alt = alt[0]
-            if base_alt in contagem:
-                contagem[base_alt] += 0.5  # Conta parcialmente
+    # Estatísticas de distribuição de respostas
+    contagem = Counter([r for r in resultados.values() if r is not None and not r.endswith('?')])
+    total_respostas = sum(contagem.values())
     
-    total_marcadas = sum(1 for alt in resultados.values() if alt is not None)
-    if total_marcadas < num_questoes * 0.5:
-        print("Aviso: Menos de 50% das questões foram detectadas como marcadas.")
+    # Verificar se a distribuição está muito desequilibrada
+    if total_respostas >= num_questoes * 0.3:  # Se temos pelo menos 30% de respostas
+        # Calcular distribuição esperada (aproximadamente uniforme)
+        esperado_por_alternativa = total_respostas / num_alternativas
+        
+        # Verificar alternativas com ocorrência muito acima do esperado
+        for alt, count in contagem.items():
+            if count > esperado_por_alternativa * 2.0 and count > 3:
+                # Alternativa com frequência suspeita (mais do que o dobro do esperado)
+                print(f"Aviso: Alternativa '{alt}' aparece {count} vezes (esperado ~{esperado_por_alternativa:.1f})")
+                
+                # Revisar respostas com essa alternativa e baixa confiança
+                for q in range(1, num_questoes + 1):
+                    if resultados[q] == alt and confianca[q] < 0.4:
+                        resultados_corrigidos[q] = f"{alt}?"  # Marcar como suspeita
+    
+    # Verificar se número total de respostas detectadas é razoável
+    respostas_detectadas = sum(1 for r in resultados_corrigidos.values() if r is not None)
+    if respostas_detectadas < num_questoes * 0.5:
+        print(f"Aviso: Apenas {respostas_detectadas} de {num_questoes} questões foram detectadas como marcadas.")
     
     return resultados_corrigidos
 
