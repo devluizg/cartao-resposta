@@ -5,6 +5,12 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:logging/logging.dart' show Logger;
+import 'package:shared_preferences/shared_preferences.dart';
+
+// Importar a tela de login
+import 'screens/login_screen.dart';
+// Importar a tela de resultado
+import 'screens/resultado_screen.dart';
 
 final Logger _logger = Logger('CartaoRespostaApp');
 
@@ -23,13 +29,77 @@ class CartaoRespostaApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const TelaInicial(),
+      home: const AuthenticationWrapper(),
     );
   }
 }
 
+// Classe para verificar a autenticação do usuário
+class AuthenticationWrapper extends StatefulWidget {
+  const AuthenticationWrapper({super.key});
+
+  @override
+  State<AuthenticationWrapper> createState() => _AuthenticationWrapperState();
+}
+
+class _AuthenticationWrapperState extends State<AuthenticationWrapper> {
+  bool _checkingAuth = true;
+  bool _isAuthenticated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthentication();
+  }
+
+  Future<void> _checkAuthentication() async {
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString('access_token');
+
+    setState(() {
+      _isAuthenticated = accessToken != null;
+      _checkingAuth = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_checkingAuth) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_isAuthenticated) {
+      // Aqui você pode redirecionar para SelectionScreen se preferir
+      return const TelaInicial(
+        turmaId: 0,
+        simuladoId: 0,
+        alunoId: 0,
+        aluno: {},
+        simulado: {},
+      );
+    } else {
+      return const LoginScreen();
+    }
+  }
+}
+
 class TelaInicial extends StatefulWidget {
-  const TelaInicial({super.key});
+  final int turmaId;
+  final int simuladoId;
+  final int alunoId;
+  final Map<String, dynamic> aluno;
+  final Map<String, dynamic> simulado;
+
+  const TelaInicial({
+    super.key,
+    required this.turmaId,
+    required this.simuladoId,
+    required this.alunoId,
+    required this.aluno,
+    required this.simulado,
+  });
 
   @override
   State<TelaInicial> createState() => _TelaInicialState();
@@ -42,12 +112,10 @@ class _TelaInicialState extends State<TelaInicial> {
   String? _mensagemErro;
   Map<String, dynamic>? _resultados;
 
-  // Imagens processadas recebidas do servidor
   Uint8List? _imagemOriginalProcessada;
   Uint8List? _imagemBinarizada;
   bool _temImagensProcessadas = false;
 
-  // Controladores para os campos de entrada
   final TextEditingController _numQuestoesController =
       TextEditingController(text: "10");
   final TextEditingController _numColunasController =
@@ -56,6 +124,9 @@ class _TelaInicialState extends State<TelaInicial> {
       TextEditingController(text: "150");
   final TextEditingController _enderecoIPController =
       TextEditingController(text: "192.168.1.8:8000");
+  final TextEditingController _pontuacaoTotalController =
+      TextEditingController(text: "10");
+  int _tipoProva = 1;
 
   Future<void> _capturarImagem() async {
     try {
@@ -178,6 +249,268 @@ class _TelaInicialState extends State<TelaInicial> {
             }
           }
         });
+
+        // MODIFICAÇÃO: Navegar para a tela de resultados após processar o cartão
+        if (responseData.containsKey('respostas') &&
+            responseData['respostas'] != null) {
+          // Convertendo as respostas para o formato esperado pela ResultadoScreen
+          Map<String, String> respostasAluno = {};
+          if (responseData['respostas'] is Map) {
+            responseData['respostas'].forEach((key, value) {
+              respostasAluno[key.toString()] =
+                  value != null ? value.toString() : 'Não detectada';
+            });
+          } else if (responseData['respostas'] is List) {
+            for (int i = 0; i < responseData['respostas'].length; i++) {
+              final resposta = responseData['respostas'][i];
+              respostasAluno[(i + 1).toString()] =
+                  resposta != null ? resposta.toString() : 'Não detectada';
+            }
+          }
+
+          // Gabarito com base no tipo de prova selecionado
+          Map<String, String> gabarito = {};
+          int numQuestoes = int.tryParse(_numQuestoesController.text) ?? 10;
+
+// Gabarito para cada tipo de prova
+// Baseado na imagem do gabarito que você compartilhou
+          switch (_tipoProva) {
+            case 1:
+              for (int i = 1; i <= numQuestoes; i++) {
+                switch (i) {
+                  case 1:
+                    gabarito[i.toString()] = 'D';
+                    break;
+                  case 2:
+                    gabarito[i.toString()] = 'D';
+                    break;
+                  case 3:
+                    gabarito[i.toString()] = 'D';
+                    break;
+                  case 4:
+                    gabarito[i.toString()] = 'C';
+                    break;
+                  case 5:
+                    gabarito[i.toString()] = 'C';
+                    break;
+                  case 6:
+                    gabarito[i.toString()] = 'B';
+                    break;
+                  case 7:
+                    gabarito[i.toString()] = 'D';
+                    break;
+                  case 8:
+                    gabarito[i.toString()] = 'C';
+                    break;
+                  case 9:
+                    gabarito[i.toString()] = 'D';
+                    break;
+                  case 10:
+                    gabarito[i.toString()] = 'D';
+                    break;
+                  default:
+                    gabarito[i.toString()] =
+                        'A'; // Padrão para questões adicionais
+                }
+              }
+              break;
+            case 2:
+              for (int i = 1; i <= numQuestoes; i++) {
+                switch (i) {
+                  case 1:
+                    gabarito[i.toString()] = 'C';
+                    break;
+                  case 2:
+                    gabarito[i.toString()] = 'C';
+                    break;
+                  case 3:
+                    gabarito[i.toString()] = 'C';
+                    break;
+                  case 4:
+                    gabarito[i.toString()] = 'B';
+                    break;
+                  case 5:
+                    gabarito[i.toString()] = 'B';
+                    break;
+                  case 6:
+                    gabarito[i.toString()] = 'A';
+                    break;
+                  case 7:
+                    gabarito[i.toString()] = 'C';
+                    break;
+                  case 8:
+                    gabarito[i.toString()] = 'B';
+                    break;
+                  case 9:
+                    gabarito[i.toString()] = 'C';
+                    break;
+                  case 10:
+                    gabarito[i.toString()] = 'C';
+                    break;
+                  default:
+                    gabarito[i.toString()] =
+                        'B'; // Padrão para questões adicionais
+                }
+              }
+              break;
+            case 3:
+              for (int i = 1; i <= numQuestoes; i++) {
+                switch (i) {
+                  case 1:
+                    gabarito[i.toString()] = 'B';
+                    break;
+                  case 2:
+                    gabarito[i.toString()] = 'B';
+                    break;
+                  case 3:
+                    gabarito[i.toString()] = 'B';
+                    break;
+                  case 4:
+                    gabarito[i.toString()] = 'A';
+                    break;
+                  case 5:
+                    gabarito[i.toString()] = 'A';
+                    break;
+                  case 6:
+                    gabarito[i.toString()] = 'E';
+                    break;
+                  case 7:
+                    gabarito[i.toString()] = 'B';
+                    break;
+                  case 8:
+                    gabarito[i.toString()] = 'A';
+                    break;
+                  case 9:
+                    gabarito[i.toString()] = 'B';
+                    break;
+                  case 10:
+                    gabarito[i.toString()] = 'B';
+                    break;
+                  default:
+                    gabarito[i.toString()] =
+                        'C'; // Padrão para questões adicionais
+                }
+              }
+              break;
+            case 4:
+              for (int i = 1; i <= numQuestoes; i++) {
+                switch (i) {
+                  case 1:
+                    gabarito[i.toString()] = 'A';
+                    break;
+                  case 2:
+                    gabarito[i.toString()] = 'A';
+                    break;
+                  case 3:
+                    gabarito[i.toString()] = 'A';
+                    break;
+                  case 4:
+                    gabarito[i.toString()] = 'E';
+                    break;
+                  case 5:
+                    gabarito[i.toString()] = 'E';
+                    break;
+                  case 6:
+                    gabarito[i.toString()] = 'D';
+                    break;
+                  case 7:
+                    gabarito[i.toString()] = 'A';
+                    break;
+                  case 8:
+                    gabarito[i.toString()] = 'E';
+                    break;
+                  case 9:
+                    gabarito[i.toString()] = 'A';
+                    break;
+                  case 10:
+                    gabarito[i.toString()] = 'A';
+                    break;
+                  default:
+                    gabarito[i.toString()] =
+                        'D'; // Padrão para questões adicionais
+                }
+              }
+              break;
+            case 5:
+              for (int i = 1; i <= numQuestoes; i++) {
+                switch (i) {
+                  case 1:
+                    gabarito[i.toString()] = 'E';
+                    break;
+                  case 2:
+                    gabarito[i.toString()] = 'E';
+                    break;
+                  case 3:
+                    gabarito[i.toString()] = 'E';
+                    break;
+                  case 4:
+                    gabarito[i.toString()] = 'D';
+                    break;
+                  case 5:
+                    gabarito[i.toString()] = 'D';
+                    break;
+                  case 6:
+                    gabarito[i.toString()] = 'C';
+                    break;
+                  case 7:
+                    gabarito[i.toString()] = 'E';
+                    break;
+                  case 8:
+                    gabarito[i.toString()] = 'D';
+                    break;
+                  case 9:
+                    gabarito[i.toString()] = 'E';
+                    break;
+                  case 10:
+                    gabarito[i.toString()] = 'E';
+                    break;
+                  default:
+                    gabarito[i.toString()] =
+                        'E'; // Padrão para questões adicionais
+                }
+              }
+              break;
+            default:
+              // Caso padrão, não deve acontecer
+              for (int i = 1; i <= numQuestoes; i++) {
+                gabarito[i.toString()] = 'A';
+              }
+          }
+
+// Calcular a nota com base na pontuação total informada
+          double pontuacaoTotal =
+              double.tryParse(_pontuacaoTotalController.text) ?? 10.0;
+          double valorPorQuestao = pontuacaoTotal / numQuestoes;
+          double notaFinal = 0;
+
+          respostasAluno.forEach((questao, resposta) {
+            if (resposta == gabarito[questao]) {
+              notaFinal += valorPorQuestao;
+            }
+          });
+
+          // Nome do aluno (da propriedade widget.aluno)
+          String nomeAluno = widget.aluno['nome'] ?? 'Aluno';
+          if (nomeAluno.isEmpty) {
+            nomeAluno = 'Aluno';
+          }
+
+          // Navegar para a tela de resultados
+          Navigator.push(
+            // ignore: use_build_context_synchronously
+            context,
+            MaterialPageRoute(
+              builder: (context) => ResultadoScreen(
+                nomeAluno: nomeAluno,
+                notaFinal: notaFinal,
+                respostasAluno: respostasAluno,
+                gabarito: gabarito,
+                tipoProva: _tipoProva,
+                pontuacaoTotal: pontuacaoTotal,
+              ),
+            ),
+          );
+        }
       } else {
         setState(() {
           _mensagemErro =
@@ -216,11 +549,45 @@ class _TelaInicialState extends State<TelaInicial> {
     );
   }
 
+  // Função para fazer logout
+  Future<void> _logout() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('access_token');
+      await prefs.remove('refresh_token');
+      await prefs.remove('user_name');
+      await prefs.remove('user_email');
+
+      if (!mounted) return;
+
+      // Navegar de volta para a tela de login
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false, // Remove todas as rotas anteriores da pilha
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao fazer logout: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Leitor de Cartão Resposta'),
+        actions: [
+          // Botão de logout
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Sair',
+            onPressed: _logout,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -290,6 +657,78 @@ class _TelaInicialState extends State<TelaInicial> {
             ),
 
             const SizedBox(height: 20),
+
+            //Configuração de Prova
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Configurações da Prova',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _pontuacaoTotalController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Pontuação total da prova',
+                              helperText: 'Ex: 10 pontos',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Tipo de Prova:',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          for (int i = 1; i <= 5; i++)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: ChoiceChip(
+                                label: Text('Tipo $i'),
+                                selected: _tipoProva == i,
+                                onSelected: (selected) {
+                                  if (selected) {
+                                    setState(() {
+                                      _tipoProva = i;
+                                    });
+                                  }
+                                },
+                                backgroundColor: Colors.grey[200],
+                                selectedColor: Colors.blue,
+                                labelStyle: TextStyle(
+                                  color: _tipoProva == i
+                                      ? Colors.white
+                                      : Colors.black,
+                                  fontWeight: _tipoProva == i
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
             // Área da imagem
             _imagemSelecionada != null
@@ -508,6 +947,7 @@ class _TelaInicialState extends State<TelaInicial> {
     _numColunasController.dispose();
     _thresholdController.dispose();
     _enderecoIPController.dispose();
+    _pontuacaoTotalController.dispose();
     super.dispose();
   }
 }
