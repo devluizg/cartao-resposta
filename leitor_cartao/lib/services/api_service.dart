@@ -1,3 +1,4 @@
+//api_service.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -463,13 +464,23 @@ class ApiService {
   }
 
   // Get the answer key (gabarito) for a simulado
-  Future<Map<String, String>?> getGabarito(int simuladoId) async {
+  Future<Map<String, String>?> getGabarito(int simuladoId,
+      {required String tipo}) async {
     try {
-      final response =
-          await authorizedRequest('/api/simulados/$simuladoId/gabarito/');
+      // Mapear o tipo da prova do app para a versão correta no backend
+      String versao =
+          'versao$tipo'; // Converte tipo1 para versao1, tipo2 para versao2, etc.
+
+      debugPrint(
+          'Obtendo gabarito para simulado $simuladoId, versão $versao, tipo $tipo');
+
+      final response = await authorizedRequest(
+        '/api/simulados/$simuladoId/gabarito/?versao=$versao&tipo=$tipo',
+      );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        debugPrint('Resposta do gabarito: ${response.body}');
         return Map<String, String>.from(data['gabarito']);
       } else {
         debugPrint(
@@ -487,8 +498,13 @@ class ApiService {
     required int studentId,
     required int simuladoId,
     required Map<String, String> answers,
+    required String tipo, // Adicionado o parâmetro tipo
   }) async {
     try {
+      // Mapear o tipo da prova do app para a versão correta no backend
+      String versao =
+          'versao$tipo'; // Converte tipo1 para versao1, tipo2 para versao2, etc.
+
       final response = await authorizedRequest(
         '/api/simulados/$simuladoId/corrigir/',
         method: 'POST',
@@ -496,6 +512,8 @@ class ApiService {
           'aluno_id': studentId,
           'simulado_id': simuladoId,
           'respostas': answers,
+          'versao': versao, // Adicionado a versão para o backend
+          'tipo_prova': tipo, // Adicionado o tipo de prova
         },
       );
 
@@ -560,8 +578,13 @@ class ApiService {
     required int studentId,
     required int simuladoId,
     required Map<String, String> detectedAnswers,
+    required String tipo, // Adicionado o parâmetro tipo
   }) async {
     try {
+      // Mapear o tipo da prova do app para a versão correta no backend
+      String versao =
+          'versao$tipo'; // Converte tipo1 para versao1, tipo2 para versao2, etc.
+
       final response = await authorizedRequest(
         '/api/procesar-cartao/',
         method: 'POST',
@@ -569,6 +592,8 @@ class ApiService {
           'aluno_id': studentId,
           'simulado_id': simuladoId,
           'respostas': detectedAnswers,
+          'versao': versao, // Adicionado a versão para o backend
+          'tipo_prova': tipo, // Adicionado o tipo de prova
         },
       );
 

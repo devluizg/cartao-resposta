@@ -11,8 +11,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/login_screen.dart';
 // Importar a tela de resultado
 import 'screens/resultado_screen.dart';
+// Importar o serviço de API
+import '../services/api_service.dart';
 
 final Logger _logger = Logger('CartaoRespostaApp');
+final ApiService _apiService = ApiService();
 
 void main() {
   runApp(const CartaoRespostaApp());
@@ -177,6 +180,85 @@ class _TelaInicialState extends State<TelaInicial> {
     }
   }
 
+  // Função para obter o gabarito da API baseado no tipo de prova
+  Future<Map<String, String>?> _obterGabarito() async {
+    try {
+      if (widget.simuladoId <= 0) {
+        // Se não temos um simuladoId válido, use o gabarito local
+        return _getGabaritoLocal();
+      }
+
+      // Obter o gabarito da API
+      final gabarito = await _apiService.getGabarito(
+        widget.simuladoId,
+        tipo: _tipoProva.toString(),
+      );
+
+      if (gabarito != null) {
+        _logger.info('Gabarito obtido da API: $gabarito');
+        return gabarito;
+      } else {
+        _logger.warning('Falha ao obter gabarito da API, usando local');
+        return _getGabaritoLocal();
+      }
+    } catch (e) {
+      _logger.severe('Erro ao obter gabarito: $e');
+      return _getGabaritoLocal();
+    }
+  }
+
+  // Função auxiliar para obter gabarito local (fallback)
+  Map<String, String> _getGabaritoLocal() {
+    int numQuestoes = int.tryParse(_numQuestoesController.text) ?? 10;
+    Map<String, String> gabarito = {};
+
+    // Baseado nos dados do seu código original
+    switch (_tipoProva) {
+      case 1:
+        // Gabarito para o Tipo 1 (Versão 1)
+        final respostas = ['D', 'D', 'D', 'C', 'C', 'B', 'D', 'C', 'D', 'D'];
+        for (int i = 0; i < numQuestoes && i < respostas.length; i++) {
+          gabarito[(i + 1).toString()] = respostas[i];
+        }
+        break;
+      case 2:
+        // Gabarito para o Tipo 2 (Versão 2)
+        final respostas = ['C', 'C', 'C', 'B', 'B', 'A', 'C', 'B', 'C', 'C'];
+        for (int i = 0; i < numQuestoes && i < respostas.length; i++) {
+          gabarito[(i + 1).toString()] = respostas[i];
+        }
+        break;
+      case 3:
+        // Gabarito para o Tipo 3 (Versão 3)
+        final respostas = ['B', 'B', 'B', 'A', 'A', 'E', 'B', 'A', 'B', 'B'];
+        for (int i = 0; i < numQuestoes && i < respostas.length; i++) {
+          gabarito[(i + 1).toString()] = respostas[i];
+        }
+        break;
+      case 4:
+        // Gabarito para o Tipo 4 (Versão 4)
+        final respostas = ['A', 'A', 'A', 'E', 'E', 'D', 'A', 'E', 'A', 'A'];
+        for (int i = 0; i < numQuestoes && i < respostas.length; i++) {
+          gabarito[(i + 1).toString()] = respostas[i];
+        }
+        break;
+      case 5:
+        // Gabarito para o Tipo 5 (Versão 5)
+        final respostas = ['E', 'E', 'E', 'D', 'D', 'C', 'E', 'D', 'E', 'E'];
+        for (int i = 0; i < numQuestoes && i < respostas.length; i++) {
+          gabarito[(i + 1).toString()] = respostas[i];
+        }
+        break;
+      default:
+        // Caso padrão, não deve acontecer
+        for (int i = 1; i <= numQuestoes; i++) {
+          gabarito[i.toString()] = 'A';
+        }
+    }
+
+    return gabarito;
+  }
+
   Future<void> _enviarImagem() async {
     if (_imagemSelecionada == null) {
       setState(() {
@@ -250,10 +332,10 @@ class _TelaInicialState extends State<TelaInicial> {
           }
         });
 
-        // MODIFICAÇÃO: Navegar para a tela de resultados após processar o cartão
+        // Verificar se há respostas detectadas para navegar para a tela de resultados
         if (responseData.containsKey('respostas') &&
             responseData['respostas'] != null) {
-          // Convertendo as respostas para o formato esperado pela ResultadoScreen
+          // Convertendo as respostas para o formato esperado
           Map<String, String> respostasAluno = {};
           if (responseData['respostas'] is Map) {
             responseData['respostas'].forEach((key, value) {
@@ -268,218 +350,22 @@ class _TelaInicialState extends State<TelaInicial> {
             }
           }
 
-          // Gabarito com base no tipo de prova selecionado
-          Map<String, String> gabarito = {};
-          int numQuestoes = int.tryParse(_numQuestoesController.text) ?? 10;
+          // Obter o gabarito correto para o tipo de prova selecionado
+          final gabarito = await _obterGabarito();
 
-// Gabarito para cada tipo de prova
-// Baseado na imagem do gabarito que você compartilhou
-          switch (_tipoProva) {
-            case 1:
-              for (int i = 1; i <= numQuestoes; i++) {
-                switch (i) {
-                  case 1:
-                    gabarito[i.toString()] = 'D';
-                    break;
-                  case 2:
-                    gabarito[i.toString()] = 'D';
-                    break;
-                  case 3:
-                    gabarito[i.toString()] = 'D';
-                    break;
-                  case 4:
-                    gabarito[i.toString()] = 'C';
-                    break;
-                  case 5:
-                    gabarito[i.toString()] = 'C';
-                    break;
-                  case 6:
-                    gabarito[i.toString()] = 'B';
-                    break;
-                  case 7:
-                    gabarito[i.toString()] = 'D';
-                    break;
-                  case 8:
-                    gabarito[i.toString()] = 'C';
-                    break;
-                  case 9:
-                    gabarito[i.toString()] = 'D';
-                    break;
-                  case 10:
-                    gabarito[i.toString()] = 'D';
-                    break;
-                  default:
-                    gabarito[i.toString()] =
-                        'A'; // Padrão para questões adicionais
-                }
-              }
-              break;
-            case 2:
-              for (int i = 1; i <= numQuestoes; i++) {
-                switch (i) {
-                  case 1:
-                    gabarito[i.toString()] = 'C';
-                    break;
-                  case 2:
-                    gabarito[i.toString()] = 'C';
-                    break;
-                  case 3:
-                    gabarito[i.toString()] = 'C';
-                    break;
-                  case 4:
-                    gabarito[i.toString()] = 'B';
-                    break;
-                  case 5:
-                    gabarito[i.toString()] = 'B';
-                    break;
-                  case 6:
-                    gabarito[i.toString()] = 'A';
-                    break;
-                  case 7:
-                    gabarito[i.toString()] = 'C';
-                    break;
-                  case 8:
-                    gabarito[i.toString()] = 'B';
-                    break;
-                  case 9:
-                    gabarito[i.toString()] = 'C';
-                    break;
-                  case 10:
-                    gabarito[i.toString()] = 'C';
-                    break;
-                  default:
-                    gabarito[i.toString()] =
-                        'B'; // Padrão para questões adicionais
-                }
-              }
-              break;
-            case 3:
-              for (int i = 1; i <= numQuestoes; i++) {
-                switch (i) {
-                  case 1:
-                    gabarito[i.toString()] = 'B';
-                    break;
-                  case 2:
-                    gabarito[i.toString()] = 'B';
-                    break;
-                  case 3:
-                    gabarito[i.toString()] = 'B';
-                    break;
-                  case 4:
-                    gabarito[i.toString()] = 'A';
-                    break;
-                  case 5:
-                    gabarito[i.toString()] = 'A';
-                    break;
-                  case 6:
-                    gabarito[i.toString()] = 'E';
-                    break;
-                  case 7:
-                    gabarito[i.toString()] = 'B';
-                    break;
-                  case 8:
-                    gabarito[i.toString()] = 'A';
-                    break;
-                  case 9:
-                    gabarito[i.toString()] = 'B';
-                    break;
-                  case 10:
-                    gabarito[i.toString()] = 'B';
-                    break;
-                  default:
-                    gabarito[i.toString()] =
-                        'C'; // Padrão para questões adicionais
-                }
-              }
-              break;
-            case 4:
-              for (int i = 1; i <= numQuestoes; i++) {
-                switch (i) {
-                  case 1:
-                    gabarito[i.toString()] = 'A';
-                    break;
-                  case 2:
-                    gabarito[i.toString()] = 'A';
-                    break;
-                  case 3:
-                    gabarito[i.toString()] = 'A';
-                    break;
-                  case 4:
-                    gabarito[i.toString()] = 'E';
-                    break;
-                  case 5:
-                    gabarito[i.toString()] = 'E';
-                    break;
-                  case 6:
-                    gabarito[i.toString()] = 'D';
-                    break;
-                  case 7:
-                    gabarito[i.toString()] = 'A';
-                    break;
-                  case 8:
-                    gabarito[i.toString()] = 'E';
-                    break;
-                  case 9:
-                    gabarito[i.toString()] = 'A';
-                    break;
-                  case 10:
-                    gabarito[i.toString()] = 'A';
-                    break;
-                  default:
-                    gabarito[i.toString()] =
-                        'D'; // Padrão para questões adicionais
-                }
-              }
-              break;
-            case 5:
-              for (int i = 1; i <= numQuestoes; i++) {
-                switch (i) {
-                  case 1:
-                    gabarito[i.toString()] = 'E';
-                    break;
-                  case 2:
-                    gabarito[i.toString()] = 'E';
-                    break;
-                  case 3:
-                    gabarito[i.toString()] = 'E';
-                    break;
-                  case 4:
-                    gabarito[i.toString()] = 'D';
-                    break;
-                  case 5:
-                    gabarito[i.toString()] = 'D';
-                    break;
-                  case 6:
-                    gabarito[i.toString()] = 'C';
-                    break;
-                  case 7:
-                    gabarito[i.toString()] = 'E';
-                    break;
-                  case 8:
-                    gabarito[i.toString()] = 'D';
-                    break;
-                  case 9:
-                    gabarito[i.toString()] = 'E';
-                    break;
-                  case 10:
-                    gabarito[i.toString()] = 'E';
-                    break;
-                  default:
-                    gabarito[i.toString()] =
-                        'E'; // Padrão para questões adicionais
-                }
-              }
-              break;
-            default:
-              // Caso padrão, não deve acontecer
-              for (int i = 1; i <= numQuestoes; i++) {
-                gabarito[i.toString()] = 'A';
-              }
+          if (gabarito == null) {
+            setState(() {
+              _mensagemErro =
+                  "Erro ao obter o gabarito. Verifique sua conexão.";
+              _enviando = false;
+            });
+            return;
           }
 
-// Calcular a nota com base na pontuação total informada
+          // Calcular a nota
           double pontuacaoTotal =
               double.tryParse(_pontuacaoTotalController.text) ?? 10.0;
+          int numQuestoes = gabarito.length;
           double valorPorQuestao = pontuacaoTotal / numQuestoes;
           double notaFinal = 0;
 
@@ -489,13 +375,14 @@ class _TelaInicialState extends State<TelaInicial> {
             }
           });
 
-          // Nome do aluno (da propriedade widget.aluno)
+          // Nome do aluno
           String nomeAluno = widget.aluno['nome'] ?? 'Aluno';
           if (nomeAluno.isEmpty) {
             nomeAluno = 'Aluno';
           }
 
           // Navegar para a tela de resultados
+          // ignore: use_build_context_synchronously
           Navigator.push(
             // ignore: use_build_context_synchronously
             context,
