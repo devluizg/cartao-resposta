@@ -573,6 +573,44 @@ class ApiService {
     }
   }
 
+// Send student results back to the Django website
+  Future<bool> submitStudentResults({
+    required int studentId,
+    required int simuladoId,
+    required String versao,
+    required double nota,
+    required Map<String, String> respostasAluno,
+    required Map<String, String> gabarito,
+  }) async {
+    try {
+      final response = await authorizedRequest(
+        '/api/resultados/submit/',
+        method: 'POST',
+        body: {
+          'aluno_id': studentId,
+          'simulado_id': simuladoId,
+          'versao': versao,
+          'nota_final': nota,
+          'respostas_aluno': respostasAluno,
+          'gabarito': gabarito,
+          'percentual_acerto': (nota / 10 * 100).toStringAsFixed(1),
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        debugPrint('Results successfully submitted to the website');
+        return true;
+      } else {
+        debugPrint(
+            'Failed to submit results: ${response.statusCode} - ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Exception submitting results: $e');
+      return false;
+    }
+  }
+
   // Combine processing results with Django backend
   Future<ResultadoModel?> processAndSubmitAnswers({
     required int studentId,

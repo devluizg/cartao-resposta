@@ -418,6 +418,64 @@ class MultiColumnCartaoAnalyzer:
         self.analyzer = analyzer
         self.alternativas = ['A', 'B', 'C', 'D', 'E']
     
+    def criar_visualizacao_simplificada(self, clean_image, resultados, binary):
+        """
+        Cria uma visualização simplificada do cartão resposta com apenas círculos verdes
+        nas alternativas marcadas.
+        
+        Args:
+            clean_image: Imagem para desenhar as marcações
+            resultados: Dicionário com os resultados detectados
+            binary: Imagem binária para detecção das bolhas
+        """
+        # Garantir que binary esteja na faixa correta
+        if binary.max() <= 1.0:
+            binary_proc = (binary * 255).astype(np.uint8)
+        else:
+            binary_proc = binary.copy()
+            
+        # Detectar todas as bolhas para obter suas coordenadas
+        bolhas, _ = detectar_bolhas_avancado(binary_proc, None, sensitivity=0.1)
+        
+        # Agrupar bolhas por questões
+        num_questoes = len(resultados)
+        questoes_agrupadas = agrupar_bolhas_por_questoes(bolhas, num_questoes, 5)
+        
+        # Para cada questão com resposta detectada, marcar a bolha correspondente
+        for num_questao, resposta in resultados.items():
+            if resposta is None or '?' in str(resposta):
+                continue  # Pular questões sem respostas claras
+                
+            idx_questao = int(num_questao) - 1
+            if idx_questao < 0 or idx_questao >= len(questoes_agrupadas):
+                continue  # Verificação de segurança
+                
+            # Obter bolhas desta questão
+            bolhas_questao = questoes_agrupadas[idx_questao]
+            if not bolhas_questao:
+                continue
+                
+            # Encontrar índice da alternativa marcada (A=0, B=1, C=2, D=3, E=4)
+            try:
+                alt_index = self.alternativas.index(resposta[0] if isinstance(resposta, str) else resposta)
+            except ValueError:
+                continue  # Alternativa inválida
+                
+            # Verificar se o índice da alternativa está dentro dos limites
+            if alt_index < 0 or alt_index >= len(bolhas_questao):
+                continue
+                
+            # Obter a bolha correspondente à alternativa marcada
+            bolha = bolhas_questao[alt_index]
+            
+            # Desenhar um círculo verde sobre a alternativa marcada
+            cv2.circle(clean_image, 
+                    (bolha['centro'][0], bolha['centro'][1]), 
+                    bolha['radius'], 
+                    (0, 255, 0),  # Cor verde
+                    -1)  # Preenchido
+
+    # Modificar o método analisar_cartao_multicolunas da classe MultiColumnCartaoAnalyzer
     def analisar_cartao_multicolunas(self, image, binary, debug_image, num_questoes, num_colunas, sensitivity, threshold=150, return_debug_image=False):
         """
         Analisa um cartão resposta com múltiplas colunas
@@ -438,25 +496,26 @@ class MultiColumnCartaoAnalyzer:
         """
         h, w = binary.shape
         resultados = {}
+        
+        # Criar uma cópia limpa da imagem original para a visualização simplificada
+        clean_image = image.copy()
+        clean_debug = cv2.cvtColor(clean_image, cv2.COLOR_BGR2RGB)
 
         if num_colunas <= 1:
             resultados = self.analyzer.analisar_cartao_melhorado(image, binary, debug_image,
                                                             num_questoes, num_colunas, sensitivity)
+            
+            # Criar a visualização simplificada após processar os resultados
+            self.criar_visualizacao_simplificada(clean_debug, resultados, binary)
+            
             if return_debug_image:
-                return resultados, debug_image
+                return resultados, clean_debug
             return resultados
 
         # Obter regiões das colunas
         regioes_colunas = segmentar_colunas_com_bordas(binary, num_colunas)
 
-        # 🟩 VISUALIZAÇÃO: desenhar linhas verticais dos cortes das colunas
-        for idx, (x_inicio, x_fim) in enumerate(regioes_colunas):
-            cv2.line(debug_image, (x_inicio, 0), (x_inicio, h), (0, 255, 0), 2)
-            cv2.putText(debug_image, f"Coluna {idx+1}", (x_inicio + 10, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-        # Linha final (último x_fim)
-        cv2.line(debug_image, (regioes_colunas[-1][1], 0), (regioes_colunas[-1][1], h), (0, 255, 0), 2)
-
+        # Resto do código original para processar as colunas
         # Distribuir questões entre colunas
         if num_colunas == 2:
             questoes_por_coluna = [(num_questoes + 1) // 2, num_questoes // 2]
@@ -488,22 +547,20 @@ class MultiColumnCartaoAnalyzer:
                 
             coluna_bin = binary[:, x_inicio:x_fim]
             coluna_img = image[:, x_inicio:x_fim].copy()
-            coluna_debug = debug_image[:, x_inicio:x_fim]  # CORREÇÃO: Criar cópia da região de debug
+            coluna_debug = debug_image[:, x_inicio:x_fim]  
             
             questoes_nesta_coluna = questoes_por_coluna[idx]
 
             if questoes_nesta_coluna <= 0:
                 continue
 
-            # CORREÇÃO: Usar debug_image específico para esta coluna
             resultados_coluna = self.analyzer.analisar_cartao_melhorado(
                 coluna_img,
                 coluna_bin,
-                coluna_debug,  # CORREÇÃO: Usar a região correta para debug
+                coluna_debug,
                 questoes_nesta_coluna, 1, sensitivity
             )
 
-            # CORREÇÃO: Atualizar region do debug_image original com as alterações
             debug_image[:, x_inicio:x_fim] = coluna_debug
             
             # Mapear resultados para questão global
@@ -518,7 +575,10 @@ class MultiColumnCartaoAnalyzer:
             if q not in resultados:
                 resultados[q] = None
 
+        # Criar a visualização simplificada após processar todas as colunas
+        self.criar_visualizacao_simplificada(clean_debug, resultados, binary)
+        
         if return_debug_image:
-            return resultados, debug_image
+            return resultados, clean_debug
 
         return resultados

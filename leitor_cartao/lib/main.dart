@@ -6,11 +6,11 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:logging/logging.dart' show Logger;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'screens/cartao_resposta_preview_screen.dart';
 
 // Importar a tela de login
 import 'screens/login_screen.dart';
 // Importar a tela de resultado
-import 'screens/resultado_screen.dart';
 // Importar o serviço de API
 import '../services/api_service.dart';
 
@@ -113,10 +113,8 @@ class _TelaInicialState extends State<TelaInicial> {
   final ImagePicker _picker = ImagePicker();
   bool _enviando = false;
   String? _mensagemErro;
-  Map<String, dynamic>? _resultados;
 
   Uint8List? _imagemOriginalProcessada;
-  Uint8List? _imagemBinarizada;
   bool _temImagensProcessadas = false;
 
   final TextEditingController _numQuestoesController =
@@ -145,7 +143,6 @@ class _TelaInicialState extends State<TelaInicial> {
         setState(() {
           _imagemSelecionada = File(imagem.path);
           _mensagemErro = null;
-          _resultados = null;
           _temImagensProcessadas = false;
         });
       }
@@ -169,7 +166,6 @@ class _TelaInicialState extends State<TelaInicial> {
         setState(() {
           _imagemSelecionada = File(imagem.path);
           _mensagemErro = null;
-          _resultados = null;
           _temImagensProcessadas = false;
         });
       }
@@ -270,7 +266,6 @@ class _TelaInicialState extends State<TelaInicial> {
     setState(() {
       _enviando = true;
       _mensagemErro = null;
-      _resultados = null;
       _temImagensProcessadas = false;
     });
 
@@ -309,22 +304,19 @@ class _TelaInicialState extends State<TelaInicial> {
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
         setState(() {
-          _resultados = responseData;
           _enviando = false;
 
-          // Modificação aqui - verificar de forma mais robusta a existência das imagens
+          // Verificar de forma mais robusta a existência das imagens
           _temImagensProcessadas =
-              responseData.containsKey('imagem_original_base64') &&
-                  responseData.containsKey('imagem_binaria_base64') &&
-                  responseData['imagem_original_base64'] != null &&
-                  responseData['imagem_binaria_base64'] != null;
+              responseData.containsKey('imagem_processada_base64') &&
+                  responseData.containsKey('imagem_processada_base64') &&
+                  responseData['imagem_processada_base64'] != null &&
+                  responseData['imagem_processada_base64'] != null;
 
           if (_temImagensProcessadas) {
             try {
               _imagemOriginalProcessada =
-                  base64Decode(responseData['imagem_original_base64']);
-              _imagemBinarizada =
-                  base64Decode(responseData['imagem_binaria_base64']);
+                  base64Decode(responseData['imagem_processada_base64']);
             } catch (e) {
               _temImagensProcessadas = false;
               _logger.warning('Erro ao decodificar imagens: $e');
@@ -381,22 +373,50 @@ class _TelaInicialState extends State<TelaInicial> {
             nomeAluno = 'Aluno';
           }
 
-          // Navegar para a tela de resultados
-          // ignore: use_build_context_synchronously
-          Navigator.push(
+          // ALTERAÇÃO: Sempre navegar para a tela de preview do cartão resposta
+          if (_imagemOriginalProcessada != null) {
             // ignore: use_build_context_synchronously
-            context,
-            MaterialPageRoute(
-              builder: (context) => ResultadoScreen(
-                nomeAluno: nomeAluno,
-                notaFinal: notaFinal,
-                respostasAluno: respostasAluno,
-                gabarito: gabarito,
-                tipoProva: _tipoProva,
-                pontuacaoTotal: pontuacaoTotal,
+            Navigator.push(
+              // ignore: use_build_context_synchronously
+              context,
+              MaterialPageRoute(
+                builder: (context) => CartaoRespostaPreviewScreen(
+                  imagemProcessada: _imagemOriginalProcessada!,
+                  respostasAluno: respostasAluno,
+                  gabarito: gabarito,
+                  nomeAluno: nomeAluno,
+                  notaFinal: notaFinal,
+                  tipoProva: _tipoProva,
+                  pontuacaoTotal: pontuacaoTotal,
+                  alunoId: widget.alunoId,
+                  simuladoId: widget.simuladoId,
+                  turmaId: widget.turmaId,
+                  nomeTurma: widget.aluno['name'] ??
+                      '', // Ajuste o nome do campo se necessário
+                  nomeSimulado: widget.simulado['titulo'] ?? '',
+                ),
               ),
-            ),
-          );
+            );
+          } else {
+            // Mesmo se a imagem processada não estiver disponível,
+            // tente usar a imagem original como fallback
+            // ignore: use_build_context_synchronously
+            Navigator.push(
+              // ignore: use_build_context_synchronously
+              context,
+              MaterialPageRoute(
+                builder: (context) => CartaoRespostaPreviewScreen(
+                  imagemProcessada: imgBytes,
+                  respostasAluno: respostasAluno,
+                  gabarito: gabarito,
+                  nomeAluno: nomeAluno,
+                  notaFinal: notaFinal,
+                  tipoProva: _tipoProva,
+                  pontuacaoTotal: pontuacaoTotal,
+                ),
+              ),
+            );
+          }
         }
       } else {
         setState(() {
@@ -411,29 +431,6 @@ class _TelaInicialState extends State<TelaInicial> {
         _enviando = false;
       });
     }
-  }
-
-  void _visualizarProcessamento() {
-    if (_imagemOriginalProcessada == null || _imagemBinarizada == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'As imagens processadas não estão disponíveis. Tente processar novamente.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ImagensProcessadasScreen(
-          imagemOriginal: _imagemOriginalProcessada!,
-          imagemBinaria: _imagemBinarizada!,
-        ),
-      ),
-    );
   }
 
   // Função para fazer logout
@@ -685,23 +682,6 @@ class _TelaInicialState extends State<TelaInicial> {
 
             const SizedBox(height: 10),
 
-            // Botão para visualizar processamento
-            ElevatedButton.icon(
-              onPressed: (_imagemOriginalProcessada != null &&
-                      _imagemBinarizada != null)
-                  ? _visualizarProcessamento
-                  : null,
-              icon: const Icon(Icons.image_search),
-              label: const Text('Ver Processamento'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: Colors.grey.shade300,
-                disabledForegroundColor: Colors.grey.shade600,
-              ),
-            ),
-
             // Exibição de erro
             if (_mensagemErro != null)
               Container(
@@ -716,116 +696,10 @@ class _TelaInicialState extends State<TelaInicial> {
                   style: TextStyle(color: Colors.red[900]),
                 ),
               ),
-
-            // Exibição dos resultados
-            if (_resultados != null)
-              Container(
-                margin: const EdgeInsets.only(top: 20),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.blue),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Resultados:',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    // Verificar se existe a chave 'respostas'
-                    if (_resultados!.containsKey('respostas'))
-                      ..._exibirRespostas(_resultados!['respostas'])
-                    else
-                      Text(
-                        _resultados.toString(),
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                  ],
-                ),
-              ),
           ],
         ),
       ),
     );
-  }
-
-  List<Widget> _exibirRespostas(dynamic respostas) {
-    List<Widget> widgets = [];
-
-    if (respostas is Map) {
-      // Ordenar as questões numericamente
-      List chaves = respostas.keys.toList();
-      chaves.sort((a, b) => int.parse(a).compareTo(int.parse(b)));
-
-      // Para cada questão, exibir o número e a resposta
-      for (var numero in chaves) {
-        var resposta = respostas[numero];
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4.0),
-            child: Row(
-              children: [
-                Text(
-                  'Questão $numero: ',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  resposta != null ? resposta.toString() : 'Não detectada',
-                  style: TextStyle(
-                    color: resposta == null
-                        ? Colors.red
-                        : (resposta.toString().contains('?')
-                            ? Colors.orange
-                            : Colors.black),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }
-    } else if (respostas is List) {
-      // Se for uma lista, exibir cada item numerado
-      for (int i = 0; i < respostas.length; i++) {
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4.0),
-            child: Row(
-              children: [
-                Text(
-                  'Questão ${i + 1}: ',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  respostas[i] != null
-                      ? respostas[i].toString()
-                      : 'Não detectada',
-                  style: TextStyle(
-                    color: respostas[i] == null
-                        ? Colors.red
-                        : (respostas[i].toString().contains('?')
-                            ? Colors.orange
-                            : Colors.black),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }
-    } else {
-      // Caso o formato seja desconhecido
-      widgets.add(Text(respostas.toString()));
-    }
-
-    return widgets;
   }
 
   @override
