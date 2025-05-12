@@ -418,81 +418,90 @@ class MultiColumnCartaoAnalyzer:
         self.analyzer = analyzer
         self.alternativas = ['A', 'B', 'C', 'D', 'E']
     
-    def criar_visualizacao_simplificada(self, clean_image, resultados, binary):
-        """
-        Cria uma visualização simplificada do cartão resposta com apenas círculos verdes
-        nas alternativas marcadas.
+    def criar_visualizacao_simplificada(self, clean_image, resultados, binary, num_colunas):
+        # Não processar todas as bolhas juntas
+        h, w = binary.shape
         
-        Args:
-            clean_image: Imagem para desenhar as marcações
-            resultados: Dicionário com os resultados detectados
-            binary: Imagem binária para detecção das bolhas
-        """
-        # Garantir que binary esteja na faixa correta
-        if binary.max() <= 1.0:
-            binary_proc = (binary * 255).astype(np.uint8)
-        else:
-            binary_proc = binary.copy()
-            
-        # Detectar todas as bolhas para obter suas coordenadas
-        bolhas, _ = detectar_bolhas_avancado(binary_proc, None, sensitivity=0.1)
+        # Obter regiões das colunas como na função principal
+        regioes_colunas = segmentar_colunas_com_bordas(binary, num_colunas)
         
-        # Agrupar bolhas por questões
+        # Distribuir questões entre colunas (como na função principal)
         num_questoes = len(resultados)
-        questoes_agrupadas = agrupar_bolhas_por_questoes(bolhas, num_questoes, 5)
+        if num_colunas == 2:
+            questoes_por_coluna = [(num_questoes + 1) // 2, num_questoes // 2]
+        elif num_colunas == 3:
+            base = num_questoes // 3
+            resto = num_questoes % 3
+            questoes_por_coluna = [base + (1 if i < resto else 0) for i in range(3)]
+        else:
+            base = num_questoes // num_colunas
+            resto = num_questoes % num_colunas
+            questoes_por_coluna = [base + (1 if i < resto else 0) for i in range(num_colunas)]
         
-        # Para cada questão com resposta detectada, marcar a bolha correspondente
-        for num_questao, resposta in resultados.items():
-            if resposta is None or '?' in str(resposta):
-                continue  # Pular questões sem respostas claras
+        questao_atual = 1
+        
+        # Processar cada coluna separadamente
+        for idx, (x_inicio, x_fim) in enumerate(regioes_colunas):
+            if idx >= len(questoes_por_coluna):
+                break
                 
-            idx_questao = int(num_questao) - 1
-            if idx_questao < 0 or idx_questao >= len(questoes_agrupadas):
-                continue  # Verificação de segurança
-                
-            # Obter bolhas desta questão
-            bolhas_questao = questoes_agrupadas[idx_questao]
-            if not bolhas_questao:
-                continue
-                
-            # Encontrar índice da alternativa marcada (A=0, B=1, C=2, D=3, E=4)
-            try:
-                alt_index = self.alternativas.index(resposta[0] if isinstance(resposta, str) else resposta)
-            except ValueError:
-                continue  # Alternativa inválida
-                
-            # Verificar se o índice da alternativa está dentro dos limites
-            if alt_index < 0 or alt_index >= len(bolhas_questao):
-                continue
-                
-            # Obter a bolha correspondente à alternativa marcada
-            bolha = bolhas_questao[alt_index]
+            x_inicio = max(0, min(x_inicio, w-1))
+            x_fim = max(0, min(x_fim, w))
             
-            # Desenhar um círculo verde sobre a alternativa marcada
-            cv2.circle(clean_image, 
-                    (bolha['centro'][0], bolha['centro'][1]), 
-                    bolha['radius'], 
-                    (0, 255, 0),  # Cor verde
-                    -1)  # Preenchido
+            if x_fim <= x_inicio:
+                continue
+                
+            coluna_bin = binary[:, x_inicio:x_fim]
+            
+            # Processar apenas as bolhas desta coluna
+            if coluna_bin.max() <= 1.0:
+                coluna_bin_proc = (coluna_bin * 255).astype(np.uint8)
+            else:
+                coluna_bin_proc = coluna_bin.copy()
+                
+            bolhas_coluna, _ = detectar_bolhas_avancado(coluna_bin_proc, None, sensitivity=0.1)
+            
+            # Ajustar as coordenadas X das bolhas para o contexto global
+            for bolha in bolhas_coluna:
+                bolha['x'] += x_inicio
+                if 'centro' in bolha:
+                    cx, cy = bolha['centro']
+                    bolha['centro'] = (cx + x_inicio, cy)
+            
+            # Agrupar bolhas desta coluna por questões
+            questoes_nesta_coluna = questoes_por_coluna[idx]
+            questoes_agrupadas = agrupar_bolhas_por_questoes(bolhas_coluna, questoes_nesta_coluna, 5)
+            
+            # Marcar as bolhas desta coluna
+            for i, bolhas_questao in enumerate(questoes_agrupadas):
+                num_questao = questao_atual + i
+                resposta = resultados.get(num_questao)
+                
+                if resposta is None or '?' in str(resposta):
+                    continue
+                    
+                try:
+                    alt_index = self.alternativas.index(resposta[0] if isinstance(resposta, str) else resposta)
+                except ValueError:
+                    continue
+                    
+                if alt_index < 0 or alt_index >= len(bolhas_questao):
+                    continue
+                    
+                bolha = bolhas_questao[alt_index]
+                
+                # Desenhar um círculo verde sobre a alternativa marcada
+                cv2.circle(clean_image, 
+                        (bolha['centro'][0], bolha['centro'][1]), 
+                        bolha['radius'], 
+                        (0, 255, 0),  # Cor verde
+                        -1)  # Preenchido
+            
+            questao_atual += questoes_nesta_coluna
 
-    # Modificar o método analisar_cartao_multicolunas da classe MultiColumnCartaoAnalyzer
     def analisar_cartao_multicolunas(self, image, binary, debug_image, num_questoes, num_colunas, sensitivity, threshold=150, return_debug_image=False):
         """
         Analisa um cartão resposta com múltiplas colunas
-
-        Args:
-            image: Imagem original do cartão
-            binary: Imagem binária processada
-            debug_image: Imagem para debug
-            num_questoes: Número total de questões
-            num_colunas: Número de colunas no cartão
-            sensitivity: Sensibilidade para detecção de marcações (0-1)
-            threshold: Valor de limiar para binarização da imagem (padrão: 150)
-            return_debug_image: Se True, retorna também a imagem de debug (padrão: False)
-
-        Returns:
-            resultados: Dicionário com resultados para todas as questões
-            debug_image: A imagem com as marcações de debug (apenas se return_debug_image=True)
         """
         h, w = binary.shape
         resultados = {}
@@ -502,11 +511,11 @@ class MultiColumnCartaoAnalyzer:
         clean_debug = cv2.cvtColor(clean_image, cv2.COLOR_BGR2RGB)
 
         if num_colunas <= 1:
-            resultados = self.analyzer.analisar_cartao_melhorado(image, binary, debug_image,
-                                                            num_questoes, num_colunas, sensitivity)
-            
+            resultados = self.analyzer.analisar_cartao_melhorado(
+                image, binary, debug_image, num_questoes, num_colunas, sensitivity
+            )
             # Criar a visualização simplificada após processar os resultados
-            self.criar_visualizacao_simplificada(clean_debug, resultados, binary)
+            self.criar_visualizacao_simplificada(clean_debug, resultados, binary, num_colunas)
             
             if return_debug_image:
                 return resultados, clean_debug
@@ -515,7 +524,6 @@ class MultiColumnCartaoAnalyzer:
         # Obter regiões das colunas
         regioes_colunas = segmentar_colunas_com_bordas(binary, num_colunas)
 
-        # Resto do código original para processar as colunas
         # Distribuir questões entre colunas
         if num_colunas == 2:
             questoes_por_coluna = [(num_questoes + 1) // 2, num_questoes // 2]
@@ -536,12 +544,11 @@ class MultiColumnCartaoAnalyzer:
             if idx >= len(questoes_por_coluna):
                 break
 
-            # CORREÇÃO: Criar uma região segura para a coluna
             # Garantir que as coordenadas estejam dentro dos limites da imagem
             x_inicio = max(0, min(x_inicio, w-1))
             x_fim = max(0, min(x_fim, w))
             
-            # CORREÇÃO: Somente processar se a coluna tiver largura válida
+            # Somente processar se a coluna tiver largura válida
             if x_fim <= x_inicio:
                 continue
                 
@@ -576,7 +583,7 @@ class MultiColumnCartaoAnalyzer:
                 resultados[q] = None
 
         # Criar a visualização simplificada após processar todas as colunas
-        self.criar_visualizacao_simplificada(clean_debug, resultados, binary)
+        self.criar_visualizacao_simplificada(clean_debug, resultados, binary, num_colunas)
         
         if return_debug_image:
             return resultados, clean_debug
