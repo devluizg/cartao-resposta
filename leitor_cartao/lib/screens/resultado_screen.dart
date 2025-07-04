@@ -1,4 +1,3 @@
-//resultado_screen.dart
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
@@ -25,11 +24,11 @@ class ResultadoScreen extends StatefulWidget {
     required this.gabarito,
     this.tipoProva = 1,
     this.pontuacaoTotal = 10.0,
-    this.alunoId, // Campo para o ID do aluno
-    this.simuladoId, // Campo para o ID do simulado
-    this.turmaId, // Campo para o ID da turma
-    this.nomeTurma, // Campo para o nome da turma
-    this.nomeSimulado, // Campo para o nome do simulado
+    this.alunoId,
+    this.simuladoId,
+    this.turmaId,
+    this.nomeTurma,
+    this.nomeSimulado,
   });
 
   @override
@@ -40,6 +39,35 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
   bool _isSubmitting = false;
   bool _hasSubmitted = false;
   String _submissionMessage = '';
+
+  // Paleta de cores baseada no site
+  static const Color primaryColor = Color(0xFF00A4D9); // Ciano vibrante
+  static const Color secondaryColor = Color(0xFF434891); // Índigo profundo
+  static const Color bgDark = Color(0xFF121425); // Fundo ultra escuro
+  static const Color bgSurface = Color(0xFF1D203A); // Superfícies
+  static const Color borderColor = Color(0xFF31355B); // Bordas
+  static const Color textLight = Color(0xFFE0E6F1); // Texto claro
+  static const Color textMuted = Color(0xFF8C96C3); // Texto secundário
+  static const Color successColor = Color(0xFF2DD8A3); // Verde de sucesso
+  static const Color dangerColor = Color(0xFFE94B6A); // Vermelho de erro
+
+  @override
+  void initState() {
+    super.initState();
+    // Enviar resultados automaticamente após a tela carregar
+    _autoSubmitResults();
+  }
+
+  // Novo método para envio automático
+  Future<void> _autoSubmitResults() async {
+    // Aguardar um pouco para a tela carregar completamente
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // Verificar se temos os dados necessários e ainda não enviou
+    if (widget.alunoId != null && widget.simuladoId != null && !_hasSubmitted) {
+      await _submitResultsToWebsite();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,283 +82,690 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
     final double percentualAcerto =
         totalQuestoes > 0 ? (questoesAcertadas / totalQuestoes) * 100 : 0;
 
-    // Verificar se temos os dados necessários para submissão
-    final bool canSubmit =
-        widget.alunoId != null && widget.simuladoId != null && !_hasSubmitted;
-
     return Scaffold(
+      backgroundColor: bgDark,
       appBar: AppBar(
-        title: const Text('Resultado do Aluno'),
-        actions: [
-          // Botão de compartilhar na app bar
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: () {
-              // Implementar funcionalidade de compartilhamento
-              _shareResults();
-            },
-            tooltip: 'Compartilhar resultados',
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        elevation: 0,
+        backgroundColor: bgSurface,
+        foregroundColor: textLight,
+        title: Row(
           children: [
-            Card(
-              elevation: 4,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Aluno: ${widget.nomeAluno}',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        // Status de envio
-                        if (_hasSubmitted)
-                          Chip(
-                            label: const Text('Enviado'),
-                            avatar: const Icon(Icons.check, size: 16),
-                            backgroundColor: Colors.green.withOpacity(0.2),
-                            labelStyle: const TextStyle(color: Colors.green),
-                          ),
-                      ],
-                    ),
-                    if (widget.nomeTurma != null) ...[
-                      const SizedBox(height: 5),
-                      Text(
-                        'Turma: ${widget.nomeTurma}',
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                    ],
-                    if (widget.nomeSimulado != null) ...[
-                      const SizedBox(height: 5),
-                      Text(
-                        'Simulado: ${widget.nomeSimulado}',
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    // Mostrar o tipo de prova
-                    Text(
-                      'Versão da Prova: ${widget.tipoProva}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    // Exibir a nota final formatada com 1 casa decimal
-                    Row(
-                      children: [
-                        const Text(
-                          'Nota Final: ',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          '${widget.notaFinal.toStringAsFixed(1)} de ${widget.pontuacaoTotal}',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color:
-                                widget.notaFinal >= (widget.pontuacaoTotal / 2)
-                                    ? Colors.green
-                                    : Colors.red,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 5),
-                    // Exibir percentual de acerto
-                    Row(
-                      children: [
-                        const Text(
-                          'Acertos: ',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                        Text(
-                          '$questoesAcertadas de $totalQuestoes (${percentualAcerto.toStringAsFixed(1)}%)',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: percentualAcerto >= 60
-                                ? Colors.green
-                                : Colors.red,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [primaryColor, secondaryColor],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.assessment,
+                color: Colors.white,
+                size: 20,
               ),
             ),
-
-            // Mostrar mensagem de submissão se houver
-            if (_submissionMessage.isNotEmpty)
-              Container(
-                margin: const EdgeInsets.only(top: 16),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: _hasSubmitted
-                      ? Colors.green.withOpacity(0.1)
-                      : Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: _hasSubmitted ? Colors.green : Colors.red,
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      _hasSubmitted ? Icons.check_circle : Icons.error,
-                      color: _hasSubmitted ? Colors.green : Colors.red,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _submissionMessage,
-                        style: TextStyle(
-                          color: _hasSubmitted ? Colors.green : Colors.red,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-            // Botão para enviar resultados para o site
-            if (canSubmit || _hasSubmitted)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16.0),
-                child: ElevatedButton.icon(
-                  onPressed: (_isSubmitting || _hasSubmitted)
-                      ? null
-                      : _submitResultsToWebsite,
-                  icon: _isSubmitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Icon(_hasSubmitted ? Icons.check : Icons.cloud_upload),
-                  label: Text(_isSubmitting
-                      ? 'Enviando...'
-                      : _hasSubmitted
-                          ? 'Resultados Enviados'
-                          : 'Enviar Resultados para o Site'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _hasSubmitted ? Colors.grey : Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    disabledBackgroundColor:
-                        _hasSubmitted ? Colors.green.withOpacity(0.6) : null,
-                  ),
-                ),
-              ),
-
-            const SizedBox(height: 12),
+            const SizedBox(width: 12),
             const Text(
-              'Detalhamento por questão:',
+              'Resultado do Aluno',
               style: TextStyle(
-                fontSize: 18,
                 fontWeight: FontWeight.bold,
+                fontSize: 20,
+                color: textLight,
               ),
             ),
-            const SizedBox(height: 10),
+          ],
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            color: borderColor,
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Área de scroll contínuo
             Expanded(
-              child: ListView.builder(
-                itemCount: widget.gabarito.length,
-                itemBuilder: (context, index) {
-                  final numeroQuestao = (index + 1).toString();
-                  final respostaCorreta = widget.gabarito[numeroQuestao] ?? '-';
-                  final respostaAluno =
-                      widget.respostasAluno[numeroQuestao] ?? 'Não respondida';
-                  final bool acertou = respostaAluno == respostaCorreta;
-
-                  // Calcular valor da questão com base na pontuação total
-                  final double valorQuestao =
-                      widget.pontuacaoTotal / widget.gabarito.length;
-
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: acertou ? Colors.green : Colors.red,
-                        child: Text(numeroQuestao),
-                      ),
-                      title: Text('Sua resposta: $respostaAluno'),
-                      subtitle: Text('Correta: $respostaCorreta'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Exibir pontuação da questão
-                          Text(
-                            acertou
-                                ? '+${valorQuestao.toStringAsFixed(1)}'
-                                : '0,0',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: acertou ? Colors.green : Colors.red,
-                            ),
+              child: CustomScrollView(
+                slivers: [
+                  // Header com informações do aluno
+                  SliverToBoxAdapter(
+                    child: Container(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [secondaryColor, primaryColor],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            acertou ? Icons.check : Icons.close,
-                            color: acertou ? Colors.green : Colors.red,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: borderColor, width: 1),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.4),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.person_outline,
+                                    color: textLight,
+                                    size: 24,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Aluno:',
+                                        style: TextStyle(
+                                          color: textMuted,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      Text(
+                                        widget.nomeAluno,
+                                        style: const TextStyle(
+                                          color: textLight,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (_hasSubmitted)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: successColor.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                          color: successColor.withOpacity(0.5)),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.check,
+                                            size: 16, color: textLight),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Enviado',
+                                          style: TextStyle(
+                                            color: textLight,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (widget.nomeTurma != null)
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Turma:',
+                                              style: TextStyle(
+                                                color: textMuted,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                            Text(
+                                              widget.nomeTurma!,
+                                              style: const TextStyle(
+                                                color: textLight,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      if (widget.nomeSimulado != null) ...[
+                                        const SizedBox(height: 8),
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Simulado:',
+                                              style: TextStyle(
+                                                color: textMuted,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                            Text(
+                                              widget.nomeSimulado!,
+                                              style: const TextStyle(
+                                                color: textLight,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    const Text(
+                                      'Versão da Prova:',
+                                      style: TextStyle(
+                                        color: textMuted,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${widget.tipoProva}',
+                                      style: const TextStyle(
+                                        color: textLight,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Card com resultados
+                  SliverToBoxAdapter(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16.0),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: bgSurface.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: borderColor, width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [primaryColor, secondaryColor],
+                                  ),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Icon(
+                                  Icons.assessment_outlined,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Resultados',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    const Text(
+                                      'Nota Final',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: textMuted,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${widget.notaFinal.toStringAsFixed(1)}/${widget.pontuacaoTotal}',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: widget.notaFinal >=
+                                                (widget.pontuacaoTotal / 2)
+                                            ? successColor
+                                            : dangerColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                width: 1,
+                                height: 40,
+                                color: borderColor,
+                              ),
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    const Text(
+                                      'Acertos',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: textMuted,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '$questoesAcertadas/$totalQuestoes',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: percentualAcerto >= 60
+                                            ? successColor
+                                            : dangerColor,
+                                      ),
+                                    ),
+                                    Text(
+                                      '(${percentualAcerto.toStringAsFixed(1)}%)',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: textMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ),
-                  );
-                },
+                  ),
+
+                  // Mensagem de submissão
+                  if (_submissionMessage.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 8.0),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _hasSubmitted
+                              ? successColor.withOpacity(0.1)
+                              : dangerColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _hasSubmitted ? successColor : dangerColor,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _hasSubmitted ? Icons.check_circle : Icons.error,
+                              color: _hasSubmitted ? successColor : dangerColor,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _submissionMessage,
+                                style: TextStyle(
+                                  color: _hasSubmitted
+                                      ? successColor
+                                      : dangerColor,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  // Indicador de envio automático
+                  if (_isSubmitting)
+                    SliverToBoxAdapter(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 8.0),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border:
+                              Border.all(color: primaryColor.withOpacity(0.3)),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: primaryColor,
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            Text(
+                              'Enviando resultados automaticamente...',
+                              style: TextStyle(
+                                color: primaryColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  // Título da seção de detalhamento
+                  SliverToBoxAdapter(
+                    child: Container(
+                      margin: const EdgeInsets.only(
+                          left: 16.0, right: 16.0, top: 24.0, bottom: 16.0),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.list_alt_outlined,
+                            color: primaryColor,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Detalhamento por questão:',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Lista de questões
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final numeroQuestao = (index + 1).toString();
+                        final respostaCorreta =
+                            widget.gabarito[numeroQuestao] ?? '-';
+                        final respostaAluno =
+                            widget.respostasAluno[numeroQuestao] ??
+                                'Não respondida';
+                        final bool acertou = respostaAluno == respostaCorreta;
+
+                        // Calcular valor da questão com base na pontuação total
+                        final double valorQuestao =
+                            widget.pontuacaoTotal / widget.gabarito.length;
+
+                        return Container(
+                          margin: const EdgeInsets.only(
+                            left: 16.0,
+                            right: 16.0,
+                            bottom: 8.0,
+                          ),
+                          decoration: BoxDecoration(
+                            color: bgSurface.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: borderColor, width: 1),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.3),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            leading: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: acertou ? successColor : dangerColor,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  numeroQuestao,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: textLight,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            title: Row(
+                              children: [
+                                const Text(
+                                  'Sua resposta: ',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: textMuted,
+                                  ),
+                                ),
+                                Text(
+                                  respostaAluno,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: acertou ? successColor : dangerColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            subtitle: Row(
+                              children: [
+                                const Text(
+                                  'Correta: ',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: textMuted,
+                                  ),
+                                ),
+                                Text(
+                                  respostaCorreta,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: textLight,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: acertou
+                                        ? successColor.withOpacity(0.1)
+                                        : dangerColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color:
+                                          acertou ? successColor : dangerColor,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    acertou
+                                        ? '+${valorQuestao.toStringAsFixed(1)}'
+                                        : '0,0',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color:
+                                          acertou ? successColor : dangerColor,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Icon(
+                                  acertou ? Icons.check_circle : Icons.cancel,
+                                  color: acertou ? successColor : dangerColor,
+                                  size: 20,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      childCount: widget.gabarito.length,
+                    ),
+                  ),
+
+                  // Espaçamento extra no final para os botões
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: 80),
+                  ),
+                ],
               ),
             ),
-            // Botões de navegação
-            Padding(
-              padding: const EdgeInsets.only(top: 16.0),
+
+            // Botões de navegação - fixed at bottom
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: bgSurface,
+                border: const Border(top: BorderSide(color: borderColor)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 5,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
               child: Row(
                 children: [
                   Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back),
-                      label: const Text('Voltar'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => Navigator.pop(context),
+                        borderRadius: BorderRadius.circular(4),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: bgSurface,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: borderColor, width: 2),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.arrow_back,
+                                  size: 18, color: textLight),
+                              SizedBox(width: 8),
+                              Text(
+                                'Voltar',
+                                style: TextStyle(
+                                  color: textLight,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        // Navegar para a tela inicial
-                        Navigator.of(context)
-                            .popUntil((route) => route.isFirst);
-                      },
-                      icon: const Icon(Icons.home),
-                      label: const Text('Início'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.of(context)
+                              .popUntil((route) => route.isFirst);
+                        },
+                        borderRadius: BorderRadius.circular(4),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [primaryColor, secondaryColor],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            ),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.home, size: 18, color: Colors.white),
+                              SizedBox(width: 8),
+                              Text(
+                                'Início',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -345,7 +780,6 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
 
   // Método para enviar resultados para o site
   Future<void> _submitResultsToWebsite() async {
-    // Verificar novamente se temos os dados necessários
     if (widget.alunoId == null || widget.simuladoId == null) {
       setState(() {
         _submissionMessage =
@@ -361,29 +795,7 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
 
     try {
       final apiService = ApiService();
-      final versao =
-          'versao${widget.tipoProva}'; // Converter para versao1, versao2, etc.
-
-      // Mostrar snackbar informando que está enviando
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              ),
-              SizedBox(width: 16),
-              Text('Enviando resultados para o site...'),
-            ],
-          ),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      final versao = 'versao${widget.tipoProva}';
 
       final success = await apiService.submitStudentResults(
         studentId: widget.alunoId!,
@@ -402,7 +814,6 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
             : 'Falha ao enviar resultados. Tente novamente.';
       });
 
-      // Mostrar snackbar com resultado da operação
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -413,12 +824,15 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
                 color: Colors.white,
               ),
               const SizedBox(width: 16),
-              Text(success
-                  ? 'Resultados enviados com sucesso!'
-                  : 'Falha ao enviar resultados.'),
+              Text(
+                success
+                    ? 'Resultados enviados com sucesso!'
+                    : 'Falha ao enviar resultados.',
+                style: const TextStyle(color: Colors.white),
+              ),
             ],
           ),
-          backgroundColor: success ? Colors.green : Colors.red,
+          backgroundColor: success ? successColor : dangerColor,
           duration: const Duration(seconds: 3),
         ),
       );
@@ -428,7 +842,6 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
         _submissionMessage = 'Erro ao enviar: $e';
       });
 
-      // Mostrar snackbar com erro
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -436,38 +849,18 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
             children: [
               const Icon(Icons.error, color: Colors.white),
               const SizedBox(width: 16),
-              Expanded(child: Text('Erro ao enviar: $e')),
+              Expanded(
+                child: Text(
+                  'Erro ao enviar: $e',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
             ],
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: dangerColor,
           duration: const Duration(seconds: 5),
         ),
       );
     }
-  }
-
-  // Método para compartilhar os resultados
-  void _shareResults() {
-    // Aqui você pode implementar o compartilhamento usando pacotes como share_plus
-    // Por exemplo, compartilhar um texto com o resultado
-    // ignore: unused_local_variable
-    final message = 'Resultado de ${widget.nomeAluno} no simulado '
-        '${widget.nomeSimulado ?? ""}:\n'
-        'Nota: ${widget.notaFinal.toStringAsFixed(1)} de ${widget.pontuacaoTotal}\n'
-        'Acertos: ${widget.gabarito.keys.where(
-              (questao) =>
-                  widget.respostasAluno[questao] == widget.gabarito[questao],
-            ).length} de ${widget.gabarito.length}';
-
-    // Exemplo de implementação (necessitaria do pacote share_plus):
-    // Share.share(message);
-
-    // Como alternativa, mostrar um snackbar informando que a função está em desenvolvimento
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Função de compartilhamento em desenvolvimento'),
-        duration: Duration(seconds: 2),
-      ),
-    );
   }
 }

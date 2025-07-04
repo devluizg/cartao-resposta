@@ -1,3 +1,5 @@
+import '/utils/string_decoder.dart';
+
 class DetalhesRespostaModel {
   final String ordem;
   final int questaoId;
@@ -19,7 +21,7 @@ class DetalhesRespostaModel {
     return DetalhesRespostaModel(
       ordem: json['ordem'].toString(),
       questaoId: json['questao_id'],
-      disciplina: json['disciplina'],
+      disciplina: StringDecoder.decode(json['disciplina']),
       respostaAluno: json['resposta_aluno'],
       respostaCorreta: json['resposta_correta'],
       acertou: json['acertou'],
@@ -69,8 +71,8 @@ class ResultadoModel {
 
     return ResultadoModel(
       id: json['id'],
-      aluno: json['aluno'],
-      simulado: json['simulado'],
+      aluno: StringDecoder.decode(json['aluno']),
+      simulado: StringDecoder.decode(json['simulado']),
       pontuacao: json['pontuacao'].toDouble(),
       acertos: json['acertos'],
       totalQuestoes: json['total_questoes'],

@@ -1,3 +1,5 @@
+import '/utils/string_decoder.dart';
+
 class StudentModel {
   /// Identificador único do aluno.
   final int id;
@@ -31,8 +33,8 @@ class StudentModel {
   factory StudentModel.fromJson(Map<String, dynamic> json) {
     return StudentModel(
       id: json['id'],
-      name: json['name'],
-      email: json['email'],
+      name: StringDecoder.decode(json['name']),
+      email: json['email'] != null ? StringDecoder.decode(json['email']) : null,
       studentId: json['student_id'],
       classes: List<int>.from(json['classes']),
     );

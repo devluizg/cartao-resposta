@@ -1,3 +1,5 @@
+import '/utils/string_decoder.dart';
+
 class ClassModel {
   final int id;
   final String name;
@@ -16,8 +18,8 @@ class ClassModel {
   factory ClassModel.fromJson(Map<String, dynamic> json) {
     return ClassModel(
       id: json['id'] as int,
-      name: json['name'] as String,
-      description: json['description'] as String,
+      name: StringDecoder.decode(json['name'] as String),
+      description: StringDecoder.decode(json['description'] as String),
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );

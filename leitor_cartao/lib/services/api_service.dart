@@ -7,19 +7,17 @@ import 'models/class_model.dart';
 import 'models/student_model.dart';
 import 'models/simulado_model.dart';
 import 'models/resultado_model.dart';
+import 'dart:async';
+import 'dart:developer' as developer;
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
-
-  // Singleton pattern
   factory ApiService() => _instance;
-
   ApiService._internal();
 
-  // Base URL for API calls
-  String baseUrl = 'http://192.168.1.8:8001';
+  String baseUrl = 'https://devluizg.pythonanywhere.com';
+  final Duration timeoutDuration = const Duration(seconds: 30);
 
-  // Set base URL for all API calls
   void setBaseUrl(String url) {
     baseUrl = url;
   }
@@ -32,7 +30,7 @@ class ApiService {
 
   // Get auth headers for API requests
   Future<Map<String, String>> getAuthHeaders() async {
-    final token = await getAccessToken();
+    final token = await getAccessToken(); // Usar método local
     return {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $token',
@@ -42,14 +40,20 @@ class ApiService {
   // Login method - Fixed to match Django Rest Framework SimpleJWT format
   Future<bool> login(String username, String password) async {
     try {
-      final response = await http.post(
+      final response = await http
+          .post(
         Uri.parse('$baseUrl/api/token/'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'email': username, // Changed from 'username' to 'email'
+          'email': username,
           'password': password,
         }),
-      );
+      )
+          .timeout(const Duration(seconds: 30), onTimeout: () {
+        debugPrint('Requisição de login expirou após 30 segundos');
+        throw TimeoutException(
+            'A conexão expirou. Verifique sua conexão com a internet.');
+      });
 
       debugPrint(
           'Login status: ${response.statusCode}, body: ${response.body}');
@@ -69,6 +73,9 @@ class ApiService {
         debugPrint('Login failed: ${response.statusCode} - ${response.body}');
         return false;
       }
+    } on TimeoutException {
+      debugPrint('Login timeout');
+      return false;
     } catch (e) {
       debugPrint('Exception during login: $e');
       return false;
@@ -146,7 +153,7 @@ class ApiService {
     }
   }
 
-  // Generic authorized request method with token refresh
+  // Generic authorized request method with token refresh and timeout
   Future<http.Response> authorizedRequest(
     String endpoint, {
     String method = 'GET',
@@ -165,24 +172,56 @@ class ApiService {
 
       switch (method) {
         case 'GET':
-          response = await http.get(uri, headers: headers);
+          response = await http.get(uri, headers: headers).timeout(
+            timeoutDuration,
+            onTimeout: () {
+              debugPrint('Requisição GET expirou: $uri');
+              throw TimeoutException(
+                  'A conexão expirou. Verifique sua internet e tente novamente.');
+            },
+          );
           break;
         case 'POST':
-          response = await http.post(
+          response = await http
+              .post(
             uri,
             headers: headers,
             body: body != null ? jsonEncode(body) : null,
+          )
+              .timeout(
+            timeoutDuration,
+            onTimeout: () {
+              debugPrint('Requisição POST expirou: $uri');
+              throw TimeoutException(
+                  'A conexão expirou. Verifique sua internet e tente novamente.');
+            },
           );
           break;
         case 'PUT':
-          response = await http.put(
+          response = await http
+              .put(
             uri,
             headers: headers,
             body: body != null ? jsonEncode(body) : null,
+          )
+              .timeout(
+            timeoutDuration,
+            onTimeout: () {
+              debugPrint('Requisição PUT expirou: $uri');
+              throw TimeoutException(
+                  'A conexão expirou. Verifique sua internet e tente novamente.');
+            },
           );
           break;
         case 'DELETE':
-          response = await http.delete(uri, headers: headers);
+          response = await http.delete(uri, headers: headers).timeout(
+            timeoutDuration,
+            onTimeout: () {
+              debugPrint('Requisição DELETE expirou: $uri');
+              throw TimeoutException(
+                  'A conexão expirou. Verifique sua internet e tente novamente.');
+            },
+          );
           break;
         default:
           throw Exception('Unsupported HTTP method');
@@ -463,32 +502,97 @@ class ApiService {
     }
   }
 
+// MÉTODO ATUALIZADO: Buscar detalhes completos do simulado incluindo pontuação total
+  Future<Map<String, dynamic>?> getSimuladoDetalhes(int simuladoId) async {
+    try {
+      debugPrint('🔍 Buscando detalhes completos do simulado $simuladoId...');
+
+      // ✅ USAR O ENDPOINT /detalhes/ que funciona!
+      final response =
+          await authorizedRequest('/api/simulados/$simuladoId/detalhes/');
+
+      debugPrint('🔍 Status da resposta: ${response.statusCode}');
+      debugPrint('🔍 Corpo da resposta: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        debugPrint('🔍 Dados decodificados: $data');
+
+        // ✅ Retornar os dados exatamente como vêm da API
+        final detalhes = {
+          'id': data['id'],
+          'titulo': data['titulo'] ?? 'Simulado',
+          'descricao': data['descricao'] ?? '',
+          'numero_questoes':
+              data['numero_questoes'] ?? 10, // ✅ Este campo já vem correto!
+          'pontuacao_total': data['pontuacao_total'] ?? 10,
+          'data_criacao': data['data_criacao'],
+          'ultima_modificacao': data['ultima_modificacao'],
+        };
+
+        debugPrint('🔍 Detalhes finais sendo retornados: $detalhes');
+        debugPrint('🔍 numero_questoes final: ${detalhes['numero_questoes']}');
+
+        return detalhes;
+      }
+
+      // ✅ Fallback para endpoint básico se o /detalhes/ falhar
+      debugPrint('🔍 Endpoint de detalhes falhou, tentando endpoint básico...');
+      final basicResponse =
+          await authorizedRequest('/api/simulados/$simuladoId/');
+
+      if (basicResponse.statusCode == 200) {
+        final basicData = jsonDecode(basicResponse.body);
+
+        // ✅ Se o endpoint básico tem numero_questoes, usar ele
+        final detalhes = {
+          'id': basicData['id'],
+          'titulo': basicData['titulo'] ?? 'Simulado',
+          'descricao': basicData['descricao'] ?? '',
+          'numero_questoes': basicData['numero_questoes'] ??
+              (basicData['questoes'] is List
+                  ? (basicData['questoes'] as List).length
+                  : 10),
+          'pontuacao_total': basicData['pontuacao_total'] ?? 10,
+          'data_criacao': basicData['data_criacao'],
+          'ultima_modificacao': basicData['ultima_modificacao'],
+        };
+
+        debugPrint('🔍 Fallback - detalhes retornados: $detalhes');
+        return detalhes;
+      }
+
+      debugPrint('🔍 Falha em ambos os endpoints');
+      return null;
+    } catch (e) {
+      debugPrint('🔍 Exceção ao buscar detalhes do simulado: $e');
+      return null;
+    }
+  }
+
   // Get the answer key (gabarito) for a simulado
   Future<Map<String, String>?> getGabarito(int simuladoId,
       {required String tipo}) async {
     try {
-      // Mapear o tipo da prova do app para a versão correta no backend
-      String versao =
-          'versao$tipo'; // Converte tipo1 para versao1, tipo2 para versao2, etc.
-
+      // Certifique-se de que 'tipo' está sendo enviado corretamente
       debugPrint(
-          'Obtendo gabarito para simulado $simuladoId, versão $versao, tipo $tipo');
+          '🔍 Solicitando gabarito para simulado $simuladoId, tipo: $tipo');
 
       final response = await authorizedRequest(
-        '/api/simulados/$simuladoId/gabarito/?versao=$versao&tipo=$tipo',
+        '/api/simulados/$simuladoId/gabarito/?versao=versao$tipo&tipo=$tipo',
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        debugPrint('Resposta do gabarito: ${response.body}');
+        debugPrint('📋 Gabarito recebido: ${data['gabarito']}');
         return Map<String, String>.from(data['gabarito']);
       } else {
-        debugPrint(
-            'Failed to get gabarito: ${response.statusCode} - ${response.body}');
+        debugPrint('❌ Falha ao obter gabarito: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      debugPrint('Exception getting gabarito: $e');
+      debugPrint('❌ Erro ao obter gabarito: $e');
       return null;
     }
   }
@@ -573,7 +677,7 @@ class ApiService {
     }
   }
 
-// Send student results back to the Django website
+  // Send student results back to the Django website
   Future<bool> submitStudentResults({
     required int studentId,
     required int simuladoId,
@@ -644,6 +748,142 @@ class ApiService {
       }
     } catch (e) {
       debugPrint('Exception processing and submitting: $e');
+      return null;
+    }
+  }
+
+  // ========================================
+  // 🆕 NOVOS MÉTODOS PARA SISTEMA DE CRÉDITOS
+  // ========================================
+
+  /// Verificar saldo de créditos do usuário
+  Future<Map<String, dynamic>?> getUserCredits() async {
+    try {
+      developer.log('💰 Verificando saldo de créditos do usuário...');
+      final response = await authorizedRequest('/api/user_credits/');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final credits = {
+          'available_credits': data['available_credits'] ?? 0,
+          'total_credits': data['total_credits'] ?? 0,
+          'used_credits': data['used_credits'] ?? 0,
+          'last_updated': data['last_updated'],
+        };
+
+        developer.log(
+            '💰 Créditos obtidos: ${credits['available_credits']} disponíveis');
+        return credits;
+      } else {
+        developer.log(
+            '💰 Falha ao obter créditos: ${response.statusCode} - ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      developer.log('💰 Erro ao verificar créditos: $e');
+      return null;
+    }
+  }
+
+  /// Consumir um crédito após correção
+  Future<bool> consumeCredit({
+    required int studentId,
+    required int simuladoId,
+    required String action,
+  }) async {
+    try {
+      developer.log('💳 Consumindo crédito para ação: $action');
+      developer.log('💳 Aluno: $studentId, Simulado: $simuladoId');
+
+      final response = await authorizedRequest(
+        '/api/consume_credit/',
+        method: 'POST',
+        body: {
+          'student_id': studentId,
+          'simulado_id': simuladoId,
+          'action': action,
+          'timestamp': DateTime.now().toIso8601String(),
+          'app_version': '1.0.0', // Para rastreamento
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        developer.log('💳 Crédito consumido com sucesso!');
+        developer.log('💳 Créditos restantes: ${data['remaining_credits']}');
+        return true;
+      } else {
+        developer.log('💳 Falha ao consumir crédito: ${response.statusCode}');
+        developer.log('💳 Resposta: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      developer.log('💳 Erro ao consumir crédito: $e');
+      return false;
+    }
+  }
+
+  /// Verificar se há créditos suficientes
+  Future<bool> hasAvailableCredits() async {
+    try {
+      final credits = await getUserCredits();
+      final available = credits?['available_credits'] ?? 0;
+      developer
+          .log('🔍 Verificação rápida de créditos: $available disponíveis');
+      return available > 0;
+    } catch (e) {
+      developer.log('🔍 Erro na verificação rápida de créditos: $e');
+      return false;
+    }
+  }
+
+  /// Obter histórico de uso de créditos (opcional)
+  Future<List<Map<String, dynamic>>?> getCreditHistory({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      developer.log('📋 Buscando histórico de créditos...');
+      final response = await authorizedRequest(
+        '/api/users/credits/history/?limit=$limit&offset=$offset',
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final history =
+            List<Map<String, dynamic>>.from(data['results'] ?? data ?? []);
+
+        developer.log('📋 Histórico obtido: ${history.length} registros');
+        return history;
+      } else {
+        developer.log('📋 Falha ao obter histórico: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      developer.log('📋 Erro ao obter histórico de créditos: $e');
+      return null;
+    }
+  }
+
+  /// Verificar planos de créditos disponíveis (para futuras compras)
+  Future<List<Map<String, dynamic>>?> getAvailablePlans() async {
+    try {
+      developer.log('🛒 Buscando planos de créditos disponíveis...');
+      final response = await authorizedRequest('/api/credits/plans/');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final plans =
+            List<Map<String, dynamic>>.from(data['results'] ?? data ?? []);
+
+        developer.log('🛒 Planos encontrados: ${plans.length}');
+        return plans;
+      } else {
+        developer.log('🛒 Falha ao obter planos: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      developer.log('🛒 Erro ao obter planos: $e');
       return null;
     }
   }

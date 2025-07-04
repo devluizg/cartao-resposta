@@ -1,3 +1,5 @@
+import '/utils/string_decoder.dart';
+
 class QuestaoModel {
   final int id;
   final String disciplina;
@@ -28,16 +30,17 @@ class QuestaoModel {
   factory QuestaoModel.fromJson(Map<String, dynamic> json) {
     return QuestaoModel(
       id: json['id'] as int,
-      disciplina: json['disciplina'] as String,
-      conteudo: json['conteudo'] as String,
-      enunciado: json['enunciado'] as String,
-      alternativaA: json['alternativa_a'] as String,
-      alternativaB: json['alternativa_b'] as String,
-      alternativaC: json['alternativa_c'] as String,
-      alternativaD: json['alternativa_d'] as String,
-      alternativaE: json['alternativa_e'] as String,
+      disciplina: StringDecoder.decode(json['disciplina'] as String),
+      conteudo: StringDecoder.decode(json['conteudo'] as String),
+      enunciado: StringDecoder.decode(json['enunciado'] as String),
+      alternativaA: StringDecoder.decode(json['alternativa_a'] as String),
+      alternativaB: StringDecoder.decode(json['alternativa_b'] as String),
+      alternativaC: StringDecoder.decode(json['alternativa_c'] as String),
+      alternativaD: StringDecoder.decode(json['alternativa_d'] as String),
+      alternativaE: StringDecoder.decode(json['alternativa_e'] as String),
       respostaCorreta: json['resposta_correta'] as String,
-      nivelDificuldade: json['nivel_dificuldade'] as String,
+      nivelDificuldade:
+          StringDecoder.decode(json['nivel_dificuldade'] as String),
     );
   }
 
@@ -92,6 +95,8 @@ class SimuladoModel {
   final DateTime dataCriacao;
   final DateTime ultimaModificacao;
   final List<int> classes;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   SimuladoModel({
     required this.id,
@@ -103,21 +108,53 @@ class SimuladoModel {
     required this.dataCriacao,
     required this.ultimaModificacao,
     required this.classes,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
+  // Método para decodificar especificamente títulos como "1ªav"
+  static String _decodeTitulo(String rawTitle) {
+    // Verificar padrão de "número + ª + texto"
+    final RegExp regexOrdinal = RegExp(r'(\d+)[A\[].*\s+(av|AV)\s+(.+)');
+    final match = regexOrdinal.firstMatch(rawTitle);
+
+    if (match != null) {
+      final numero = match.group(1);
+      final resto = match.group(3);
+      return '$numero${StringDecoder.decode('ª')} av $resto';
+    }
+
+    // Se não corresponder ao padrão específico, decodifique normalmente
+    return StringDecoder.decode(rawTitle);
+  }
+
   factory SimuladoModel.fromJson(Map<String, dynamic> json) {
+    final dataCriacao = DateTime.parse(json['data_criacao'] as String);
+    final ultimaModificacao =
+        DateTime.parse(json['ultima_modificacao'] as String);
+
     return SimuladoModel(
       id: json['id'] as int,
-      titulo: json['titulo'] as String,
-      descricao: json['descricao'] as String,
-      cabecalho: json['cabecalho'] as String?,
-      instrucoes: json['instrucoes'] as String?,
+      titulo: _decodeTitulo(json['titulo'] as String),
+      descricao: StringDecoder.decode(json['descricao'] as String),
+      cabecalho: json['cabecalho'] != null
+          ? StringDecoder.decode(json['cabecalho'] as String)
+          : null,
+      instrucoes: json['instrucoes'] != null
+          ? StringDecoder.decode(json['instrucoes'] as String)
+          : null,
       questoes: (json['questoes'] as List<dynamic>)
           .map((q) => QuestaoSimuladoModel.fromJson(q as Map<String, dynamic>))
           .toList(),
-      dataCriacao: DateTime.parse(json['data_criacao'] as String),
-      ultimaModificacao: DateTime.parse(json['ultima_modificacao'] as String),
+      dataCriacao: dataCriacao,
+      ultimaModificacao: ultimaModificacao,
       classes: List<int>.from(json['classes']),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : dataCriacao,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
+          : ultimaModificacao,
     );
   }
 
@@ -132,6 +169,8 @@ class SimuladoModel {
       'data_criacao': dataCriacao.toIso8601String(),
       'ultima_modificacao': ultimaModificacao.toIso8601String(),
       'classes': classes,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
     };
   }
 }

@@ -1,3 +1,5 @@
+import '/utils/string_decoder.dart';
+
 class QuestaoModel {
   final int id;
   final String disciplina;
@@ -28,16 +30,17 @@ class QuestaoModel {
   factory QuestaoModel.fromJson(Map<String, dynamic> json) {
     return QuestaoModel(
       id: json['id'] as int,
-      disciplina: json['disciplina'] as String,
-      conteudo: json['conteudo'] as String,
-      enunciado: json['enunciado'] as String,
-      alternativaA: json['alternativa_a'] as String,
-      alternativaB: json['alternativa_b'] as String,
-      alternativaC: json['alternativa_c'] as String,
-      alternativaD: json['alternativa_d'] as String,
-      alternativaE: json['alternativa_e'] as String,
+      disciplina: StringDecoder.decode(json['disciplina'] as String),
+      conteudo: StringDecoder.decode(json['conteudo'] as String),
+      enunciado: StringDecoder.decode(json['enunciado'] as String),
+      alternativaA: StringDecoder.decode(json['alternativa_a'] as String),
+      alternativaB: StringDecoder.decode(json['alternativa_b'] as String),
+      alternativaC: StringDecoder.decode(json['alternativa_c'] as String),
+      alternativaD: StringDecoder.decode(json['alternativa_d'] as String),
+      alternativaE: StringDecoder.decode(json['alternativa_e'] as String),
       respostaCorreta: json['resposta_correta'] as String,
-      nivelDificuldade: json['nivel_dificuldade'] as String,
+      nivelDificuldade:
+          StringDecoder.decode(json['nivel_dificuldade'] as String),
     );
   }
 

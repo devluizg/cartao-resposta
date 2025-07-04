@@ -2,10 +2,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async'; // Para o TimeoutException
 
 class AuthService {
-  // URL base da API - substitua pelo seu domínio
-  static const String baseUrl = 'http://192.168.1.8:8001';
+  // URL base da API - Atualizado para PythonAnywhere
+  static const String baseUrl = 'https://devluizg.pythonanywhere.com';
+  static const Duration timeoutDuration = Duration(seconds: 30);
 
   // Chaves para armazenamento dos tokens e informações do usuário
   static const String accessTokenKey = 'access_token';
@@ -31,16 +33,24 @@ class AuthService {
       String username, String password) async {
     try {
       final requestBody = {
-        'username': username,
+        'email': username,
         'password': password,
       };
 
       debugPrint('Enviando requisição de login com body: $requestBody');
 
-      final response = await http.post(
+      final response = await http
+          .post(
         Uri.parse('$baseUrl/api/token/'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(requestBody),
+      )
+          .timeout(
+        timeoutDuration,
+        onTimeout: () {
+          debugPrint('Requisição de login expirou após 30 segundos');
+          throw TimeoutException('A conexão expirou. Verifique sua internet.');
+        },
       );
 
       debugPrint('Status da resposta: ${response.statusCode}');
@@ -87,6 +97,13 @@ class AuthService {
           };
         }
       }
+    } on TimeoutException {
+      debugPrint('Login timeout');
+      return {
+        'success': false,
+        'message':
+            'A conexão expirou. Verifique sua internet e tente novamente.'
+      };
     } catch (e) {
       debugPrint('Exceção durante login: $e');
       return {
@@ -117,6 +134,13 @@ class AuthService {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $accessToken',
         },
+      ).timeout(
+        timeoutDuration,
+        onTimeout: () {
+          debugPrint('Requisição de informações do usuário expirou');
+          throw TimeoutException(
+              'A conexão expirou ao buscar suas informações.');
+        },
       );
 
       debugPrint('Status da resposta getUserInfo: ${response.statusCode}');
@@ -146,6 +170,9 @@ class AuthService {
       }
 
       return null;
+    } on TimeoutException {
+      debugPrint('Timeout ao obter informações do usuário');
+      return null;
     } catch (e) {
       debugPrint('Exceção ao obter informações do usuário: $e');
       return null;
@@ -166,12 +193,20 @@ class AuthService {
       debugPrint(
           'Tentando atualizar token com refresh token: ${refreshToken.substring(0, min(10, refreshToken.length))}...');
 
-      final response = await http.post(
+      final response = await http
+          .post(
         Uri.parse('$baseUrl/api/token/refresh/'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'refresh': refreshToken,
         }),
+      )
+          .timeout(
+        timeoutDuration,
+        onTimeout: () {
+          debugPrint('Requisição de atualização de token expirou');
+          throw TimeoutException('A conexão expirou ao atualizar o token.');
+        },
       );
 
       debugPrint('Status da resposta refreshToken: ${response.statusCode}');
@@ -191,6 +226,9 @@ class AuthService {
       }
       debugPrint(
           'Falha ao atualizar token: ${response.statusCode} - ${response.body}');
+      return false;
+    } on TimeoutException {
+      debugPrint('Timeout na atualização do token');
       return false;
     } catch (e) {
       debugPrint('Exceção ao atualizar token: $e');
@@ -232,54 +270,95 @@ class AuthService {
 
     http.Response response;
 
-    switch (method) {
-      case 'GET':
-        response = await http.get(Uri.parse(url), headers: headers);
-        break;
-      case 'POST':
-        final encodedBody = body != null ? jsonEncode(body) : null;
-        debugPrint('Body da requisição POST: $encodedBody');
-        response = await http.post(
-          Uri.parse(url),
-          headers: headers,
-          body: encodedBody,
-        );
-        break;
-      case 'PUT':
-        response = await http.put(
-          Uri.parse(url),
-          headers: headers,
-          body: body != null ? jsonEncode(body) : null,
-        );
-        break;
-      case 'DELETE':
-        response = await http.delete(Uri.parse(url), headers: headers);
-        break;
-      default:
-        throw Exception('Método HTTP não suportado');
-    }
-
-    debugPrint(
-        'Resposta da requisição $method para $url: ${response.statusCode}');
-    debugPrint('Corpo da resposta: ${response.body}');
-
-    // Se token expirou, tenta atualizar e refazer a requisição
-    if (response.statusCode == 401 && autoRefresh) {
-      debugPrint('Token expirado, tentando atualizar e refazer a requisição');
-      final refreshed = await refreshToken();
-      if (refreshed) {
-        debugPrint('Token atualizado com sucesso, refazendo requisição');
-        return authorizedRequest(
-          url,
-          method: method,
-          headers: headers,
-          body: body,
-          autoRefresh: false,
-        );
+    try {
+      switch (method) {
+        case 'GET':
+          response = await http.get(Uri.parse(url), headers: headers).timeout(
+            timeoutDuration,
+            onTimeout: () {
+              debugPrint('Requisição GET expirou: $url');
+              throw TimeoutException(
+                  'A conexão expirou. Verifique sua internet.');
+            },
+          );
+          break;
+        case 'POST':
+          final encodedBody = body != null ? jsonEncode(body) : null;
+          debugPrint('Body da requisição POST: $encodedBody');
+          response = await http
+              .post(
+            Uri.parse(url),
+            headers: headers,
+            body: encodedBody,
+          )
+              .timeout(
+            timeoutDuration,
+            onTimeout: () {
+              debugPrint('Requisição POST expirou: $url');
+              throw TimeoutException(
+                  'A conexão expirou. Verifique sua internet.');
+            },
+          );
+          break;
+        case 'PUT':
+          response = await http
+              .put(
+            Uri.parse(url),
+            headers: headers,
+            body: body != null ? jsonEncode(body) : null,
+          )
+              .timeout(
+            timeoutDuration,
+            onTimeout: () {
+              debugPrint('Requisição PUT expirou: $url');
+              throw TimeoutException(
+                  'A conexão expirou. Verifique sua internet.');
+            },
+          );
+          break;
+        case 'DELETE':
+          response =
+              await http.delete(Uri.parse(url), headers: headers).timeout(
+            timeoutDuration,
+            onTimeout: () {
+              debugPrint('Requisição DELETE expirou: $url');
+              throw TimeoutException(
+                  'A conexão expirou. Verifique sua internet.');
+            },
+          );
+          break;
+        default:
+          throw Exception('Método HTTP não suportado');
       }
-    }
 
-    return response;
+      debugPrint(
+          'Resposta da requisição $method para $url: ${response.statusCode}');
+      debugPrint('Corpo da resposta: ${response.body}');
+
+      // Se token expirou, tenta atualizar e refazer a requisição
+      if (response.statusCode == 401 && autoRefresh) {
+        debugPrint('Token expirado, tentando atualizar e refazer a requisição');
+        final refreshed = await refreshToken();
+        if (refreshed) {
+          debugPrint('Token atualizado com sucesso, refazendo requisição');
+          return authorizedRequest(
+            url,
+            method: method,
+            headers: headers,
+            body: body,
+            autoRefresh: false,
+          );
+        }
+      }
+
+      return response;
+    } on TimeoutException catch (e) {
+      debugPrint('Timeout em requisição autorizada: $e');
+      rethrow;
+    } catch (e) {
+      debugPrint('Exceção em requisição autorizada: $e');
+      rethrow;
+    }
   }
 
   // Função auxiliar para limitar o tamanho da string

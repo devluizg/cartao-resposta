@@ -1,6 +1,8 @@
+// ignore_for_file: unused_local_variable
+
 import 'package:flutter/material.dart';
+import 'package:leitor_cartao/screens/login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:leitor_cartao/services/auth_service.dart';
 import '../services/api_service.dart';
 import '../main.dart';
 import 'dart:developer' as developer;
@@ -21,7 +23,6 @@ class _SelectionScreenState extends State<SelectionScreen> {
   String _errorMessage = '';
   String userName = 'Usuário';
 
-  // Usar os modelos de dados em vez de Map<String, dynamic>
   List<ClassModel> _turmas = [];
   List<SimuladoModel> _simulados = [];
   List<StudentModel> _alunos = [];
@@ -29,6 +30,18 @@ class _SelectionScreenState extends State<SelectionScreen> {
   int? _turmaId;
   int? _simuladoId;
   int? _alunoId;
+
+  // Paleta de cores do site Django
+  static const Color primaryColor = Color(0xFF00A4D9); // Ciano vibrante
+  static const Color secondaryColor = Color(0xFF434891); // Índigo profundo
+  static const Color bgDark = Color(0xFF121425); // Fundo ultra escuro
+  static const Color bgSurface = Color(0xFF1D203A); // Superfícies
+  static const Color borderColor = Color(0xFF31355B); // Bordas sutis
+  static const Color textLight = Color(0xFFE0E6F1); // Texto claro
+  static const Color textMuted = Color(0xFF8C96C3); // Texto secundário
+// Sucesso
+  static const Color dangerColor = Color(0xFFE94B6A); // Erro
+  static const Color warningColor = Color(0xFFF2A93B); // Aviso
 
   @override
   void initState() {
@@ -48,7 +61,6 @@ class _SelectionScreenState extends State<SelectionScreen> {
     });
 
     try {
-      // Verificar token de autenticação
       final token = await _apiService.getAccessToken();
       if (token == null) {
         developer.log('Token de autenticação ausente');
@@ -88,7 +100,6 @@ class _SelectionScreenState extends State<SelectionScreen> {
           userName = nome;
         });
       } else {
-        // Se não encontrar o nome, tenta buscar novamente da API
         final userInfo = await _apiService.getUserInfo();
         if (userInfo != null && mounted) {
           setState(() {
@@ -109,7 +120,6 @@ class _SelectionScreenState extends State<SelectionScreen> {
 
     try {
       developer.log('Solicitando turmas da API...');
-      // Usar o método getClasses() em vez de getTurmas()
       final turmas = await _apiService.getClasses();
       developer.log('Turmas recebidas: ${turmas.length}');
 
@@ -128,13 +138,12 @@ class _SelectionScreenState extends State<SelectionScreen> {
       developer.log('Erro ao carregar turmas: $e');
       if (mounted) {
         if (e.toString().contains('401')) {
-          // Tenta renovar o token e tentar novamente
           try {
             bool tokenRenovado = await _apiService.refreshToken();
             if (tokenRenovado) {
               return _carregarTurmas();
             } else {
-              _logout(); // Token não pode ser renovado, faça logout
+              _logout();
               return;
             }
           } catch (_) {
@@ -161,7 +170,6 @@ class _SelectionScreenState extends State<SelectionScreen> {
 
     try {
       developer.log('Solicitando simulados para a turma ID: $turmaId');
-      // Usar o método getSimuladosByClass() em vez de getSimuladosPorTurma()
       final simulados = await _apiService.getSimuladosByClass(turmaId);
       developer.log('Simulados recebidos: ${simulados.length}');
 
@@ -205,7 +213,6 @@ class _SelectionScreenState extends State<SelectionScreen> {
 
     try {
       developer.log('Solicitando alunos para a turma ID: $turmaId');
-      // Usar o método getStudentsByClass() em vez de getAlunosPorTurma()
       final alunos = await _apiService.getStudentsByClass(turmaId);
       developer.log('Alunos recebidos: ${alunos.length}');
 
@@ -271,15 +278,24 @@ class _SelectionScreenState extends State<SelectionScreen> {
   void _continuarParaLeitor() {
     if (_turmaId == null || _simuladoId == null || _alunoId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, selecione todos os campos'),
-          backgroundColor: Colors.orange,
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.warning, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Por favor, selecione todos os campos'),
+            ],
+          ),
+          backgroundColor: warningColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
         ),
       );
       return;
     }
 
-    // Encontra os objetos selecionados
     final alunoSelecionado = _alunos.firstWhere(
       (aluno) => aluno.id == _alunoId,
       orElse: () => StudentModel(
@@ -301,13 +317,25 @@ class _SelectionScreenState extends State<SelectionScreen> {
         dataCriacao: DateTime.now(),
         ultimaModificacao: DateTime.now(),
         classes: [_turmaId!],
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    );
+
+    final turmaSelecionada = _turmas.firstWhere(
+      (turma) => turma.id == _turmaId,
+      orElse: () => ClassModel(
+        id: _turmaId!,
+        name: 'Turma Desconhecida',
+        description: '',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       ),
     );
 
     developer.log(
-        'Navegando para TelaInicial com: Turma=$_turmaId, Simulado=$_simuladoId, Aluno=$_alunoId');
+        'Navegando para TelaInicial com: Turma=$_turmaId (${turmaSelecionada.name}), Simulado=$_simuladoId (${simuladoSelecionado.titulo}), Aluno=$_alunoId (${alunoSelecionado.name})');
 
-    // Converter para Map para manter a compatibilidade com a classe TelaInicial
     final alunoMap = {
       'id': alunoSelecionado.id,
       'nome': alunoSelecionado.name,
@@ -316,6 +344,11 @@ class _SelectionScreenState extends State<SelectionScreen> {
     final simuladoMap = {
       'id': simuladoSelecionado.id,
       'titulo': simuladoSelecionado.titulo,
+    };
+
+    final turmaMap = {
+      'id': turmaSelecionada.id,
+      'nome': turmaSelecionada.name,
     };
 
     Navigator.push(
@@ -327,6 +360,7 @@ class _SelectionScreenState extends State<SelectionScreen> {
           alunoId: _alunoId!,
           aluno: alunoMap,
           simulado: simuladoMap,
+          turma: turmaMap,
         ),
       ),
     );
@@ -334,17 +368,34 @@ class _SelectionScreenState extends State<SelectionScreen> {
 
   Future<void> _logout() async {
     try {
-      await AuthService.logout();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('access_token');
+      await prefs.remove('refresh_token');
+      await prefs.remove('user_name');
+      await prefs.remove('user_email');
 
       if (!mounted) return;
 
-      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao fazer logout: $e'),
-            backgroundColor: Colors.red,
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 8),
+                Text('Erro ao fazer logout: $e'),
+              ],
+            ),
+            backgroundColor: dangerColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       }
@@ -369,34 +420,91 @@ class _SelectionScreenState extends State<SelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: bgDark,
       appBar: AppBar(
-        title: const Text('Selecionar Turma e Aluno'),
+        elevation: 0,
+        backgroundColor: bgSurface,
+        foregroundColor: textLight,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [primaryColor, secondaryColor],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.display_settings,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'SimuladoApp',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+                color: textLight,
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Recarregar',
             onPressed: _recarregarDados,
+            color: textMuted,
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded),
             tooltip: 'Sair',
             onPressed: _logout,
+            color: textMuted,
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            color: borderColor,
+          ),
+        ),
       ),
       body: _isLoading
           ? const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Carregando dados...'),
+                  SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                      backgroundColor: borderColor,
+                    ),
+                  ),
+                  SizedBox(height: 24),
+                  Text(
+                    'Carregando dados...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: textMuted,
+                    ),
+                  ),
                 ],
               ),
             )
           : RefreshIndicator(
               onRefresh: _recarregarDados,
+              color: primaryColor,
+              backgroundColor: bgSurface,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Padding(
@@ -404,181 +512,385 @@ class _SelectionScreenState extends State<SelectionScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Card(
-                        elevation: 4,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Bem-vindo(a), $userName!',
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Selecione a turma, o simulado e o aluno para iniciar a correção do cartão resposta.',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                            ],
+                      // Header com boas-vindas
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [secondaryColor, primaryColor],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: borderColor, width: 1),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.4),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.person_outline,
+                                    color: textLight,
+                                    size: 24,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Bem-vindo(a),',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      Text(
+                                        userName,
+                                        style: const TextStyle(
+                                          color: textLight,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Selecione a turma, simulado e aluno para iniciar a correção',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+
                       const SizedBox(height: 24),
-                      Card(
-                        elevation: 4,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Dados da Correção',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+
+                      // Card com formulário de seleção
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: bgSurface.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: borderColor, width: 1),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [primaryColor, secondaryColor],
+                                    ),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Icon(
+                                    Icons.settings_outlined,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 16),
-                              DropdownButtonFormField<int>(
-                                decoration: const InputDecoration(
-                                  labelText: 'Turma',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.group),
+                                const SizedBox(width: 12),
+                                const Text(
+                                  'Configurações da Correção',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: primaryColor,
+                                  ),
                                 ),
-                                value: _turmaId,
-                                hint: const Text('Selecione uma turma'),
-                                isExpanded: true,
-                                items: _turmas.map((turma) {
-                                  return DropdownMenuItem<int>(
-                                    value: turma.id,
-                                    child: Text(turma.name),
-                                  );
-                                }).toList(),
-                                onChanged: _onTurmaChanged,
-                              ),
-                              const SizedBox(height: 16),
-                              DropdownButtonFormField<int>(
-                                decoration: const InputDecoration(
-                                  labelText: 'Simulado',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.assignment),
-                                ),
-                                value: _simuladoId,
-                                hint: _turmaId == null
-                                    ? const Text('Selecione uma turma primeiro')
-                                    : const Text('Selecione um simulado'),
-                                isExpanded: true,
-                                items: _simulados.map((simulado) {
-                                  return DropdownMenuItem<int>(
-                                    value: simulado.id,
-                                    child: Text(simulado.titulo),
-                                  );
-                                }).toList(),
-                                onChanged: _simulados.isEmpty
-                                    ? null
-                                    : _onSimuladoChanged,
-                                disabledHint: _turmaId == null
-                                    ? const Text('Selecione uma turma primeiro')
-                                    : _isLoading
-                                        ? const Text('Carregando simulados...')
-                                        : const Text(
-                                            'Nenhum simulado disponível'),
-                              ),
-                              const SizedBox(height: 16),
-                              DropdownButtonFormField<int>(
-                                decoration: const InputDecoration(
-                                  labelText: 'Aluno',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.person),
-                                ),
-                                value: _alunoId,
-                                hint: _turmaId == null
-                                    ? const Text('Selecione uma turma primeiro')
-                                    : const Text('Selecione um aluno'),
-                                isExpanded: true,
-                                items: _alunos.map((aluno) {
-                                  return DropdownMenuItem<int>(
-                                    value: aluno.id,
-                                    child: Text(aluno.name),
-                                  );
-                                }).toList(),
-                                onChanged:
-                                    _alunos.isEmpty ? null : _onAlunoChanged,
-                                disabledHint: _turmaId == null
-                                    ? const Text('Selecione uma turma primeiro')
-                                    : _isLoading
-                                        ? const Text('Carregando alunos...')
-                                        : const Text('Nenhum aluno disponível'),
-                              ),
-                            ],
-                          ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+
+                            // Dropdown Turma
+                            _buildDropdown(
+                              label: 'Turma',
+                              hint: 'Selecione uma turma',
+                              value: _turmaId,
+                              icon: Icons.group_outlined,
+                              items: _turmas.map((turma) {
+                                return DropdownMenuItem<int>(
+                                  value: turma.id,
+                                  child: Text(turma.name,
+                                      style: const TextStyle(color: textLight)),
+                                );
+                              }).toList(),
+                              onChanged: _onTurmaChanged,
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // Dropdown Simulado
+                            _buildDropdown(
+                              label: 'Simulado',
+                              hint: _turmaId == null
+                                  ? 'Selecione uma turma primeiro'
+                                  : 'Selecione um simulado',
+                              value: _simuladoId,
+                              icon: Icons.quiz_outlined,
+                              items: _simulados.map((simulado) {
+                                return DropdownMenuItem<int>(
+                                  value: simulado.id,
+                                  child: Text(simulado.titulo,
+                                      style: const TextStyle(color: textLight)),
+                                );
+                              }).toList(),
+                              onChanged: _simulados.isEmpty
+                                  ? null
+                                  : _onSimuladoChanged,
+                              disabledHint: _turmaId == null
+                                  ? 'Selecione uma turma primeiro'
+                                  : _isLoading
+                                      ? 'Carregando simulados...'
+                                      : 'Nenhum simulado disponível',
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // Dropdown Aluno
+                            _buildDropdown(
+                              label: 'Aluno',
+                              hint: _turmaId == null
+                                  ? 'Selecione uma turma primeiro'
+                                  : 'Selecione um aluno',
+                              value: _alunoId,
+                              icon: Icons.person_outline,
+                              items: _alunos.map((aluno) {
+                                return DropdownMenuItem<int>(
+                                  value: aluno.id,
+                                  child: Text(aluno.name,
+                                      style: const TextStyle(color: textLight)),
+                                );
+                              }).toList(),
+                              onChanged:
+                                  _alunos.isEmpty ? null : _onAlunoChanged,
+                              disabledHint: _turmaId == null
+                                  ? 'Selecione uma turma primeiro'
+                                  : _isLoading
+                                      ? 'Carregando alunos...'
+                                      : 'Nenhum aluno disponível',
+                            ),
+                          ],
                         ),
                       ),
+
+                      const SizedBox(height: 16),
+
+                      // Mensagem de erro
                       if (_errorMessage.isNotEmpty)
                         Container(
-                          margin: const EdgeInsets.only(top: 16),
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.red[50],
+                            color: dangerColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.red),
+                            border: Border.all(color: dangerColor, width: 1),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                _errorMessage,
-                                style: TextStyle(color: Colors.red[900]),
+                              const Row(
+                                children: [
+                                  Icon(
+                                    Icons.error_outline,
+                                    color: dangerColor,
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Erro',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: dangerColor,
+                                    ),
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 8),
-                              ElevatedButton(
-                                onPressed: _recarregarDados,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red[100],
-                                  foregroundColor: Colors.red[900],
+                              Text(
+                                _errorMessage,
+                                style: const TextStyle(
+                                  color: dangerColor,
+                                  fontSize: 14,
                                 ),
-                                child: const Text('Tentar Novamente'),
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: _recarregarDados,
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text('Tentar Novamente'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor:
+                                        dangerColor.withOpacity(0.2),
+                                    foregroundColor: dangerColor,
+                                    side: const BorderSide(color: dangerColor),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
                         ),
+
                       const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: (_isLoading ||
-                                _turmaId == null ||
-                                _simuladoId == null ||
-                                _alunoId == null)
-                            ? null
-                            : _continuarParaLeitor,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          textStyle: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+
+                      // Botão continuar
+                      SizedBox(
+                        height: 56,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: (_isLoading ||
+                                    _turmaId == null ||
+                                    _simuladoId == null ||
+                                    _alunoId == null)
+                                ? null
+                                : _continuarParaLeitor,
+                            borderRadius: BorderRadius.circular(4),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: (_isLoading ||
+                                        _turmaId == null ||
+                                        _simuladoId == null ||
+                                        _alunoId == null)
+                                    ? null
+                                    : const LinearGradient(
+                                        colors: [secondaryColor, primaryColor],
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                      ),
+                                color: (_isLoading ||
+                                        _turmaId == null ||
+                                        _simuladoId == null ||
+                                        _alunoId == null)
+                                    ? borderColor
+                                    : null,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              alignment: Alignment.center,
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        color: textLight,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.camera_alt_outlined,
+                                            size: 20, color: Colors.white),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Continuar para Leitura',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                            ),
                           ),
                         ),
-                        child: _isLoading
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text('Continuar para Leitura'),
                       ),
+
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _buildDropdown({
+    required String label,
+    required String hint,
+    required int? value,
+    required IconData icon,
+    required List<DropdownMenuItem<int>> items,
+    required void Function(int?)? onChanged,
+    String? disabledHint,
+  }) {
+    return DropdownButtonFormField<int>(
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: textMuted),
+        hintText: hint,
+        hintStyle: const TextStyle(color: textMuted),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(4),
+          borderSide: const BorderSide(color: borderColor),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(4),
+          borderSide: const BorderSide(color: borderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(4),
+          borderSide: const BorderSide(color: primaryColor, width: 2),
+        ),
+        filled: true,
+        fillColor: bgDark,
+        prefixIcon: Icon(icon, color: primaryColor),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+      value: value,
+      isExpanded: true,
+      style: const TextStyle(color: textLight),
+      dropdownColor: bgSurface,
+      items: items,
+      onChanged: onChanged,
+      disabledHint: disabledHint != null
+          ? Text(disabledHint, style: const TextStyle(color: textMuted))
+          : null,
     );
   }
 }
