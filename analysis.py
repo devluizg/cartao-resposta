@@ -11,31 +11,74 @@ def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 
     for q in range(1, num_questoes + 1):
         resultados[q] = None
         confianca[q] = 0.0
+
+    # --- LÓGICA ADAPTATIVA (EXISTENTE) ---
+    todas_taxas = []
+    for questao in questoes:
+        for bolha in questao:
+            if not bolha.get('sintetica', False):
+                todas_taxas.append(bolha.get('fill_rate', 0.0))
+
+    if todas_taxas:
+        media_global = np.mean(todas_taxas)
+        desvio_global = np.std(todas_taxas)
+        threshold_adaptativo = max(0.3, media_global + 0.8 * desvio_global)
+        print(f"Análise Adaptativa: Média de preenchimento={media_global:.2f}, Desvio={desvio_global:.2f}")
+        print(f"Threshold Adaptativo Definido: {threshold_adaptativo:.2f}")
+    else:
+        threshold_adaptativo = 0.3
+        print("Aviso: Nenhuma bolha detectada para análise adaptativa. Usando threshold padrão.")
+
+    # --- ANÁLISE POR QUESTÃO COM DETECÇÃO DE MÚLTIPLAS MARCAÇÕES ---
     for i, questao in enumerate(questoes):
         num_questao = i + 1
         if num_questao > num_questoes:
             break
         if not questao:
             continue
-        max_preenchimento = 0.0
-        alt_index = -1
-        second_max = 0.0
-        for j, bolha in enumerate(questao):
-            if j >= len(alternativas):
-                break
-            preenchimento = bolha.get('fill_rate', bolha.get('preenchimento', 0.0))
-            if preenchimento > max_preenchimento:
-                second_max = max_preenchimento
-                max_preenchimento = preenchimento
-                alt_index = j
-            elif preenchimento > second_max:
-                second_max = preenchimento
-        diferenca = max_preenchimento - second_max
-        nivel_confianca = diferenca * 2
-        nivel_confianca = min(max(nivel_confianca, 0.0), 1.0)
-        if alt_index >= 0 and max_preenchimento > 0.3:
+        
+        # 1. Coletar preenchimentos e identificar candidatas
+        preenchimentos = []
+        for bolha in questao:
+            preenchimentos.append(bolha.get('fill_rate', 0.0))
+        
+        candidatas_marcadas = []
+        for j, preenchimento in enumerate(preenchimentos):
+            if preenchimento > threshold_adaptativo:
+                candidatas_marcadas.append({
+                    'indice': j,
+                    'preenchimento': preenchimento
+                })
+
+        # 2. Tomar a decisão baseada no número de candidatas
+        if len(candidatas_marcadas) == 1:
+            # Caso ideal: Apenas uma alternativa marcada
+            marcada = candidatas_marcadas[0]
+            alt_index = marcada['indice']
+            
+            # Ordenar preenchimentos para calcular confiança
+            preenchimentos.sort(reverse=True)
+            max_preenchimento = preenchimentos[0]
+            second_max = preenchimentos[1] if len(preenchimentos) > 1 else 0.0
+            
+            diferenca = max_preenchimento - second_max
+            nivel_confianca = min(max(diferenca * 2, 0.0), 1.0)
+
             resultados[num_questao] = alternativas[alt_index]
             confianca[num_questao] = nivel_confianca
+
+        elif len(candidatas_marcadas) > 1:
+            # Erro: Múltiplas alternativas marcadas
+            letras_marcadas = [alternativas[c['indice']] for c in candidatas_marcadas]
+            print(f"Q{num_questao}: ERRO - Múltiplas marcações detectadas: {', '.join(letras_marcadas)}")
+            resultados[num_questao] = "ERRO_MULTIPLA"
+            confianca[num_questao] = 0.0
+        
+        else:
+            # Nenhuma alternativa atingiu o threshold, questão em branco
+            resultados[num_questao] = None
+            confianca[num_questao] = 0.0
+            
     return resultados, confianca
 
 def validar_resultados(resultados, confianca, num_questoes, num_alternativas=5):
@@ -357,25 +400,29 @@ class CartaoRespostaAnalyzer:
                 
                 if bolhas:
                     questoes = agrupar_bolhas_por_questoes(bolhas, num_questoes, 5)
+                    
+                    # CORREÇÃO: Chamar a função de análise correta que lida com erros e adaptabilidade
+                    resultados, confianca = analisar_gabarito(questoes, num_questoes, self.alternativas)
+
+                    # Manter o feedback visual (debug) atualizado com a nova lógica
                     for i, questao in enumerate(questoes):
+                        if i >= num_questoes: break
                         num_questao = i + 1
-                        print(f"Questão {num_questao}: {len(questao)} alternativas processadas")
-                        alternativa_marcada = None
-                        maior_preenchimento = 0.0
+                        resposta = resultados.get(num_questao)
+                        
+                        # Definir cor para o debug
+                        if "ERRO" in str(resposta):
+                            cor = (0, 0, 255)  # Vermelho para erro de múltipla marcação
+                        elif resposta is not None:
+                            cor = (0, 255, 0)  # Verde para resposta válida
+                        else:
+                            cor = (255, 0, 0)  # Azul para não marcada
+
                         for j, bolha in enumerate(questao):
-                            if j >= 5:
-                                break
-                            cv2.circle(debug_image, bolha['centro'], bolha['radius'], (255, 0, 0), 3)
+                            if j >= 5: break
+                            cv2.circle(debug_image, bolha['centro'], bolha['radius'], cor, 2)
                             alt_letra = self.alternativas[j]
-                            cv2.putText(debug_image, alt_letra, (bolha['centro'][0] - 5, bolha['centro'][1] + 5), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
-                            percentual = int(bolha['fill_rate'] * 100)
-                            texto_info = f"{percentual}%"
-                            cv2.putText(debug_image, texto_info, (bolha['centro'][0] - 15, bolha['centro'][1] + bolha['radius'] + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
-                            if bolha['fill_rate'] > maior_preenchimento:
-                                maior_preenchimento = bolha['fill_rate']
-                                if bolha['fill_rate'] > sensitivity:
-                                    alternativa_marcada = self.alternativas[j]
-                        resultados[num_questao] = alternativa_marcada
+                            cv2.putText(debug_image, alt_letra, (bolha['centro'][0] - 5, bolha['centro'][1] + 5), cv2.FONT_HERSHEY_SIMPLEX, 0.7, cor, 2)
                 else:
                     for i in range(1, num_questoes + 1):
                         resultados[i] = None
