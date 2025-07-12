@@ -83,6 +83,12 @@ async def processar_cartao(
             response_data["imagem_processada_base64"] = img_debug_base64
             response_data["imagem_binaria_base64"] = img_binary_base64
         
+        # Log final com os resultados para fácil depuração no terminal
+        import json
+        print("--- Resultados Finais ---")
+        print(json.dumps(response_data, indent=2, ensure_ascii=False))
+        print("-------------------------")
+
         return response_data
 
     except Exception as e:
