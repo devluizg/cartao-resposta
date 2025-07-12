@@ -318,7 +318,8 @@ def agrupar_bolhas_por_questoes(bolhas, num_questoes=10, num_alternativas=5):
     
     # Agrupar pontos verticalmente (por linhas/questões)
     y_only = y_coords.reshape(-1, 1)
-    db = DBSCAN(eps=epsilon, min_samples=min(2, len(bolhas)//num_questoes)).fit(y_only)
+    min_samples_calc = max(1, len(bolhas) // num_questoes) if num_questoes > 0 else 1
+    db = DBSCAN(eps=epsilon, min_samples=min(2, min_samples_calc)).fit(y_only)
     
     # Lidar com casos onde DBSCAN produz mais clusters que questões esperadas
     labels = db.labels_
