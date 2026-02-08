@@ -95,3 +95,8 @@ async def processar_cartao(
         import traceback
         error_detail = traceback.format_exc()
         return JSONResponse(content={"error": str(e), "detail": error_detail}, status_code=500)
+
+if __name__ == "__main__":
+    import uvicorn
+    # O host 0.0.0.0 libera o acesso externo (essencial pro Docker)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
