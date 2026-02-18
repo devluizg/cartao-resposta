@@ -44,6 +44,15 @@ class CartaoRespostaPreviewScreen extends StatefulWidget {
 
 class _CartaoRespostaPreviewScreenState
     extends State<CartaoRespostaPreviewScreen> {
+  // Design System - Nova Paleta (Modo Escuro para Preview)
+  static const Color primary = Color(0xFF0DA6F2);       // Azul claro/primário
+  static const Color primaryDark = Color(0xFF003D5C);   // Azul escuro
+  static const Color bgDark = Color(0xFF121E25);        // Azul escuro (fundo)
+  static const Color surfaceDark = Color(0xFF1A2A33);   // Cards (fundo)
+  static const Color success = Color(0xFF16A34A);       // Verde (link icon color)
+  static const Color danger = Color(0xFFDC2626);        // Vermelho (mantido do material default, ajustado)
+  static const Color textLight = Color(0xFFF8FAFC);     // Texto claro (Cinza super claro)
+
   // Sistema de créditos
   final CreditManager _creditManager = CreditManager();
   bool _checkingCredits = false;
@@ -186,7 +195,7 @@ class _CartaoRespostaPreviewScreenState
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   CircularProgressIndicator(
-                    color: Color(0xFF00A4D9), // AppColors.primaryColor
+                    color: primary, // AppColors.primaryColor
                     backgroundColor: Color(0xFF31355B), // AppColors.borderColor
                   ),
                   SizedBox(height: 16),
@@ -329,7 +338,7 @@ class _CartaoRespostaPreviewScreenState
         .length;
 
     return Scaffold(
-      backgroundColor: Colors.black87,
+      backgroundColor: bgDark,
       appBar: AppBar(
         title: const Text(
           'Visualização da Correção',
@@ -346,11 +355,11 @@ class _CartaoRespostaPreviewScreenState
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: _availableCredits > 0
-                    ? Colors.green.withOpacity(0.2)
-                    : Colors.red.withOpacity(0.2),
+                    ? success.withOpacity(0.2)
+                    : danger.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: _availableCredits > 0 ? Colors.green : Colors.red,
+                  color: _availableCredits > 0 ? success : danger,
                   width: 1,
                 ),
               ),
@@ -360,13 +369,13 @@ class _CartaoRespostaPreviewScreenState
                   Icon(
                     Icons.account_balance_wallet,
                     size: 16,
-                    color: _availableCredits > 0 ? Colors.green : Colors.red,
+                    color: _availableCredits > 0 ? success : danger,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     '$_availableCredits',
                     style: TextStyle(
-                      color: _availableCredits > 0 ? Colors.green : Colors.red,
+                      color: _availableCredits > 0 ? success : danger,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
@@ -396,7 +405,7 @@ class _CartaoRespostaPreviewScreenState
         children: [
           // Camada de fundo escura
           Container(
-            color: Colors.black87,
+            color: bgDark,
           ),
 
           // Conteúdo central - Cartão resposta e informações
@@ -410,7 +419,7 @@ class _CartaoRespostaPreviewScreenState
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16.0, vertical: 8.0),
                     child: Card(
-                      color: Colors.white.withOpacity(0.1),
+                      color: surfaceDark.withOpacity(0.9),
                       child: Padding(
                         padding: const EdgeInsets.all(12.0),
                         child: Column(
@@ -524,7 +533,7 @@ class _CartaoRespostaPreviewScreenState
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
-                              _processingCorrection ? Colors.grey : Colors.red,
+                              _processingCorrection ? Colors.grey : danger,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
@@ -573,8 +582,8 @@ class _CartaoRespostaPreviewScreenState
                               (_checkingCredits || _processingCorrection)
                                   ? Colors.grey
                                   : (_availableCredits > 0
-                                      ? Colors.green
-                                      : Colors.green),
+                                      ? success
+                                      : success),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),

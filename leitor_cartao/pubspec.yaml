@@ -36,7 +36,10 @@ dependencies:
   image: ^4.0.17  # Ou a versão mais recente
   path_provider: ^2.1.0
   connectivity_plus: ^5.0.2
-
+  google_sign_in: ^6.2.1
+  url_launcher: ^6.2.4
+  webview_flutter: ^4.4.2
+  app_links: ^3.5.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -66,6 +69,8 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - assets/images/nova_logo.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -97,9 +102,9 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
-flutter_icons:
+flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/icon/app_icon.png"  # Caminho onde colocará seu ícone
+  image_path: "assets/images/nova_logo.png"
   min_sdk_android: 21
   remove_alpha_ios: true

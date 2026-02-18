@@ -15,22 +15,25 @@ import 'screens/loja_creditos_screen.dart';
 import 'screens/login_screen.dart';
 // Importar o serviço de API
 import 'services/api_service.dart';
+import 'widgets/custom_app_bar.dart';
 
 final Logger _logger = Logger('CartaoRespostaApp');
 final ApiService _apiService = ApiService();
 
 // Paleta de cores do site Django
 class AppColors {
-  static const Color primaryColor = Color(0xFF00A4D9); // Ciano vibrante
-  static const Color secondaryColor = Color(0xFF434891); // Índigo profundo
-  static const Color bgDark = Color(0xFF121425); // Fundo ultra escuro
-  static const Color bgSurface = Color(0xFF1D203A); // Superfícies
-  static const Color borderColor = Color(0xFF31355B); // Bordas sutis
-  static const Color textLight = Color(0xFFE0E6F1); // Texto claro
-  static const Color textMuted = Color(0xFF8C96C3); // Texto secundário
-  static const Color successColor = Color(0xFF2DD8A3); // Sucesso
-  static const Color dangerColor = Color(0xFFE94B6A); // Erro
-  static const Color warningColor = Color(0xFFF2A93B); // Aviso
+  static const Color primaryColor = Color(0xFF0DA6F2);  // Azul claro/primário
+  static const Color secondaryColor = Color(0xFF003D5C); // Azul escuro
+  static const Color bgDark = Color(0xFF121E25);        // Azul escuro (fundo do mockup - modo escuro)
+  static const Color bgLight = Color(0xFFF8FAFC);       // Cinza super claro (fundo do mockup - modo claro)
+  static const Color bgSurface = Color(0xFF1A2A33);     // Azul escuro acinzentado (cards - modo escuro)
+  static const Color bgSurfaceLight = Color(0xFFFFFFFF);// Cards modo claro
+  static const Color borderColor = Color(0xFFDBE2E6);   // Cinza claro (bordas)
+  static const Color textLight = Color(0xFFF8FAFC);     // Texto claro
+  static const Color textMuted = Color(0xFF94A3B8);     // Slate 400
+  static const Color successColor = Color(0xFF16A34A);  // Verde
+  static const Color dangerColor = Color(0xFFEF4444);   // Vermelho
+  static const Color warningColor = Color(0xFFF2A93B);  // Aviso
 }
 
 void main() {
@@ -67,9 +70,9 @@ class _CartaoRespostaAppState extends State<CartaoRespostaApp> {
       theme: ThemeData(
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
-        scaffoldBackgroundColor: AppColors.bgDark,
+        scaffoldBackgroundColor: AppColors.bgLight,
         cardTheme: CardTheme(
-          color: AppColors.bgSurface,
+          color: AppColors.bgSurfaceLight,
           elevation: 4,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
@@ -117,7 +120,7 @@ class _AuthenticationWrapperState extends State<AuthenticationWrapper> {
   Widget build(BuildContext context) {
     if (_checkingAuth) {
       return const Scaffold(
-        backgroundColor: AppColors.bgDark,
+        backgroundColor: AppColors.bgLight,
         body: Center(
           child: CircularProgressIndicator(
             color: AppColors.primaryColor,
@@ -173,7 +176,7 @@ class _TelaInicialState extends State<TelaInicial> {
   bool _temImagensProcessadas = false;
 
   final TextEditingController _enderecoIPController =
-      TextEditingController(text: "devluizg.pythonanywhere.com");
+      TextEditingController(text: "192.168.1.10:8000");
   int _tipoProva = 1;
 
   // ✅ ADICIONAR ESTA LINHA
@@ -546,7 +549,7 @@ class _TelaInicialState extends State<TelaInicial> {
       _logger.info('Número de questões do simulado: $_numeroQuestoes');
 
       final uri =
-          Uri.parse('https://cartao-resposta.onrender.com/processar_cartao');
+          Uri.parse('http://sokk4wsk8c4ok4sccswwwccg.65.108.245.193.sslip.io/processar_cartao');
       final request = http.MultipartRequest('POST', uri);
 
       request.files.add(await http.MultipartFile.fromPath(
@@ -699,61 +702,10 @@ class _TelaInicialState extends State<TelaInicial> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDark,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: AppColors.bgSurface,
-        foregroundColor: AppColors.textLight,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.primaryColor, AppColors.secondaryColor],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.display_settings,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              _carregandoSimulado ? 'Carregando...' : 'SimuladoApp',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                color: AppColors.textLight,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Recarregar Simulado',
-            onPressed: _carregarDadosSimulado,
-            color: AppColors.textMuted,
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sair',
-            onPressed: _logout,
-            color: AppColors.textMuted,
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(
-            height: 1,
-            color: AppColors.borderColor,
-          ),
-        ),
+      backgroundColor: AppColors.bgLight,
+      appBar: CustomAppBar(
+        onReload: _carregarDadosSimulado,
+        onExit: _logout,
       ),
       body: _carregandoSimulado
           ? const Center(
@@ -785,7 +737,7 @@ class _TelaInicialState extends State<TelaInicial> {
                     side: const BorderSide(
                         color: AppColors.borderColor, width: 1),
                   ),
-                  color: AppColors.bgSurface.withOpacity(0.5),
+                  color: Colors.white,
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Row(
@@ -814,7 +766,7 @@ class _TelaInicialState extends State<TelaInicial> {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: AppColors.textLight,
+                                  color: AppColors.secondaryColor,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -881,14 +833,14 @@ class _TelaInicialState extends State<TelaInicial> {
                 Card(
                   elevation: 4,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                     side: const BorderSide(
                         color: AppColors.borderColor, width: 1),
                   ),
                   color: Colors.transparent,
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                       gradient: const LinearGradient(
                         colors: [
                           AppColors.secondaryColor,
@@ -899,18 +851,18 @@ class _TelaInicialState extends State<TelaInicial> {
                       ),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(20.0),
+                      padding: const EdgeInsets.all(12.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Header com ícone e nome do simulado
+                          // Header compacto - Nome do simulado e aluno na mesma linha
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(8),
+                                padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(4),
+                                  borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
                                     color: Colors.white.withOpacity(0.3),
                                     width: 1,
@@ -918,84 +870,104 @@ class _TelaInicialState extends State<TelaInicial> {
                                 ),
                                 child: const Icon(
                                   Icons.quiz,
-                                  color: AppColors.textLight,
-                                  size: 20,
+                                  color: Colors.white,
+                                  size: 18,
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 8),
                               Expanded(
-                                child: SelectableText(
-                                  _decodificarTexto(_tituloSimulado),
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textLight,
-                                  ),
-                                  maxLines: 2,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SelectableText(
+                                      _decodificarTexto(_tituloSimulado),
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.textLight,
+                                        height: 1.2,
+                                      ),
+                                      maxLines: 1,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    SelectableText(
+                                      _decodificarTexto(_nomeAluno),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.white.withOpacity(0.9),
+                                        height: 1.2,
+                                      ),
+                                      maxLines: 1,
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                          // Adicione aqui o resto do conteúdo do card do simulado
 
                           const SizedBox(height: 12),
 
-                          // Nome do aluno completo
-                          SelectableText(
-                            _decodificarTexto(_nomeAluno),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                            maxLines: 1,
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          // Apenas 2 cards: Questões e Pontuação
+                          // Cards de Questões e Pontuação - mais compactos
                           Row(
                             children: [
                               // Card de Questões
                               Expanded(
                                 child: Container(
-                                  padding: const EdgeInsets.all(16),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 10, horizontal: 12),
                                   decoration: BoxDecoration(
-                                    color: AppColors.bgSurface.withOpacity(0.5),
-                                    borderRadius: BorderRadius.circular(4),
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
                                         color: AppColors.borderColor),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.3),
+                                        color: Colors.black.withOpacity(0.15),
                                         blurRadius: 4,
                                         offset: const Offset(0, 2),
                                       ),
                                     ],
                                   ),
-                                  child: Column(
+                                  child: Row(
                                     children: [
-                                      const Icon(
-                                        Icons.help_outline,
-                                        color: AppColors.primaryColor,
-                                        size: 24,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      const Text(
-                                        'Questões',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: AppColors.textMuted,
-                                          fontWeight: FontWeight.w500,
+                                      Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primaryColor
+                                              .withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: const Icon(
+                                          Icons.help_outline,
+                                          color: AppColors.primaryColor,
+                                          size: 18,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '${_numeroQuestoes ?? "..."}',
-                                        style: const TextStyle(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.textLight,
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Questões',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: AppColors.textMuted,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            Text(
+                                              '${_numeroQuestoes ?? "..."}',
+                                              style: const TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.secondaryColor,
+                                                height: 1.2,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
@@ -1003,49 +975,66 @@ class _TelaInicialState extends State<TelaInicial> {
                                 ),
                               ),
 
-                              const SizedBox(width: 16),
+                              const SizedBox(width: 10),
 
                               // Card de Pontuação
                               Expanded(
                                 child: Container(
-                                  padding: const EdgeInsets.all(16),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 10, horizontal: 12),
                                   decoration: BoxDecoration(
-                                    color: AppColors.bgSurface.withOpacity(0.5),
-                                    borderRadius: BorderRadius.circular(4),
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
                                         color: AppColors.borderColor),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.3),
+                                        color: Colors.black.withOpacity(0.15),
                                         blurRadius: 4,
                                         offset: const Offset(0, 2),
                                       ),
                                     ],
                                   ),
-                                  child: Column(
+                                  child: Row(
                                     children: [
-                                      const Icon(
-                                        Icons.grade,
-                                        color: AppColors.warningColor,
-                                        size: 24,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      const Text(
-                                        'Pontuação',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: AppColors.textMuted,
-                                          fontWeight: FontWeight.w500,
+                                      Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.warningColor
+                                              .withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: const Icon(
+                                          Icons.grade,
+                                          color: AppColors.warningColor,
+                                          size: 18,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _pontuacaoTotal?.toStringAsFixed(1) ??
-                                            "...",
-                                        style: const TextStyle(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.textLight,
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Pontuação',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: AppColors.textMuted,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            Text(
+                                              _pontuacaoTotal?.toStringAsFixed(1) ??
+                                                  "...",
+                                              style: const TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.secondaryColor,
+                                                height: 1.2,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
@@ -1070,7 +1059,7 @@ class _TelaInicialState extends State<TelaInicial> {
                     side: const BorderSide(
                         color: AppColors.borderColor, width: 1),
                   ),
-                  color: AppColors.bgSurface.withOpacity(0.5),
+                  color: Colors.white,
                   child: Padding(
                     padding: const EdgeInsets.all(20.0),
                     child: Column(
@@ -1136,7 +1125,7 @@ class _TelaInicialState extends State<TelaInicial> {
                                       style: TextStyle(
                                         color: _tipoProva == tipo
                                             ? Colors.white
-                                            : AppColors.textLight,
+                                            : AppColors.secondaryColor,
                                         fontWeight: FontWeight.w600,
                                         fontSize: 14, // Diminuído de 16 para 14
                                       ),
@@ -1149,7 +1138,7 @@ class _TelaInicialState extends State<TelaInicial> {
                                         });
                                       }
                                     },
-                                    backgroundColor: AppColors.bgDark,
+                                    backgroundColor: Colors.white,
                                     selectedColor: AppColors.primaryColor,
                                     elevation: 2,
                                     pressElevation: 4,
@@ -1173,7 +1162,7 @@ class _TelaInicialState extends State<TelaInicial> {
 
                 // Área da imagem
                 Card(
-                  color: AppColors.bgSurface,
+                  color: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                     side: const BorderSide(
@@ -1184,7 +1173,7 @@ class _TelaInicialState extends State<TelaInicial> {
                     child: Container(
                       height: 200,
                       decoration: BoxDecoration(
-                        color: AppColors.bgDark,
+                        color: AppColors.bgLight,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: _imagemSelecionada != null
@@ -1267,7 +1256,7 @@ class _TelaInicialState extends State<TelaInicial> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
-                              color: AppColors.bgSurface,
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(
                                   color: AppColors.borderColor, width: 2),
@@ -1276,12 +1265,12 @@ class _TelaInicialState extends State<TelaInicial> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(Icons.photo_library,
-                                    size: 20, color: AppColors.textLight),
+                                    size: 20, color: AppColors.secondaryColor),
                                 SizedBox(width: 8),
                                 Text(
                                   'Galeria',
                                   style: TextStyle(
-                                    color: AppColors.textLight,
+                                    color: AppColors.secondaryColor,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -1313,8 +1302,8 @@ class _TelaInicialState extends State<TelaInicial> {
                               ? null
                               : const LinearGradient(
                                   colors: [
-                                    AppColors.successColor,
-                                    AppColors.primaryColor
+                                    AppColors.primaryColor,
+                                    AppColors.secondaryColor
                                   ],
                                   begin: Alignment.centerLeft,
                                   end: Alignment.centerRight,
@@ -1406,11 +1395,11 @@ class _TelaInicialState extends State<TelaInicial> {
                                   showDialog(
                                     context: context,
                                     builder: (context) => AlertDialog(
-                                      backgroundColor: AppColors.bgSurface,
+                                      backgroundColor: Colors.white,
                                       title: const Text(
                                         'Detalhes do Erro',
                                         style: TextStyle(
-                                            color: AppColors.textLight),
+                                            color: AppColors.secondaryColor),
                                       ),
                                       content: SingleChildScrollView(
                                         child: Text(

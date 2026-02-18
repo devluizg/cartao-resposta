@@ -15,7 +15,7 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
-  String baseUrl = 'https://devluizg.pythonanywhere.com';
+  String baseUrl = 'https://simuladoapp.com.br';
   final Duration timeoutDuration = const Duration(seconds: 30);
 
   void setBaseUrl(String url) {
@@ -39,44 +39,80 @@ class ApiService {
 
   // Login method - Fixed to match Django Rest Framework SimpleJWT format
   Future<bool> login(String username, String password) async {
+    print('\n=== API_SERVICE: Iniciando login ===');
+    print('URL: $baseUrl/api/token/');
+    print('Email: $username');
+    print('Senha fornecida: ${password.isNotEmpty ? "Sim (${password.length} chars)" : "NÃO"}');
+
     try {
+      final uri = Uri.parse('$baseUrl/api/token/');
+      final headers = {'Content-Type': 'application/json'};
+      final body = jsonEncode({
+        'email': username,
+        'password': password,
+      });
+
+      print('URI: $uri');
+      print('Headers: $headers');
+      print('Body sendo enviado: $body');
+
+      print('Enviando requisição POST...');
       final response = await http
           .post(
-        Uri.parse('$baseUrl/api/token/'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': username,
-          'password': password,
-        }),
+        uri,
+        headers: headers,
+        body: body,
       )
           .timeout(const Duration(seconds: 30), onTimeout: () {
+        print('❌ TIMEOUT: Requisição expirou após 30 segundos');
         debugPrint('Requisição de login expirou após 30 segundos');
         throw TimeoutException(
             'A conexão expirou. Verifique sua conexão com a internet.');
       });
 
+      print('✅ Resposta recebida!');
+      print('Status Code: ${response.statusCode}');
+      print('Response Headers: ${response.headers}');
+      print('Response Body: ${response.body}');
+
       debugPrint(
           'Login status: ${response.statusCode}, body: ${response.body}');
 
       if (response.statusCode == 200) {
+        print('✅ Status 200 - Login bem-sucedido!');
         final tokenData = jsonDecode(response.body);
+        print('Token data decodificado: $tokenData');
+        print('Access token presente: ${tokenData.containsKey("access")}');
+        print('Refresh token presente: ${tokenData.containsKey("refresh")}');
+
         final prefs = await SharedPreferences.getInstance();
 
         // Store tokens - SimpleJWT returns access and refresh tokens
         await prefs.setString('access_token', tokenData['access']);
         await prefs.setString('refresh_token', tokenData['refresh']);
+        print('✅ Tokens salvos no SharedPreferences');
 
         // Fetch user info
+        print('Buscando informações do usuário...');
         await getUserInfo();
+        print('✅ Informações do usuário obtidas');
         return true;
       } else {
+        print('❌ Login falhou - Status: ${response.statusCode}');
+        print('❌ Resposta do servidor: ${response.body}');
         debugPrint('Login failed: ${response.statusCode} - ${response.body}');
         return false;
       }
-    } on TimeoutException {
+    } on TimeoutException catch (e) {
+      print('❌ TIMEOUT EXCEPTION: $e');
       debugPrint('Login timeout');
       return false;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ EXCEPTION durante login no ApiService:');
+      print('Tipo: ${e.runtimeType}');
+      print('Erro: $e');
+      print('Stack trace:');
+      print(stackTrace);
       debugPrint('Exception during login: $e');
       return false;
     }
@@ -117,37 +153,67 @@ class ApiService {
 
   // Get user information
   Future<Map<String, dynamic>?> getUserInfo() async {
+    print('\n=== API_SERVICE: Obtendo informações do usuário ===');
+    print('URL: $baseUrl/api/user-info/');
+
     try {
       final headers = await getAuthHeaders();
+      print('Headers: $headers');
+      print('Enviando requisição GET...');
+
       final response = await http.get(
         Uri.parse('$baseUrl/api/user-info/'),
         headers: headers,
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          print('❌ TIMEOUT: getUserInfo expirou após 15 segundos');
+          throw TimeoutException('Timeout ao obter informações do usuário');
+        },
       );
 
+      print('✅ Resposta recebida!');
+      print('Status Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
       if (response.statusCode == 200) {
+        print('✅ Informações do usuário obtidas com sucesso');
         final userData = jsonDecode(response.body);
+        print('User data: $userData');
+
         final prefs = await SharedPreferences.getInstance();
 
         // Save user data
         await prefs.setString('user_name', userData['name']);
         await prefs.setString('user_email', userData['email']);
+        print('✅ Dados do usuário salvos no SharedPreferences');
 
         return userData;
       } else if (response.statusCode == 401) {
+        print('⚠️ Status 401 - Token expirado, tentando refresh...');
         // Token expired, try to refresh
         final refreshed = await refreshToken();
         if (refreshed) {
+          print('✅ Token refreshed, tentando novamente...');
           // Retry with new token
           return getUserInfo();
         }
+        print('❌ Falha ao refresh token');
         debugPrint('Failed to get user info: Token expired and refresh failed');
         return null;
       } else {
+        print('❌ Falha ao obter user info - Status: ${response.statusCode}');
+        print('❌ Resposta: ${response.body}');
         debugPrint(
             'Failed to get user info: ${response.statusCode} - ${response.body}');
         return null;
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ EXCEPTION ao obter user info:');
+      print('Tipo: ${e.runtimeType}');
+      print('Erro: $e');
+      print('Stack trace:');
+      print(stackTrace);
       debugPrint('Exception getting user info: $e');
       return null;
     }
@@ -273,12 +339,35 @@ class ApiService {
 
   // Test API connection
   Future<bool> testConnection() async {
+    print('\n=== API_SERVICE: Testando conexão ===');
+    print('URL de teste: $baseUrl/api/test-connection/');
+
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/test-connection/'),
+      final uri = Uri.parse('$baseUrl/api/test-connection/');
+      print('URI: $uri');
+      print('Enviando requisição GET...');
+
+      final response = await http.get(uri).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          print('❌ TIMEOUT: Teste de conexão expirou após 10 segundos');
+          throw TimeoutException('Timeout ao testar conexão');
+        },
       );
-      return response.statusCode == 200;
-    } catch (e) {
+
+      print('✅ Resposta recebida!');
+      print('Status Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      final success = response.statusCode == 200;
+      print(success ? '✅ Teste de conexão bem-sucedido!' : '❌ Teste de conexão falhou');
+      return success;
+    } catch (e, stackTrace) {
+      print('❌ ERRO no teste de conexão:');
+      print('Tipo: ${e.runtimeType}');
+      print('Erro: $e');
+      print('Stack trace:');
+      print(stackTrace);
       debugPrint('Connection test failed: $e');
       return false;
     }
@@ -585,7 +674,9 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        debugPrint('📋 Gabarito recebido: ${data['gabarito']}');
+        print('🚀 DEBUG: Gabarito recebido do servidor!');
+        print('🚀 DADOS COMPLETOS: ${response.body}');
+        debugPrint('📋 Gabarito (Processado): ${data['gabarito']}');
         return Map<String, String>.from(data['gabarito']);
       } else {
         debugPrint('❌ Falha ao obter gabarito: ${response.statusCode}');
@@ -609,16 +700,22 @@ class ApiService {
       String versao =
           'versao$tipo'; // Converte tipo1 para versao1, tipo2 para versao2, etc.
 
+      final requestBody = {
+        'aluno_id': studentId,
+        'simulado_id': simuladoId,
+        'respostas': answers,
+        'versao': versao, // Adicionado a versão para o backend
+        'tipo_prova': tipo, // Adicionado o tipo de prova
+      };
+
+      print('🚀 DEBUG: Enviando correção para o backend!');
+      print('🚀 URL: /api/simulados/$simuladoId/corrigir/');
+      print('🚀 BODY: ${jsonEncode(requestBody)}');
+
       final response = await authorizedRequest(
         '/api/simulados/$simuladoId/corrigir/',
         method: 'POST',
-        body: {
-          'aluno_id': studentId,
-          'simulado_id': simuladoId,
-          'respostas': answers,
-          'versao': versao, // Adicionado a versão para o backend
-          'tipo_prova': tipo, // Adicionado o tipo de prova
-        },
+        body: requestBody,
       );
 
       if (response.statusCode == 200) {
@@ -687,18 +784,24 @@ class ApiService {
     required Map<String, String> gabarito,
   }) async {
     try {
+      final requestBody = {
+        'aluno_id': studentId,
+        'simulado_id': simuladoId,
+        'versao': versao,
+        'nota_final': nota,
+        'respostas_aluno': respostasAluno,
+        'gabarito': gabarito,
+        'percentual_acerto': (nota / 10 * 100).toStringAsFixed(1),
+      };
+
+      print('🚀 DEBUG: Enviando submissão de resultado para o site!');
+      print('🚀 URL: /api/resultados/submit/');
+      print('🚀 BODY: ${jsonEncode(requestBody)}');
+
       final response = await authorizedRequest(
         '/api/resultados/submit/',
         method: 'POST',
-        body: {
-          'aluno_id': studentId,
-          'simulado_id': simuladoId,
-          'versao': versao,
-          'nota_final': nota,
-          'respostas_aluno': respostasAluno,
-          'gabarito': gabarito,
-          'percentual_acerto': (nota / 10 * 100).toStringAsFixed(1),
-        },
+        body: requestBody,
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {

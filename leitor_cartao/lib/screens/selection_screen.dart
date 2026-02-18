@@ -1,6 +1,7 @@
 // ignore_for_file: unused_local_variable
 
 import 'package:flutter/material.dart';
+import '../widgets/custom_app_bar.dart';
 import 'package:leitor_cartao/screens/login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
@@ -31,17 +32,19 @@ class _SelectionScreenState extends State<SelectionScreen> {
   int? _simuladoId;
   int? _alunoId;
 
-  // Paleta de cores do site Django
-  static const Color primaryColor = Color(0xFF00A4D9); // Ciano vibrante
-  static const Color secondaryColor = Color(0xFF434891); // Índigo profundo
-  static const Color bgDark = Color(0xFF121425); // Fundo ultra escuro
-  static const Color bgSurface = Color(0xFF1D203A); // Superfícies
-  static const Color borderColor = Color(0xFF31355B); // Bordas sutis
-  static const Color textLight = Color(0xFFE0E6F1); // Texto claro
-  static const Color textMuted = Color(0xFF8C96C3); // Texto secundário
-// Sucesso
-  static const Color dangerColor = Color(0xFFE94B6A); // Erro
-  static const Color warningColor = Color(0xFFF2A93B); // Aviso
+  // Design System - Nova Paleta de Cores (Página de Vendas)
+  static const Color primary = Color(0xFF0DA6F2);       // Azul claro/primário
+  static const Color primaryMedium = Color(0xFF0A8CCB); // Azul médio
+  static const Color primaryDark = Color(0xFF003D5C);   // Azul escuro
+  
+  static const Color bgLight = Color(0xFFF8FAFC);       // Cinza super claro (fundo)
+  static const Color surfaceLight = Color(0xFFFFFFFF);  // Superfície branca
+  static const Color textMain = Color(0xFF003D5C);      // Texto principal (Azul Escuro)
+  static const Color textSub = Color(0xFF475569);       // Texto secundário (Slate 600)
+  static const Color borderLight = Color(0xFFDBE2E6);   // Bordas gerais
+  
+  static const Color errorColor = Color(0xFFDC2626);    // Vermelho 600
+  static const Color warningColor = Color(0xFFEA580C);  // Laranja (speed icon color)
 
   @override
   void initState() {
@@ -78,7 +81,7 @@ class _SelectionScreenState extends State<SelectionScreen> {
       } else {
         setState(() {
           _errorMessage =
-              'Não foi possível conectar ao servidor. Verifique se o servidor está rodando.';
+              'Não foi possível conectar ao servidor. Verifique sua conexão.';
           _isLoading = false;
         });
       }
@@ -281,7 +284,7 @@ class _SelectionScreenState extends State<SelectionScreen> {
         SnackBar(
           content: const Row(
             children: [
-              Icon(Icons.warning, color: Colors.white),
+              Icon(Icons.warning_amber_rounded, color: Colors.white),
               SizedBox(width: 8),
               Text('Por favor, selecione todos os campos'),
             ],
@@ -289,7 +292,7 @@ class _SelectionScreenState extends State<SelectionScreen> {
           backgroundColor: warningColor,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
       );
@@ -386,15 +389,15 @@ class _SelectionScreenState extends State<SelectionScreen> {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.error, color: Colors.white),
+                const Icon(Icons.error_outline, color: Colors.white),
                 const SizedBox(width: 8),
                 Text('Erro ao fazer logout: $e'),
               ],
             ),
-            backgroundColor: dangerColor,
+            backgroundColor: errorColor,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
         );
@@ -417,67 +420,23 @@ class _SelectionScreenState extends State<SelectionScreen> {
     });
   }
 
+  bool get _canContinue =>
+      !_isLoading &&
+      _turmaId != null &&
+      _simuladoId != null &&
+      _alunoId != null;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgDark,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: bgSurface,
-        foregroundColor: textLight,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [primaryColor, secondaryColor],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.display_settings,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'SimuladoApp',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                color: textLight,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Recarregar',
-            onPressed: _recarregarDados,
-            color: textMuted,
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Sair',
-            onPressed: _logout,
-            color: textMuted,
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(
-            height: 1,
-            color: borderColor,
-          ),
-        ),
+      backgroundColor: bgLight,
+      appBar: CustomAppBar(
+        onReload: _recarregarDados,
+        onExit: _logout,
       ),
+
       body: _isLoading
-          ? const Center(
+          ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -486,16 +445,17 @@ class _SelectionScreenState extends State<SelectionScreen> {
                     height: 48,
                     child: CircularProgressIndicator(
                       strokeWidth: 3,
-                      valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
-                      backgroundColor: borderColor,
+                      valueColor: const AlwaysStoppedAnimation<Color>(primary),
+                      backgroundColor: borderLight,
                     ),
                   ),
-                  SizedBox(height: 24),
-                  Text(
+                  const SizedBox(height: 24),
+                  const Text(
                     'Carregando dados...',
                     style: TextStyle(
                       fontSize: 16,
-                      color: textMuted,
+                      color: textSub,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -503,173 +463,185 @@ class _SelectionScreenState extends State<SelectionScreen> {
             )
           : RefreshIndicator(
               onRefresh: _recarregarDados,
-              color: primaryColor,
-              backgroundColor: bgSurface,
+              color: primary,
+              backgroundColor: surfaceLight,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20.0, vertical: 24.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Header com boas-vindas
+                      // Header boas-vindas com logo e gradiente
                       Container(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [secondaryColor, primaryColor],
+                            colors: [primaryDark, primaryMedium],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: borderColor, width: 1),
+                          borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.4),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
+                              color: primaryDark,
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
                             ),
                           ],
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.3),
-                                      width: 1,
+                            // Avatar do usuário
+                            Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.25),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.4),
+                                  width: 2,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.person_rounded,
+                                color: Colors.white,
+                                size: 30,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Bem-vindo(a)!',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                  child: const Icon(
-                                    Icons.person_outline,
-                                    color: textLight,
-                                    size: 24,
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    userName,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Bem-vindo(a),',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                        ),
+                                  const SizedBox(height: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(20),
+
+                                    ),
+                                    child: const Text(
+                                      'Professor',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
                                       ),
-                                      Text(
-                                        userName,
-                                        style: const TextStyle(
-                                          color: textLight,
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'Selecione a turma, simulado e aluno para iniciar a correção',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
+                                ],
                               ),
                             ),
                           ],
                         ),
                       ),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 28),
+
+                      // Título da seção
+                      const Text(
+                        'Configurar Correção',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: textMain,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Selecione a turma, o simulado e o aluno para iniciar',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: textSub,
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
 
                       // Card com formulário de seleção
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: bgSurface.withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: borderColor, width: 1),
+                          color: surfaceLight,
+                          borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
+                              color: primary.withOpacity(0.15),
+                              blurRadius: 20,
+                              offset: const Offset(0, 6),
+                            ),
+                            BoxShadow(
+                              color: primary.withOpacity(0.08),
+                              blurRadius: 40,
+                              offset: const Offset(0, 12),
                             ),
                           ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [primaryColor, secondaryColor],
-                                    ),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: const Icon(
-                                    Icons.settings_outlined,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Configurações da Correção',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: primaryColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
-
                             // Dropdown Turma
+                            _buildDropdownLabel(
+                                'Turma', Icons.groups_rounded),
+                            const SizedBox(height: 8),
                             _buildDropdown(
-                              label: 'Turma',
                               hint: 'Selecione uma turma',
                               value: _turmaId,
-                              icon: Icons.group_outlined,
+                              icon: Icons.groups_rounded,
                               items: _turmas.map((turma) {
                                 return DropdownMenuItem<int>(
                                   value: turma.id,
-                                  child: Text(turma.name,
-                                      style: const TextStyle(color: textLight)),
+                                  child: Text(
+                                    turma.name,
+                                    style: const TextStyle(color: textMain),
+                                  ),
                                 );
                               }).toList(),
                               onChanged: _onTurmaChanged,
                             ),
 
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 20),
 
                             // Dropdown Simulado
+                            _buildDropdownLabel(
+                                'Simulado', Icons.quiz_rounded),
+                            const SizedBox(height: 8),
                             _buildDropdown(
-                              label: 'Simulado',
                               hint: _turmaId == null
                                   ? 'Selecione uma turma primeiro'
                                   : 'Selecione um simulado',
                               value: _simuladoId,
-                              icon: Icons.quiz_outlined,
+                              icon: Icons.quiz_rounded,
                               items: _simulados.map((simulado) {
                                 return DropdownMenuItem<int>(
                                   value: simulado.id,
-                                  child: Text(simulado.titulo,
-                                      style: const TextStyle(color: textLight)),
+                                  child: Text(
+                                    simulado.titulo,
+                                    style: const TextStyle(color: textMain),
+                                  ),
                                 );
                               }).toList(),
                               onChanged: _simulados.isEmpty
@@ -682,21 +654,25 @@ class _SelectionScreenState extends State<SelectionScreen> {
                                       : 'Nenhum simulado disponível',
                             ),
 
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 20),
 
                             // Dropdown Aluno
+                            _buildDropdownLabel(
+                                'Aluno', Icons.person_search_rounded),
+                            const SizedBox(height: 8),
                             _buildDropdown(
-                              label: 'Aluno',
                               hint: _turmaId == null
                                   ? 'Selecione uma turma primeiro'
                                   : 'Selecione um aluno',
                               value: _alunoId,
-                              icon: Icons.person_outline,
+                              icon: Icons.person_search_rounded,
                               items: _alunos.map((aluno) {
                                 return DropdownMenuItem<int>(
                                   value: aluno.id,
-                                  child: Text(aluno.name,
-                                      style: const TextStyle(color: textLight)),
+                                  child: Text(
+                                    aluno.name,
+                                    style: const TextStyle(color: textMain),
+                                  ),
                                 );
                               }).toList(),
                               onChanged:
@@ -711,136 +687,123 @@ class _SelectionScreenState extends State<SelectionScreen> {
                         ),
                       ),
 
-                      const SizedBox(height: 16),
-
                       // Mensagem de erro
-                      if (_errorMessage.isNotEmpty)
+                      if (_errorMessage.isNotEmpty) ...[
+                        const SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: dangerColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: dangerColor, width: 1),
+                            color: errorColor.withOpacity(0.07),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                                color: errorColor.withOpacity(0.4), width: 1),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Row(
+                              Row(
                                 children: [
-                                  Icon(
-                                    Icons.error_outline,
-                                    color: dangerColor,
-                                    size: 20,
-                                  ),
-                                  SizedBox(width: 8),
+                                  Icon(Icons.error_outline_rounded,
+                                      color: errorColor, size: 18),
+                                  const SizedBox(width: 8),
                                   Text(
-                                    'Erro',
+                                    'Atenção',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      color: dangerColor,
+                                      color: errorColor,
+                                      fontSize: 14,
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 6),
                               Text(
                                 _errorMessage,
-                                style: const TextStyle(
-                                  color: dangerColor,
-                                  fontSize: 14,
+                                style: TextStyle(
+                                  color: errorColor.withOpacity(0.85),
+                                  fontSize: 13,
                                 ),
                               ),
                               const SizedBox(height: 12),
                               SizedBox(
                                 width: double.infinity,
-                                child: ElevatedButton.icon(
+                                child: OutlinedButton.icon(
                                   onPressed: _recarregarDados,
-                                  icon: const Icon(Icons.refresh),
+                                  icon: const Icon(Icons.refresh_rounded,
+                                      size: 18),
                                   label: const Text('Tentar Novamente'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor:
-                                        dangerColor.withOpacity(0.2),
-                                    foregroundColor: dangerColor,
-                                    side: const BorderSide(color: dangerColor),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: errorColor,
+                                    side: BorderSide(
+                                        color: errorColor.withOpacity(0.5)),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(4),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 10),
                                   ),
                                 ),
                               ),
                             ],
                           ),
                         ),
+                      ],
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 28),
 
                       // Botão continuar
                       SizedBox(
                         height: 56,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: (_isLoading ||
-                                    _turmaId == null ||
-                                    _simuladoId == null ||
-                                    _alunoId == null)
-                                ? null
-                                : _continuarParaLeitor,
-                            borderRadius: BorderRadius.circular(4),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: (_isLoading ||
-                                        _turmaId == null ||
-                                        _simuladoId == null ||
-                                        _alunoId == null)
-                                    ? null
-                                    : const LinearGradient(
-                                        colors: [secondaryColor, primaryColor],
-                                        begin: Alignment.centerLeft,
-                                        end: Alignment.centerRight,
-                                      ),
-                                color: (_isLoading ||
-                                        _turmaId == null ||
-                                        _simuladoId == null ||
-                                        _alunoId == null)
-                                    ? borderColor
-                                    : null,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              alignment: Alignment.center,
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                        color: textLight,
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.camera_alt_outlined,
-                                            size: 20, color: Colors.white),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          'Continuar para Leitura',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white,
-                                            letterSpacing: 0.5,
-                                          ),
-                                        ),
-                                      ],
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: _canContinue
+                                ? const LinearGradient(
+                                    colors: [primaryMedium, primaryDark],
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                  )
+                                : null,
+                            color: _canContinue ? null : borderLight,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: _canContinue
+                                ? [
+                                    BoxShadow(
+                                      color: primary.withOpacity(0.4),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 6),
                                     ),
+                                  ]
+                                : [],
+                          ),
+                          child: ElevatedButton.icon(
+                            onPressed: _canContinue ? _continuarParaLeitor : null,
+                            icon: Icon(
+                              Icons.camera_alt_rounded,
+                              size: 20,
+                              color: _canContinue ? Colors.white : textSub,
+                            ),
+                            label: Text(
+                              'Iniciar Leitura',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: _canContinue ? Colors.white : textSub,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              disabledBackgroundColor: Colors.transparent,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
                             ),
                           ),
                         ),
                       ),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 32),
                     ],
                   ),
                 ),
@@ -849,8 +812,24 @@ class _SelectionScreenState extends State<SelectionScreen> {
     );
   }
 
+  Widget _buildDropdownLabel(String label, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: primary, size: 18),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: textMain,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildDropdown({
-    required String label,
     required String hint,
     required int? value,
     required IconData icon,
@@ -858,38 +837,49 @@ class _SelectionScreenState extends State<SelectionScreen> {
     required void Function(int?)? onChanged,
     String? disabledHint,
   }) {
+    final bool isEnabled = onChanged != null;
+
     return DropdownButtonFormField<int>(
       decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: textMuted),
         hintText: hint,
-        hintStyle: const TextStyle(color: textMuted),
+        hintStyle: TextStyle(color: textSub.withOpacity(0.7), fontSize: 14),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(4),
-          borderSide: const BorderSide(color: borderColor),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: borderLight, width: 1.5),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(4),
-          borderSide: const BorderSide(color: borderColor),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: borderLight, width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(4),
-          borderSide: const BorderSide(color: primaryColor, width: 2),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: primary, width: 2),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: borderLight.withOpacity(0.5), width: 1),
         ),
         filled: true,
-        fillColor: bgDark,
-        prefixIcon: Icon(icon, color: primaryColor),
+        fillColor: isEnabled ? bgLight : borderLight.withOpacity(0.3),
+        prefixIcon: Icon(icon,
+            color: isEnabled ? primary : textSub.withOpacity(0.5), size: 20),
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
       value: value,
       isExpanded: true,
-      style: const TextStyle(color: textLight),
-      dropdownColor: bgSurface,
+      icon: Icon(Icons.keyboard_arrow_down_rounded,
+          color: isEnabled ? primary : textSub.withOpacity(0.4)),
+      style: const TextStyle(color: textMain, fontSize: 14),
+      dropdownColor: surfaceLight,
+      borderRadius: BorderRadius.circular(14),
       items: items,
       onChanged: onChanged,
       disabledHint: disabledHint != null
-          ? Text(disabledHint, style: const TextStyle(color: textMuted))
+          ? Text(disabledHint,
+              style: TextStyle(
+                  color: textSub.withOpacity(0.6),
+                  fontSize: 14))
           : null,
     );
   }

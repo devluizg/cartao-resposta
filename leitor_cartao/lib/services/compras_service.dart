@@ -8,7 +8,7 @@ import 'models/produto_credito.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 class ComprasService {
-  static const String baseUrl = 'https://devluizg.pythonanywhere.com/api';
+  static const String baseUrl = 'http://192.168.1.10:8000/api';
 
   // IDs dos produtos que serão cadastrados no Google Play Console
   static const List<String> produtoIds = [

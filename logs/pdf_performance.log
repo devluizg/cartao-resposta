@@ -1,0 +1,898 @@
+2026-02-08 07:21:31,637 - DEBUG - INÍCIO: preprocessar_todas_imagens | total_questoes=25 [em views.py:1079]
+2026-02-08 07:21:31,638 - INFO - Pré-processadas 0 imagens (cache global)
+2026-02-08 07:21:31,638 - DEBUG - FIM: preprocessar_todas_imagens (0.001s) | total_questoes=25 [em views.py:1079]
+2026-02-08 07:21:31,645 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:21:31,645 - DEBUG - INÍCIO: gerar_html_tipo_1 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:21:31,646 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=1 [em views.py:1496]
+2026-02-08 07:21:31,647 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=1 [em views.py:1496]
+2026-02-08 07:21:31,647 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=1 [em views.py:1522]
+2026-02-08 07:21:31,647 - DEBUG - Tipo 1: 0 imagens processadas
+2026-02-08 07:21:31,647 - DEBUG - FIM: pre_processar_imagens (0.001s) | simulado=18 | tipo=1 [em views.py:1522]
+2026-02-08 07:21:31,648 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=1 [em views.py:1581]
+2026-02-08 07:26:39,227 - DEBUG - INÍCIO: preprocessar_todas_imagens | total_questoes=25 [em views.py:1079]
+2026-02-08 07:26:39,227 - INFO - Pré-processadas 0 imagens (cache global)
+2026-02-08 07:26:39,228 - DEBUG - FIM: preprocessar_todas_imagens (0.001s) | total_questoes=25 [em views.py:1079]
+2026-02-08 07:26:39,232 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:26:39,232 - DEBUG - INÍCIO: gerar_html_tipo_1 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:26:39,232 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=1 [em views.py:1496]
+2026-02-08 07:26:39,233 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=1 [em views.py:1496]
+2026-02-08 07:26:39,233 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=1 [em views.py:1522]
+2026-02-08 07:26:39,233 - DEBUG - Tipo 1: 0 imagens processadas
+2026-02-08 07:26:39,233 - DEBUG - FIM: pre_processar_imagens (0.000s) | simulado=18 | tipo=1 [em views.py:1522]
+2026-02-08 07:26:39,234 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=1 [em views.py:1581]
+2026-02-08 07:26:39,234 - INFO - DEBUG Tipo 1 - Página 1: ESQ=[1, 2] DIR=[3, 4]
+2026-02-08 07:26:39,234 - INFO - DEBUG Tipo 1 - Página 2: ESQ=[5] DIR=[6]
+2026-02-08 07:26:39,234 - INFO - DEBUG Tipo 1 - Página 3: ESQ=[7, 8] DIR=[9]
+2026-02-08 07:26:39,235 - INFO - DEBUG Tipo 1 - Página 4: ESQ=[10] DIR=[11]
+2026-02-08 07:26:39,235 - INFO - DEBUG Tipo 1 - Página 5: ESQ=[12] DIR=[13]
+2026-02-08 07:26:39,235 - INFO - DEBUG Tipo 1 - Página 6: ESQ=[14] DIR=[15]
+2026-02-08 07:26:39,235 - INFO - DEBUG Tipo 1 - Página 7: ESQ=[16, 17] DIR=[18, 19]
+2026-02-08 07:26:39,235 - INFO - DEBUG Tipo 1 - Página 8: ESQ=[20, 21] DIR=[22, 23, 24]
+2026-02-08 07:26:39,236 - INFO - DEBUG Tipo 1 - Página 9: ESQ=[25] DIR=[]
+2026-02-08 07:26:39,236 - INFO - Tipo 1: 25 questões distribuídas em 9 páginas.
+2026-02-08 07:26:39,259 - INFO - Ordem das questões (IDs) passada para o template (Tipo 1): [165, 43, 99, 3, 31, 96, 34, 164, 97, 5, 45, 93, 8, 46, 92, 44, 166, 9, 98, 29, 10, 167, 33, 4, 2]
+2026-02-08 07:26:39,260 - DEBUG - HTML para tipo 1 gerado: 159.79 KB
+2026-02-08 07:26:39,260 - DEBUG - FIM: renderizar_html (0.026s) | simulado=18 | tipo=1 [em views.py:1581]
+2026-02-08 07:26:39,260 - DEBUG - FIM: gerar_html_tipo_1 (0.028s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:26:39,260 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.029s) | simulado=18 | user=None
+2026-02-08 07:26:39,265 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:26:39,265 - DEBUG - INÍCIO: gerar_html_tipo_2 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:26:39,266 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=2 [em views.py:1496]
+2026-02-08 07:26:39,266 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=2 [em views.py:1496]
+2026-02-08 07:26:39,266 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=2 [em views.py:1522]
+2026-02-08 07:26:39,266 - DEBUG - Tipo 2: 0 imagens processadas
+2026-02-08 07:26:39,267 - DEBUG - FIM: pre_processar_imagens (0.000s) | simulado=18 | tipo=2 [em views.py:1522]
+2026-02-08 07:26:39,267 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=2 [em views.py:1581]
+2026-02-08 07:26:39,267 - INFO - DEBUG Tipo 2 - Página 1: ESQ=[1] DIR=[2, 3]
+2026-02-08 07:26:39,268 - INFO - DEBUG Tipo 2 - Página 2: ESQ=[4, 5] DIR=[6]
+2026-02-08 07:26:39,268 - INFO - DEBUG Tipo 2 - Página 3: ESQ=[7] DIR=[8, 9]
+2026-02-08 07:26:39,268 - INFO - DEBUG Tipo 2 - Página 4: ESQ=[10] DIR=[11, 12, 13]
+2026-02-08 07:26:39,268 - INFO - DEBUG Tipo 2 - Página 5: ESQ=[14] DIR=[15]
+2026-02-08 07:26:39,268 - INFO - DEBUG Tipo 2 - Página 6: ESQ=[16, 17] DIR=[18]
+2026-02-08 07:26:39,268 - INFO - DEBUG Tipo 2 - Página 7: ESQ=[19] DIR=[20]
+2026-02-08 07:26:39,269 - INFO - DEBUG Tipo 2 - Página 8: ESQ=[21, 22] DIR=[23, 24, 25]
+2026-02-08 07:26:39,269 - INFO - Tipo 2: 25 questões distribuídas em 8 páginas.
+2026-02-08 07:26:39,279 - INFO - Ordem das questões (IDs) passada para o template (Tipo 2): [33, 29, 167, 99, 166, 96, 97, 9, 98, 46, 3, 31, 5, 44, 92, 43, 4, 93, 2, 45, 8, 34, 10, 164, 165]
+2026-02-08 07:26:39,279 - DEBUG - HTML para tipo 2 gerado: 159.65 KB
+2026-02-08 07:26:39,279 - DEBUG - FIM: renderizar_html (0.012s) | simulado=18 | tipo=2 [em views.py:1581]
+2026-02-08 07:26:39,279 - DEBUG - FIM: gerar_html_tipo_2 (0.014s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:26:39,279 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.014s) | simulado=18 | user=None
+2026-02-08 07:26:39,284 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:26:39,284 - DEBUG - INÍCIO: gerar_html_tipo_3 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:26:39,284 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=3 [em views.py:1496]
+2026-02-08 07:26:39,284 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=3 [em views.py:1496]
+2026-02-08 07:26:39,285 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=3 [em views.py:1522]
+2026-02-08 07:26:39,285 - DEBUG - Tipo 3: 0 imagens processadas
+2026-02-08 07:26:39,285 - DEBUG - FIM: pre_processar_imagens (0.001s) | simulado=18 | tipo=3 [em views.py:1522]
+2026-02-08 07:26:39,285 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=3 [em views.py:1581]
+2026-02-08 07:26:39,286 - INFO - DEBUG Tipo 3 - Página 1: ESQ=[1, 2] DIR=[3]
+2026-02-08 07:26:39,286 - INFO - DEBUG Tipo 3 - Página 2: ESQ=[4, 5] DIR=[6]
+2026-02-08 07:26:39,286 - INFO - DEBUG Tipo 3 - Página 3: ESQ=[7] DIR=[8, 9]
+2026-02-08 07:26:39,286 - INFO - DEBUG Tipo 3 - Página 4: ESQ=[10, 11, 12] DIR=[13]
+2026-02-08 07:26:39,286 - INFO - DEBUG Tipo 3 - Página 5: ESQ=[14] DIR=[15, 16, 17]
+2026-02-08 07:26:39,286 - INFO - DEBUG Tipo 3 - Página 6: ESQ=[18, 19] DIR=[20]
+2026-02-08 07:26:39,287 - INFO - DEBUG Tipo 3 - Página 7: ESQ=[21, 22] DIR=[23]
+2026-02-08 07:26:39,287 - INFO - DEBUG Tipo 3 - Página 8: ESQ=[24] DIR=[25]
+2026-02-08 07:26:39,287 - INFO - Tipo 3: 25 questões distribuídas em 8 páginas.
+2026-02-08 07:26:39,297 - INFO - Ordem das questões (IDs) passada para o template (Tipo 3): [5, 166, 92, 29, 99, 164, 96, 33, 31, 165, 43, 10, 44, 97, 98, 9, 3, 8, 167, 45, 4, 2, 46, 34, 93]
+2026-02-08 07:26:39,297 - DEBUG - HTML para tipo 3 gerado: 159.65 KB
+2026-02-08 07:26:39,297 - DEBUG - FIM: renderizar_html (0.012s) | simulado=18 | tipo=3 [em views.py:1581]
+2026-02-08 07:26:39,297 - DEBUG - FIM: gerar_html_tipo_3 (0.014s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:26:39,298 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.014s) | simulado=18 | user=None
+2026-02-08 07:26:39,302 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:26:39,302 - DEBUG - INÍCIO: gerar_html_tipo_4 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:26:39,303 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=4 [em views.py:1496]
+2026-02-08 07:26:39,303 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=4 [em views.py:1496]
+2026-02-08 07:26:39,303 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=4 [em views.py:1522]
+2026-02-08 07:26:39,303 - DEBUG - Tipo 4: 0 imagens processadas
+2026-02-08 07:26:39,304 - DEBUG - FIM: pre_processar_imagens (0.001s) | simulado=18 | tipo=4 [em views.py:1522]
+2026-02-08 07:26:39,304 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=4 [em views.py:1581]
+2026-02-08 07:26:39,304 - INFO - DEBUG Tipo 4 - Página 1: ESQ=[1, 2] DIR=[3, 4]
+2026-02-08 07:26:39,305 - INFO - DEBUG Tipo 4 - Página 2: ESQ=[5] DIR=[6, 7]
+2026-02-08 07:26:39,305 - INFO - DEBUG Tipo 4 - Página 3: ESQ=[8, 9] DIR=[10, 11, 12]
+2026-02-08 07:26:39,305 - INFO - DEBUG Tipo 4 - Página 4: ESQ=[13] DIR=[14]
+2026-02-08 07:26:39,305 - INFO - DEBUG Tipo 4 - Página 5: ESQ=[15] DIR=[16, 17]
+2026-02-08 07:26:39,305 - INFO - DEBUG Tipo 4 - Página 6: ESQ=[18] DIR=[19]
+2026-02-08 07:26:39,305 - INFO - DEBUG Tipo 4 - Página 7: ESQ=[20, 21] DIR=[22, 23, 24]
+2026-02-08 07:26:39,306 - INFO - DEBUG Tipo 4 - Página 8: ESQ=[25] DIR=[]
+2026-02-08 07:26:39,306 - INFO - Tipo 4: 25 questões distribuídas em 8 páginas.
+2026-02-08 07:26:39,316 - INFO - Ordem das questões (IDs) passada para o template (Tipo 4): [34, 44, 8, 164, 45, 10, 9, 99, 31, 98, 167, 166, 43, 93, 92, 5, 165, 96, 97, 29, 4, 33, 3, 2, 46]
+2026-02-08 07:26:39,316 - DEBUG - HTML para tipo 4 gerado: 159.65 KB
+2026-02-08 07:26:39,317 - DEBUG - FIM: renderizar_html (0.013s) | simulado=18 | tipo=4 [em views.py:1581]
+2026-02-08 07:26:39,317 - DEBUG - FIM: gerar_html_tipo_4 (0.014s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:26:39,317 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.015s) | simulado=18 | user=None
+2026-02-08 07:26:39,321 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:26:39,322 - DEBUG - INÍCIO: gerar_html_tipo_5 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:26:39,322 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=5 [em views.py:1496]
+2026-02-08 07:26:39,322 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=5 [em views.py:1496]
+2026-02-08 07:26:39,322 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=5 [em views.py:1522]
+2026-02-08 07:26:39,322 - DEBUG - Tipo 5: 0 imagens processadas
+2026-02-08 07:26:39,323 - DEBUG - FIM: pre_processar_imagens (0.000s) | simulado=18 | tipo=5 [em views.py:1522]
+2026-02-08 07:26:39,323 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=5 [em views.py:1581]
+2026-02-08 07:26:39,323 - INFO - DEBUG Tipo 5 - Página 1: ESQ=[1, 2, 3] DIR=[4]
+2026-02-08 07:26:39,323 - INFO - DEBUG Tipo 5 - Página 2: ESQ=[5] DIR=[6, 7, 8, 9]
+2026-02-08 07:26:39,323 - INFO - DEBUG Tipo 5 - Página 3: ESQ=[10] DIR=[11]
+2026-02-08 07:26:39,324 - INFO - DEBUG Tipo 5 - Página 4: ESQ=[12] DIR=[13]
+2026-02-08 07:26:39,324 - INFO - DEBUG Tipo 5 - Página 5: ESQ=[14, 15, 16] DIR=[17, 18]
+2026-02-08 07:26:39,324 - INFO - DEBUG Tipo 5 - Página 6: ESQ=[19, 20] DIR=[21]
+2026-02-08 07:26:39,324 - INFO - DEBUG Tipo 5 - Página 7: ESQ=[22] DIR=[23, 24]
+2026-02-08 07:26:39,324 - INFO - DEBUG Tipo 5 - Página 8: ESQ=[25] DIR=[]
+2026-02-08 07:26:39,325 - INFO - Tipo 5: 25 questões distribuídas em 8 páginas.
+2026-02-08 07:26:39,335 - INFO - Ordem das questões (IDs) passada para o template (Tipo 5): [8, 4, 99, 46, 92, 164, 98, 5, 10, 2, 93, 97, 45, 165, 166, 3, 34, 31, 167, 44, 96, 29, 9, 43, 33]
+2026-02-08 07:26:39,335 - DEBUG - HTML para tipo 5 gerado: 159.65 KB
+2026-02-08 07:26:39,336 - DEBUG - FIM: renderizar_html (0.013s) | simulado=18 | tipo=5 [em views.py:1581]
+2026-02-08 07:26:39,336 - DEBUG - FIM: gerar_html_tipo_5 (0.014s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:26:39,336 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.015s) | simulado=18 | user=None
+2026-02-08 07:26:39,346 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:26:39,346 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo1 | num_questoes=25 | caderno=1 [em views.py:1705]
+2026-02-08 07:26:39,645 - DEBUG - Gerando cartão resposta: /tmp/tmp5_kicj3z/Cartao_Resposta_1_Tipo1.pdf
+2026-02-08 07:26:39,667 - INFO - ARQUIVO: Cartão Resposta Tipo 1 - 8.95 KB [/tmp/tmp5_kicj3z/Cartao_Resposta_1_Tipo1.pdf]
+2026-02-08 07:26:39,668 - DEBUG - Cartão resposta 1 gerado com código de rastreio: D6A9DECD
+2026-02-08 07:26:39,668 - DEBUG - FIM: gerar_cartao_resposta_tipo1 (0.322s) | num_questoes=25 | caderno=1 [em views.py:1705]
+2026-02-08 07:26:39,668 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.322s) | simulado=None | user=None
+2026-02-08 07:26:39,668 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:26:39,668 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo2 | num_questoes=25 | caderno=2 [em views.py:1705]
+2026-02-08 07:26:39,669 - DEBUG - Gerando cartão resposta: /tmp/tmp5_kicj3z/Cartao_Resposta_2_Tipo2.pdf
+2026-02-08 07:26:39,689 - INFO - ARQUIVO: Cartão Resposta Tipo 2 - 8.95 KB [/tmp/tmp5_kicj3z/Cartao_Resposta_2_Tipo2.pdf]
+2026-02-08 07:26:39,689 - DEBUG - Cartão resposta 2 gerado com código de rastreio: D6A9DECD
+2026-02-08 07:26:39,689 - DEBUG - FIM: gerar_cartao_resposta_tipo2 (0.021s) | num_questoes=25 | caderno=2 [em views.py:1705]
+2026-02-08 07:26:39,690 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.021s) | simulado=None | user=None
+2026-02-08 07:26:39,690 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:26:39,690 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo3 | num_questoes=25 | caderno=3 [em views.py:1705]
+2026-02-08 07:26:39,690 - DEBUG - Gerando cartão resposta: /tmp/tmp5_kicj3z/Cartao_Resposta_3_Tipo3.pdf
+2026-02-08 07:26:39,710 - INFO - ARQUIVO: Cartão Resposta Tipo 3 - 8.95 KB [/tmp/tmp5_kicj3z/Cartao_Resposta_3_Tipo3.pdf]
+2026-02-08 07:26:39,710 - DEBUG - Cartão resposta 3 gerado com código de rastreio: D6A9DECD
+2026-02-08 07:26:39,710 - DEBUG - FIM: gerar_cartao_resposta_tipo3 (0.020s) | num_questoes=25 | caderno=3 [em views.py:1705]
+2026-02-08 07:26:39,711 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.021s) | simulado=None | user=None
+2026-02-08 07:26:39,711 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:26:39,711 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo4 | num_questoes=25 | caderno=4 [em views.py:1705]
+2026-02-08 07:26:39,711 - DEBUG - Gerando cartão resposta: /tmp/tmp5_kicj3z/Cartao_Resposta_4_Tipo4.pdf
+2026-02-08 07:26:39,731 - INFO - ARQUIVO: Cartão Resposta Tipo 4 - 8.95 KB [/tmp/tmp5_kicj3z/Cartao_Resposta_4_Tipo4.pdf]
+2026-02-08 07:26:39,731 - DEBUG - Cartão resposta 4 gerado com código de rastreio: D6A9DECD
+2026-02-08 07:26:39,731 - DEBUG - FIM: gerar_cartao_resposta_tipo4 (0.020s) | num_questoes=25 | caderno=4 [em views.py:1705]
+2026-02-08 07:26:39,731 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.021s) | simulado=None | user=None
+2026-02-08 07:26:39,731 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:26:39,732 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo5 | num_questoes=25 | caderno=5 [em views.py:1705]
+2026-02-08 07:26:39,732 - DEBUG - Gerando cartão resposta: /tmp/tmp5_kicj3z/Cartao_Resposta_5_Tipo5.pdf
+2026-02-08 07:26:39,751 - INFO - ARQUIVO: Cartão Resposta Tipo 5 - 8.95 KB [/tmp/tmp5_kicj3z/Cartao_Resposta_5_Tipo5.pdf]
+2026-02-08 07:26:39,752 - DEBUG - Cartão resposta 5 gerado com código de rastreio: D6A9DECD
+2026-02-08 07:26:39,752 - DEBUG - FIM: gerar_cartao_resposta_tipo5 (0.020s) | num_questoes=25 | caderno=5 [em views.py:1705]
+2026-02-08 07:26:39,752 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.021s) | simulado=None | user=None
+2026-02-08 07:26:39,756 - DEBUG - INÍCIO FUNÇÃO: _combinar_pdfs_versoes | simulado=18 | user=None
+2026-02-08 07:26:39,756 - DEBUG - INÍCIO: combinar_htmls_em_pdf_unico | num_tipos=5 | saida=simulado_18_completo.pdf [em views.py:1274]
+2026-02-08 07:26:39,756 - INFO - 🔍 DEBUG: cartoes_resposta_paths recebidos: ['/tmp/tmp5_kicj3z/Cartao_Resposta_1_Tipo1.pdf', '/tmp/tmp5_kicj3z/Cartao_Resposta_2_Tipo2.pdf', '/tmp/tmp5_kicj3z/Cartao_Resposta_3_Tipo3.pdf', '/tmp/tmp5_kicj3z/Cartao_Resposta_4_Tipo4.pdf', '/tmp/tmp5_kicj3z/Cartao_Resposta_5_Tipo5.pdf']
+2026-02-08 07:26:39,757 - INFO -    Cartão 1: /tmp/tmp5_kicj3z/Cartao_Resposta_1_Tipo1.pdf - Existe: True
+2026-02-08 07:26:39,757 - INFO -    Cartão 2: /tmp/tmp5_kicj3z/Cartao_Resposta_2_Tipo2.pdf - Existe: True
+2026-02-08 07:26:39,757 - INFO -    Cartão 3: /tmp/tmp5_kicj3z/Cartao_Resposta_3_Tipo3.pdf - Existe: True
+2026-02-08 07:26:39,757 - INFO -    Cartão 4: /tmp/tmp5_kicj3z/Cartao_Resposta_4_Tipo4.pdf - Existe: True
+2026-02-08 07:26:39,757 - INFO -    Cartão 5: /tmp/tmp5_kicj3z/Cartao_Resposta_5_Tipo5.pdf - Existe: True
+2026-02-08 07:26:39,762 - INFO - Renderizando Tipo 1/5 com wkhtmltopdf...
+2026-02-08 07:26:41,777 - INFO - ✅ Questões Tipo 1 renderizadas!
+2026-02-08 07:26:41,777 - INFO - Renderizando Tipo 2/5 com wkhtmltopdf...
+2026-02-08 07:26:43,438 - INFO - ✅ Questões Tipo 2 renderizadas!
+2026-02-08 07:26:43,438 - INFO - Renderizando Tipo 3/5 com wkhtmltopdf...
+2026-02-08 07:26:45,120 - INFO - ✅ Questões Tipo 3 renderizadas!
+2026-02-08 07:26:45,120 - INFO - Renderizando Tipo 4/5 com wkhtmltopdf...
+2026-02-08 07:26:46,820 - INFO - ✅ Questões Tipo 4 renderizadas!
+2026-02-08 07:26:46,820 - INFO - Renderizando Tipo 5/5 com wkhtmltopdf...
+2026-02-08 07:26:48,589 - INFO - ✅ Questões Tipo 5 renderizadas!
+2026-02-08 07:26:48,589 - INFO - Combinando PDFs...
+2026-02-08 07:26:48,592 - INFO - Carregados 5 cartões resposta
+2026-02-08 07:26:48,593 - INFO - Montando Tipo 1...
+2026-02-08 07:26:48,593 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:26:48,595 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:26:48,638 - INFO - Montando Tipo 2...
+2026-02-08 07:26:48,639 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:26:48,640 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:26:48,843 - INFO - Montando Tipo 3...
+2026-02-08 07:26:48,843 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:26:48,845 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:26:48,947 - INFO - Montando Tipo 4...
+2026-02-08 07:26:48,948 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:26:48,949 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:26:49,048 - INFO - Montando Tipo 5...
+2026-02-08 07:26:49,049 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:26:49,050 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:26:49,252 - INFO - PDF final: 47 páginas
+2026-02-08 07:26:49,252 - INFO - ARQUIVO: PDF Único com 5 Tipos - 1.93 MB [/tmp/tmp5_kicj3z/simulado_18_completo.pdf]
+2026-02-08 07:26:49,253 - INFO - FIM: combinar_htmls_em_pdf_unico (9.496s) | num_tipos=5 | saida=simulado_18_completo.pdf [em views.py:1274]
+2026-02-08 07:26:49,253 - INFO - FIM FUNÇÃO: _combinar_pdfs_versoes (9.497s) | simulado=18 | user=None
+2026-02-08 07:44:18,552 - DEBUG - INÍCIO: preprocessar_todas_imagens | total_questoes=25 [em views.py:1079]
+2026-02-08 07:44:18,555 - INFO - Pré-processadas 0 imagens (cache global)
+2026-02-08 07:44:18,555 - DEBUG - FIM: preprocessar_todas_imagens (0.004s) | total_questoes=25 [em views.py:1079]
+2026-02-08 07:44:18,562 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:44:18,562 - DEBUG - INÍCIO: gerar_html_tipo_1 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:44:18,562 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=1 [em views.py:1496]
+2026-02-08 07:44:18,563 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=1 [em views.py:1496]
+2026-02-08 07:44:18,563 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=1 [em views.py:1522]
+2026-02-08 07:44:18,563 - DEBUG - Tipo 1: 0 imagens processadas
+2026-02-08 07:44:18,563 - DEBUG - FIM: pre_processar_imagens (0.001s) | simulado=18 | tipo=1 [em views.py:1522]
+2026-02-08 07:44:18,564 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=1 [em views.py:1581]
+2026-02-08 07:44:18,564 - INFO - DEBUG Tipo 1 - Página 1: ESQ=[1, 2, 3, 4, 5, 6] DIR=[7, 8, 9, 10]
+2026-02-08 07:44:18,564 - INFO - DEBUG Tipo 1 - Página 2: ESQ=[11, 12, 13, 14] DIR=[15]
+2026-02-08 07:44:18,565 - INFO - DEBUG Tipo 1 - Página 3: ESQ=[16] DIR=[17]
+2026-02-08 07:44:18,565 - INFO - DEBUG Tipo 1 - Página 4: ESQ=[18] DIR=[19, 20]
+2026-02-08 07:44:18,565 - INFO - DEBUG Tipo 1 - Página 5: ESQ=[21] DIR=[22]
+2026-02-08 07:44:18,565 - INFO - DEBUG Tipo 1 - Página 6: ESQ=[23] DIR=[24]
+2026-02-08 07:44:18,566 - INFO - DEBUG Tipo 1 - Página 7: ESQ=[25] DIR=[]
+2026-02-08 07:44:18,566 - INFO - Tipo 1: 25 questões distribuídas em 7 páginas.
+2026-02-08 07:44:18,604 - INFO - Ordem das questões (IDs) passada para o template (Tipo 1): [167, 164, 43, 4, 5, 165, 8, 9, 29, 98, 99, 31, 10, 44, 96, 46, 34, 45, 33, 3, 97, 166, 92, 93, 2]
+2026-02-08 07:44:18,604 - DEBUG - HTML para tipo 1 gerado: 159.51 KB
+2026-02-08 07:44:18,605 - DEBUG - FIM: renderizar_html (0.041s) | simulado=18 | tipo=1 [em views.py:1581]
+2026-02-08 07:44:18,605 - DEBUG - FIM: gerar_html_tipo_1 (0.043s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:44:18,605 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.043s) | simulado=18 | user=None
+2026-02-08 07:44:18,609 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:44:18,610 - DEBUG - INÍCIO: gerar_html_tipo_2 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:44:18,610 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=2 [em views.py:1496]
+2026-02-08 07:44:18,610 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=2 [em views.py:1496]
+2026-02-08 07:44:18,610 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=2 [em views.py:1522]
+2026-02-08 07:44:18,611 - DEBUG - Tipo 2: 0 imagens processadas
+2026-02-08 07:44:18,611 - DEBUG - FIM: pre_processar_imagens (0.001s) | simulado=18 | tipo=2 [em views.py:1522]
+2026-02-08 07:44:18,611 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=2 [em views.py:1581]
+2026-02-08 07:44:18,611 - INFO - DEBUG Tipo 2 - Página 1: ESQ=[1] DIR=[2]
+2026-02-08 07:44:18,611 - INFO - DEBUG Tipo 2 - Página 2: ESQ=[3] DIR=[4, 5]
+2026-02-08 07:44:18,612 - INFO - DEBUG Tipo 2 - Página 3: ESQ=[6] DIR=[7, 8, 9, 10, 11]
+2026-02-08 07:44:18,612 - INFO - DEBUG Tipo 2 - Página 4: ESQ=[12] DIR=[13, 14]
+2026-02-08 07:44:18,612 - INFO - DEBUG Tipo 2 - Página 5: ESQ=[15] DIR=[16, 17, 18]
+2026-02-08 07:44:18,612 - INFO - DEBUG Tipo 2 - Página 6: ESQ=[19] DIR=[20, 21, 22, 23]
+2026-02-08 07:44:18,612 - INFO - DEBUG Tipo 2 - Página 7: ESQ=[24, 25] DIR=[]
+2026-02-08 07:44:18,612 - INFO - Tipo 2: 25 questões distribuídas em 7 páginas.
+2026-02-08 07:44:18,623 - INFO - Ordem das questões (IDs) passada para o template (Tipo 2): [96, 29, 92, 167, 166, 45, 43, 10, 98, 164, 4, 93, 9, 3, 46, 165, 44, 34, 97, 99, 33, 8, 2, 31, 5]
+2026-02-08 07:44:18,624 - DEBUG - HTML para tipo 2 gerado: 159.51 KB
+2026-02-08 07:44:18,624 - DEBUG - FIM: renderizar_html (0.013s) | simulado=18 | tipo=2 [em views.py:1581]
+2026-02-08 07:44:18,624 - DEBUG - FIM: gerar_html_tipo_2 (0.014s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:44:18,624 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.015s) | simulado=18 | user=None
+2026-02-08 07:44:18,629 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:44:18,629 - DEBUG - INÍCIO: gerar_html_tipo_3 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:44:18,629 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=3 [em views.py:1496]
+2026-02-08 07:44:18,630 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=3 [em views.py:1496]
+2026-02-08 07:44:18,630 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=3 [em views.py:1522]
+2026-02-08 07:44:18,630 - DEBUG - Tipo 3: 0 imagens processadas
+2026-02-08 07:44:18,630 - DEBUG - FIM: pre_processar_imagens (0.000s) | simulado=18 | tipo=3 [em views.py:1522]
+2026-02-08 07:44:18,630 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=3 [em views.py:1581]
+2026-02-08 07:44:18,631 - INFO - DEBUG Tipo 3 - Página 1: ESQ=[1, 2, 3, 4, 5] DIR=[6]
+2026-02-08 07:44:18,631 - INFO - DEBUG Tipo 3 - Página 2: ESQ=[7, 8] DIR=[9]
+2026-02-08 07:44:18,631 - INFO - DEBUG Tipo 3 - Página 3: ESQ=[10, 11] DIR=[12]
+2026-02-08 07:44:18,631 - INFO - DEBUG Tipo 3 - Página 4: ESQ=[13] DIR=[14]
+2026-02-08 07:44:18,632 - INFO - DEBUG Tipo 3 - Página 5: ESQ=[15] DIR=[16]
+2026-02-08 07:44:18,632 - INFO - DEBUG Tipo 3 - Página 6: ESQ=[17, 18, 19, 20] DIR=[21]
+2026-02-08 07:44:18,632 - INFO - DEBUG Tipo 3 - Página 7: ESQ=[22, 23, 24, 25] DIR=[]
+2026-02-08 07:44:18,632 - INFO - Tipo 3: 25 questões distribuídas em 7 páginas.
+2026-02-08 07:44:18,644 - INFO - Ordem das questões (IDs) passada para o template (Tipo 3): [33, 8, 98, 166, 165, 45, 44, 29, 46, 34, 2, 92, 43, 96, 3, 93, 99, 31, 167, 10, 97, 9, 4, 5, 164]
+2026-02-08 07:44:18,644 - DEBUG - HTML para tipo 3 gerado: 159.51 KB
+2026-02-08 07:44:18,644 - DEBUG - FIM: renderizar_html (0.014s) | simulado=18 | tipo=3 [em views.py:1581]
+2026-02-08 07:44:18,645 - DEBUG - FIM: gerar_html_tipo_3 (0.016s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:44:18,645 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.016s) | simulado=18 | user=None
+2026-02-08 07:44:18,649 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:44:18,650 - DEBUG - INÍCIO: gerar_html_tipo_4 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:44:18,650 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=4 [em views.py:1496]
+2026-02-08 07:44:18,650 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=4 [em views.py:1496]
+2026-02-08 07:44:18,651 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=4 [em views.py:1522]
+2026-02-08 07:44:18,651 - DEBUG - Tipo 4: 0 imagens processadas
+2026-02-08 07:44:18,651 - DEBUG - FIM: pre_processar_imagens (0.001s) | simulado=18 | tipo=4 [em views.py:1522]
+2026-02-08 07:44:18,651 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=4 [em views.py:1581]
+2026-02-08 07:44:18,652 - INFO - DEBUG Tipo 4 - Página 1: ESQ=[1] DIR=[2]
+2026-02-08 07:44:18,652 - INFO - DEBUG Tipo 4 - Página 2: ESQ=[3, 4] DIR=[5]
+2026-02-08 07:44:18,652 - INFO - DEBUG Tipo 4 - Página 3: ESQ=[6, 7, 8] DIR=[9]
+2026-02-08 07:44:18,653 - INFO - DEBUG Tipo 4 - Página 4: ESQ=[10] DIR=[11]
+2026-02-08 07:44:18,653 - INFO - DEBUG Tipo 4 - Página 5: ESQ=[12, 13, 14, 15] DIR=[16]
+2026-02-08 07:44:18,653 - INFO - DEBUG Tipo 4 - Página 6: ESQ=[17] DIR=[18, 19, 20, 21, 22, 23]
+2026-02-08 07:44:18,653 - INFO - DEBUG Tipo 4 - Página 7: ESQ=[24] DIR=[25]
+2026-02-08 07:44:18,654 - INFO - Tipo 4: 25 questões distribuídas em 7 páginas.
+2026-02-08 07:44:18,665 - INFO - Ordem das questões (IDs) passada para o template (Tipo 4): [166, 92, 5, 29, 96, 165, 43, 4, 97, 8, 45, 98, 99, 31, 9, 44, 93, 10, 2, 33, 3, 34, 167, 46, 164]
+2026-02-08 07:44:18,665 - DEBUG - HTML para tipo 4 gerado: 159.51 KB
+2026-02-08 07:44:18,665 - DEBUG - FIM: renderizar_html (0.014s) | simulado=18 | tipo=4 [em views.py:1581]
+2026-02-08 07:44:18,665 - DEBUG - FIM: gerar_html_tipo_4 (0.016s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:44:18,666 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.016s) | simulado=18 | user=None
+2026-02-08 07:44:18,671 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:44:18,671 - DEBUG - INÍCIO: gerar_html_tipo_5 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:44:18,671 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=5 [em views.py:1496]
+2026-02-08 07:44:18,672 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=5 [em views.py:1496]
+2026-02-08 07:44:18,672 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=5 [em views.py:1522]
+2026-02-08 07:44:18,672 - DEBUG - Tipo 5: 0 imagens processadas
+2026-02-08 07:44:18,672 - DEBUG - FIM: pre_processar_imagens (0.000s) | simulado=18 | tipo=5 [em views.py:1522]
+2026-02-08 07:44:18,673 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=5 [em views.py:1581]
+2026-02-08 07:44:18,673 - INFO - DEBUG Tipo 5 - Página 1: ESQ=[1, 2, 3, 4, 5, 6] DIR=[7, 8, 9]
+2026-02-08 07:44:18,673 - INFO - DEBUG Tipo 5 - Página 2: ESQ=[10] DIR=[11, 12, 13, 14]
+2026-02-08 07:44:18,674 - INFO - DEBUG Tipo 5 - Página 3: ESQ=[15, 16] DIR=[17]
+2026-02-08 07:44:18,674 - INFO - DEBUG Tipo 5 - Página 4: ESQ=[18] DIR=[19]
+2026-02-08 07:44:18,674 - INFO - DEBUG Tipo 5 - Página 5: ESQ=[20] DIR=[21, 22, 23]
+2026-02-08 07:44:18,674 - INFO - DEBUG Tipo 5 - Página 6: ESQ=[24] DIR=[25]
+2026-02-08 07:44:18,674 - INFO - Tipo 5: 25 questões distribuídas em 6 páginas.
+2026-02-08 07:44:18,688 - INFO - Ordem das questões (IDs) passada para o template (Tipo 5): [43, 3, 98, 99, 2, 10, 29, 167, 5, 96, 166, 164, 31, 44, 33, 165, 97, 4, 93, 45, 9, 34, 8, 46, 92]
+2026-02-08 07:44:18,688 - DEBUG - HTML para tipo 5 gerado: 159.38 KB
+2026-02-08 07:44:18,688 - DEBUG - FIM: renderizar_html (0.016s) | simulado=18 | tipo=5 [em views.py:1581]
+2026-02-08 07:44:18,688 - DEBUG - FIM: gerar_html_tipo_5 (0.017s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:44:18,689 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.018s) | simulado=18 | user=None
+2026-02-08 07:44:18,694 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:44:18,694 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo1 | num_questoes=25 | caderno=1 [em views.py:1705]
+2026-02-08 07:44:18,762 - DEBUG - Gerando cartão resposta: /tmp/tmpjybg7i79/Cartao_Resposta_1_Tipo1.pdf
+2026-02-08 07:44:18,791 - INFO - ARQUIVO: Cartão Resposta Tipo 1 - 8.95 KB [/tmp/tmpjybg7i79/Cartao_Resposta_1_Tipo1.pdf]
+2026-02-08 07:44:18,792 - DEBUG - Cartão resposta 1 gerado com código de rastreio: 95DBAAE1
+2026-02-08 07:44:18,792 - DEBUG - FIM: gerar_cartao_resposta_tipo1 (0.097s) | num_questoes=25 | caderno=1 [em views.py:1705]
+2026-02-08 07:44:18,792 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.098s) | simulado=None | user=None
+2026-02-08 07:44:18,792 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:44:18,792 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo2 | num_questoes=25 | caderno=2 [em views.py:1705]
+2026-02-08 07:44:18,792 - DEBUG - Gerando cartão resposta: /tmp/tmpjybg7i79/Cartao_Resposta_2_Tipo2.pdf
+2026-02-08 07:44:18,818 - INFO - ARQUIVO: Cartão Resposta Tipo 2 - 8.95 KB [/tmp/tmpjybg7i79/Cartao_Resposta_2_Tipo2.pdf]
+2026-02-08 07:44:18,818 - DEBUG - Cartão resposta 2 gerado com código de rastreio: 95DBAAE1
+2026-02-08 07:44:18,818 - DEBUG - FIM: gerar_cartao_resposta_tipo2 (0.026s) | num_questoes=25 | caderno=2 [em views.py:1705]
+2026-02-08 07:44:18,818 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.026s) | simulado=None | user=None
+2026-02-08 07:44:18,819 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:44:18,819 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo3 | num_questoes=25 | caderno=3 [em views.py:1705]
+2026-02-08 07:44:18,819 - DEBUG - Gerando cartão resposta: /tmp/tmpjybg7i79/Cartao_Resposta_3_Tipo3.pdf
+2026-02-08 07:44:18,844 - INFO - ARQUIVO: Cartão Resposta Tipo 3 - 8.95 KB [/tmp/tmpjybg7i79/Cartao_Resposta_3_Tipo3.pdf]
+2026-02-08 07:44:18,845 - DEBUG - Cartão resposta 3 gerado com código de rastreio: 95DBAAE1
+2026-02-08 07:44:18,845 - DEBUG - FIM: gerar_cartao_resposta_tipo3 (0.026s) | num_questoes=25 | caderno=3 [em views.py:1705]
+2026-02-08 07:44:18,845 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.027s) | simulado=None | user=None
+2026-02-08 07:44:18,846 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:44:18,846 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo4 | num_questoes=25 | caderno=4 [em views.py:1705]
+2026-02-08 07:44:18,846 - DEBUG - Gerando cartão resposta: /tmp/tmpjybg7i79/Cartao_Resposta_4_Tipo4.pdf
+2026-02-08 07:44:18,871 - INFO - ARQUIVO: Cartão Resposta Tipo 4 - 8.95 KB [/tmp/tmpjybg7i79/Cartao_Resposta_4_Tipo4.pdf]
+2026-02-08 07:44:18,871 - DEBUG - Cartão resposta 4 gerado com código de rastreio: 95DBAAE1
+2026-02-08 07:44:18,872 - DEBUG - FIM: gerar_cartao_resposta_tipo4 (0.026s) | num_questoes=25 | caderno=4 [em views.py:1705]
+2026-02-08 07:44:18,872 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.026s) | simulado=None | user=None
+2026-02-08 07:44:18,872 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:44:18,872 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo5 | num_questoes=25 | caderno=5 [em views.py:1705]
+2026-02-08 07:44:18,873 - DEBUG - Gerando cartão resposta: /tmp/tmpjybg7i79/Cartao_Resposta_5_Tipo5.pdf
+2026-02-08 07:44:18,898 - INFO - ARQUIVO: Cartão Resposta Tipo 5 - 8.95 KB [/tmp/tmpjybg7i79/Cartao_Resposta_5_Tipo5.pdf]
+2026-02-08 07:44:18,898 - DEBUG - Cartão resposta 5 gerado com código de rastreio: 95DBAAE1
+2026-02-08 07:44:18,898 - DEBUG - FIM: gerar_cartao_resposta_tipo5 (0.026s) | num_questoes=25 | caderno=5 [em views.py:1705]
+2026-02-08 07:44:18,899 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.027s) | simulado=None | user=None
+2026-02-08 07:44:18,903 - DEBUG - INÍCIO FUNÇÃO: _combinar_pdfs_versoes | simulado=18 | user=None
+2026-02-08 07:44:18,904 - DEBUG - INÍCIO: combinar_htmls_em_pdf_unico | num_tipos=5 | saida=simulado_18_completo.pdf [em views.py:1274]
+2026-02-08 07:44:18,904 - INFO - 🔍 DEBUG: cartoes_resposta_paths recebidos: ['/tmp/tmpjybg7i79/Cartao_Resposta_1_Tipo1.pdf', '/tmp/tmpjybg7i79/Cartao_Resposta_2_Tipo2.pdf', '/tmp/tmpjybg7i79/Cartao_Resposta_3_Tipo3.pdf', '/tmp/tmpjybg7i79/Cartao_Resposta_4_Tipo4.pdf', '/tmp/tmpjybg7i79/Cartao_Resposta_5_Tipo5.pdf']
+2026-02-08 07:44:18,904 - INFO -    Cartão 1: /tmp/tmpjybg7i79/Cartao_Resposta_1_Tipo1.pdf - Existe: True
+2026-02-08 07:44:18,904 - INFO -    Cartão 2: /tmp/tmpjybg7i79/Cartao_Resposta_2_Tipo2.pdf - Existe: True
+2026-02-08 07:44:18,905 - INFO -    Cartão 3: /tmp/tmpjybg7i79/Cartao_Resposta_3_Tipo3.pdf - Existe: True
+2026-02-08 07:44:18,905 - INFO -    Cartão 4: /tmp/tmpjybg7i79/Cartao_Resposta_4_Tipo4.pdf - Existe: True
+2026-02-08 07:44:18,905 - INFO -    Cartão 5: /tmp/tmpjybg7i79/Cartao_Resposta_5_Tipo5.pdf - Existe: True
+2026-02-08 07:44:18,910 - INFO - Renderizando Tipo 1/5 com wkhtmltopdf...
+2026-02-08 07:44:22,560 - INFO - ✅ Questões Tipo 1 renderizadas!
+2026-02-08 07:44:22,564 - INFO - Renderizando Tipo 2/5 com wkhtmltopdf...
+2026-02-08 07:44:25,357 - INFO - ✅ Questões Tipo 2 renderizadas!
+2026-02-08 07:44:25,361 - INFO - Renderizando Tipo 3/5 com wkhtmltopdf...
+2026-02-08 07:44:27,953 - INFO - ✅ Questões Tipo 3 renderizadas!
+2026-02-08 07:44:27,959 - INFO - Renderizando Tipo 4/5 com wkhtmltopdf...
+2026-02-08 07:44:30,474 - INFO - ✅ Questões Tipo 4 renderizadas!
+2026-02-08 07:44:30,477 - INFO - Renderizando Tipo 5/5 com wkhtmltopdf...
+2026-02-08 07:44:32,893 - INFO - ✅ Questões Tipo 5 renderizadas!
+2026-02-08 07:44:32,899 - INFO - Combinando PDFs...
+2026-02-08 07:44:32,905 - INFO - Carregados 5 cartões resposta
+2026-02-08 07:44:32,905 - INFO - Montando Tipo 1...
+2026-02-08 07:44:32,905 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:44:32,908 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:44:32,958 - INFO - Montando Tipo 2...
+2026-02-08 07:44:32,959 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:44:32,960 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:44:33,075 - INFO - Montando Tipo 3...
+2026-02-08 07:44:33,076 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:44:33,077 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:44:33,236 - INFO - Montando Tipo 4...
+2026-02-08 07:44:33,236 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:44:33,238 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:44:33,364 - INFO - Montando Tipo 5...
+2026-02-08 07:44:33,364 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:44:33,366 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:44:33,698 - INFO - PDF final: 51 páginas
+2026-02-08 07:44:33,699 - INFO - ARQUIVO: PDF Único com 5 Tipos - 1.94 MB [/tmp/tmpjybg7i79/simulado_18_completo.pdf]
+2026-02-08 07:44:33,699 - INFO - FIM: combinar_htmls_em_pdf_unico (14.796s) | num_tipos=5 | saida=simulado_18_completo.pdf [em views.py:1274]
+2026-02-08 07:44:33,700 - INFO - FIM FUNÇÃO: _combinar_pdfs_versoes (14.796s) | simulado=18 | user=None
+2026-02-08 07:45:51,603 - DEBUG - INÍCIO: preprocessar_todas_imagens | total_questoes=25 [em views.py:1079]
+2026-02-08 07:45:51,607 - INFO - Pré-processadas 0 imagens (cache global)
+2026-02-08 07:45:51,607 - DEBUG - FIM: preprocessar_todas_imagens (0.004s) | total_questoes=25 [em views.py:1079]
+2026-02-08 07:45:51,616 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:45:51,616 - DEBUG - INÍCIO: gerar_html_tipo_1 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:45:51,616 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=1 [em views.py:1496]
+2026-02-08 07:45:51,617 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=1 [em views.py:1496]
+2026-02-08 07:45:51,617 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=1 [em views.py:1522]
+2026-02-08 07:45:51,617 - DEBUG - Tipo 1: 0 imagens processadas
+2026-02-08 07:45:51,617 - DEBUG - FIM: pre_processar_imagens (0.000s) | simulado=18 | tipo=1 [em views.py:1522]
+2026-02-08 07:45:51,617 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=1 [em views.py:1581]
+2026-02-08 07:45:51,618 - INFO - DEBUG Tipo 1 - Página 1: ESQ=[1] DIR=[2]
+2026-02-08 07:45:51,619 - INFO - DEBUG Tipo 1 - Página 2: ESQ=[3, 4] DIR=[5]
+2026-02-08 07:45:51,619 - INFO - DEBUG Tipo 1 - Página 3: ESQ=[6, 7, 8, 9, 10] DIR=[11]
+2026-02-08 07:45:51,619 - INFO - DEBUG Tipo 1 - Página 4: ESQ=[12, 13] DIR=[14]
+2026-02-08 07:45:51,619 - INFO - DEBUG Tipo 1 - Página 5: ESQ=[15, 16] DIR=[17]
+2026-02-08 07:45:51,619 - INFO - DEBUG Tipo 1 - Página 6: ESQ=[18, 19, 20] DIR=[21]
+2026-02-08 07:45:51,620 - INFO - DEBUG Tipo 1 - Página 7: ESQ=[22, 23, 24, 25] DIR=[]
+2026-02-08 07:45:51,620 - INFO - Tipo 1: 25 questões distribuídas em 7 páginas.
+2026-02-08 07:45:51,630 - INFO - Ordem das questões (IDs) passada para o template (Tipo 1): [33, 93, 31, 2, 97, 8, 167, 10, 4, 5, 46, 34, 29, 45, 166, 98, 92, 9, 164, 99, 96, 165, 44, 3, 43]
+2026-02-08 07:45:51,631 - DEBUG - HTML para tipo 1 gerado: 159.51 KB
+2026-02-08 07:45:51,631 - DEBUG - FIM: renderizar_html (0.014s) | simulado=18 | tipo=1 [em views.py:1581]
+2026-02-08 07:45:51,631 - DEBUG - FIM: gerar_html_tipo_1 (0.015s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:45:51,631 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.016s) | simulado=18 | user=None
+2026-02-08 07:45:51,641 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:45:51,641 - DEBUG - INÍCIO: gerar_html_tipo_2 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:45:51,642 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=2 [em views.py:1496]
+2026-02-08 07:45:51,642 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=2 [em views.py:1496]
+2026-02-08 07:45:51,642 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=2 [em views.py:1522]
+2026-02-08 07:45:51,643 - DEBUG - Tipo 2: 0 imagens processadas
+2026-02-08 07:45:51,643 - DEBUG - FIM: pre_processar_imagens (0.001s) | simulado=18 | tipo=2 [em views.py:1522]
+2026-02-08 07:45:51,643 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=2 [em views.py:1581]
+2026-02-08 07:45:51,643 - INFO - DEBUG Tipo 2 - Página 1: ESQ=[1, 2, 3, 4, 5] DIR=[6]
+2026-02-08 07:45:51,644 - INFO - DEBUG Tipo 2 - Página 2: ESQ=[7, 8] DIR=[9]
+2026-02-08 07:45:51,644 - INFO - DEBUG Tipo 2 - Página 3: ESQ=[10] DIR=[11]
+2026-02-08 07:45:51,644 - INFO - DEBUG Tipo 2 - Página 4: ESQ=[12] DIR=[13]
+2026-02-08 07:45:51,644 - INFO - DEBUG Tipo 2 - Página 5: ESQ=[14, 15, 16, 17, 18] DIR=[19, 20]
+2026-02-08 07:45:51,645 - INFO - DEBUG Tipo 2 - Página 6: ESQ=[21] DIR=[22, 23, 24, 25]
+2026-02-08 07:45:51,646 - INFO - Tipo 2: 25 questões distribuídas em 6 páginas.
+2026-02-08 07:45:51,657 - INFO - Ordem das questões (IDs) passada para o template (Tipo 2): [44, 164, 34, 3, 98, 97, 43, 166, 93, 96, 92, 5, 46, 99, 2, 165, 10, 29, 31, 8, 45, 4, 33, 167, 9]
+2026-02-08 07:45:51,658 - DEBUG - HTML para tipo 2 gerado: 159.38 KB
+2026-02-08 07:45:51,658 - DEBUG - FIM: renderizar_html (0.015s) | simulado=18 | tipo=2 [em views.py:1581]
+2026-02-08 07:45:51,658 - DEBUG - FIM: gerar_html_tipo_2 (0.017s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:45:51,658 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.017s) | simulado=18 | user=None
+2026-02-08 07:45:51,668 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:45:51,669 - DEBUG - INÍCIO: gerar_html_tipo_3 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:45:51,669 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=3 [em views.py:1496]
+2026-02-08 07:45:51,669 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=3 [em views.py:1496]
+2026-02-08 07:45:51,670 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=3 [em views.py:1522]
+2026-02-08 07:45:51,670 - DEBUG - Tipo 3: 0 imagens processadas
+2026-02-08 07:45:51,670 - DEBUG - FIM: pre_processar_imagens (0.001s) | simulado=18 | tipo=3 [em views.py:1522]
+2026-02-08 07:45:51,670 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=3 [em views.py:1581]
+2026-02-08 07:45:51,671 - INFO - DEBUG Tipo 3 - Página 1: ESQ=[1, 2] DIR=[3]
+2026-02-08 07:45:51,671 - INFO - DEBUG Tipo 3 - Página 2: ESQ=[4] DIR=[5]
+2026-02-08 07:45:51,671 - INFO - DEBUG Tipo 3 - Página 3: ESQ=[6] DIR=[7]
+2026-02-08 07:45:51,672 - INFO - DEBUG Tipo 3 - Página 4: ESQ=[8, 9, 10, 11, 12] DIR=[13]
+2026-02-08 07:45:51,672 - INFO - DEBUG Tipo 3 - Página 5: ESQ=[14] DIR=[15, 16]
+2026-02-08 07:45:51,672 - INFO - DEBUG Tipo 3 - Página 6: ESQ=[17] DIR=[18, 19]
+2026-02-08 07:45:51,672 - INFO - DEBUG Tipo 3 - Página 7: ESQ=[20] DIR=[21, 22, 23, 24]
+2026-02-08 07:45:51,673 - INFO - DEBUG Tipo 3 - Página 8: ESQ=[25] DIR=[]
+2026-02-08 07:45:51,673 - INFO - Tipo 3: 25 questões distribuídas em 8 páginas.
+2026-02-08 07:45:51,684 - INFO - Ordem das questões (IDs) passada para o template (Tipo 3): [3, 29, 46, 166, 97, 5, 92, 165, 8, 99, 31, 2, 10, 96, 164, 33, 93, 98, 167, 45, 43, 44, 4, 9, 34]
+2026-02-08 07:45:51,684 - DEBUG - HTML para tipo 3 gerado: 159.65 KB
+2026-02-08 07:45:51,684 - DEBUG - FIM: renderizar_html (0.014s) | simulado=18 | tipo=3 [em views.py:1581]
+2026-02-08 07:45:51,685 - DEBUG - FIM: gerar_html_tipo_3 (0.016s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:45:51,685 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.017s) | simulado=18 | user=None
+2026-02-08 07:45:51,689 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:45:51,690 - DEBUG - INÍCIO: gerar_html_tipo_4 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:45:51,690 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=4 [em views.py:1496]
+2026-02-08 07:45:51,690 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=4 [em views.py:1496]
+2026-02-08 07:45:51,690 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=4 [em views.py:1522]
+2026-02-08 07:45:51,690 - DEBUG - Tipo 4: 0 imagens processadas
+2026-02-08 07:45:51,691 - DEBUG - FIM: pre_processar_imagens (0.000s) | simulado=18 | tipo=4 [em views.py:1522]
+2026-02-08 07:45:51,691 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=4 [em views.py:1581]
+2026-02-08 07:45:51,691 - INFO - DEBUG Tipo 4 - Página 1: ESQ=[1] DIR=[2, 3]
+2026-02-08 07:45:51,692 - INFO - DEBUG Tipo 4 - Página 2: ESQ=[4] DIR=[5, 6, 7, 8]
+2026-02-08 07:45:51,692 - INFO - DEBUG Tipo 4 - Página 3: ESQ=[9] DIR=[10]
+2026-02-08 07:45:51,692 - INFO - DEBUG Tipo 4 - Página 4: ESQ=[11, 12, 13] DIR=[14]
+2026-02-08 07:45:51,692 - INFO - DEBUG Tipo 4 - Página 5: ESQ=[15, 16, 17, 18, 19] DIR=[20, 21, 22]
+2026-02-08 07:45:51,692 - INFO - DEBUG Tipo 4 - Página 6: ESQ=[23] DIR=[24]
+2026-02-08 07:45:51,692 - INFO - DEBUG Tipo 4 - Página 7: ESQ=[25] DIR=[]
+2026-02-08 07:45:51,692 - INFO - Tipo 4: 25 questões distribuídas em 7 páginas.
+2026-02-08 07:45:51,703 - INFO - Ordem das questões (IDs) passada para o template (Tipo 4): [96, 2, 98, 46, 44, 3, 33, 165, 29, 93, 9, 164, 31, 92, 167, 43, 166, 99, 10, 8, 5, 34, 97, 4, 45]
+2026-02-08 07:45:51,703 - DEBUG - HTML para tipo 4 gerado: 159.51 KB
+2026-02-08 07:45:51,703 - DEBUG - FIM: renderizar_html (0.012s) | simulado=18 | tipo=4 [em views.py:1581]
+2026-02-08 07:45:51,704 - DEBUG - FIM: gerar_html_tipo_4 (0.014s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:45:51,704 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.015s) | simulado=18 | user=None
+2026-02-08 07:45:51,725 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:45:51,725 - DEBUG - INÍCIO: gerar_html_tipo_5 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:45:51,726 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=5 [em views.py:1496]
+2026-02-08 07:45:51,726 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=5 [em views.py:1496]
+2026-02-08 07:45:51,726 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=5 [em views.py:1522]
+2026-02-08 07:45:51,726 - DEBUG - Tipo 5: 0 imagens processadas
+2026-02-08 07:45:51,727 - DEBUG - FIM: pre_processar_imagens (0.000s) | simulado=18 | tipo=5 [em views.py:1522]
+2026-02-08 07:45:51,728 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=5 [em views.py:1581]
+2026-02-08 07:45:51,729 - INFO - DEBUG Tipo 5 - Página 1: ESQ=[1] DIR=[2]
+2026-02-08 07:45:51,729 - INFO - DEBUG Tipo 5 - Página 2: ESQ=[3, 4, 5, 6, 7, 8, 9] DIR=[10, 11]
+2026-02-08 07:45:51,729 - INFO - DEBUG Tipo 5 - Página 3: ESQ=[12] DIR=[13, 14]
+2026-02-08 07:45:51,729 - INFO - DEBUG Tipo 5 - Página 4: ESQ=[15] DIR=[16, 17, 18, 19]
+2026-02-08 07:45:51,730 - INFO - DEBUG Tipo 5 - Página 5: ESQ=[20] DIR=[21, 22]
+2026-02-08 07:45:51,730 - INFO - DEBUG Tipo 5 - Página 6: ESQ=[23] DIR=[24]
+2026-02-08 07:45:51,730 - INFO - DEBUG Tipo 5 - Página 7: ESQ=[25] DIR=[]
+2026-02-08 07:45:51,730 - INFO - Tipo 5: 25 questões distribuídas em 7 páginas.
+2026-02-08 07:45:51,741 - INFO - Ordem das questões (IDs) passada para o template (Tipo 5): [165, 93, 99, 10, 166, 5, 2, 98, 164, 3, 43, 45, 8, 4, 92, 167, 9, 34, 44, 97, 29, 31, 96, 46, 33]
+2026-02-08 07:45:51,742 - DEBUG - HTML para tipo 5 gerado: 159.51 KB
+2026-02-08 07:45:51,742 - DEBUG - FIM: renderizar_html (0.014s) | simulado=18 | tipo=5 [em views.py:1581]
+2026-02-08 07:45:51,742 - DEBUG - FIM: gerar_html_tipo_5 (0.017s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:45:51,742 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.017s) | simulado=18 | user=None
+2026-02-08 07:45:51,748 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:45:51,749 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo1 | num_questoes=25 | caderno=1 [em views.py:1705]
+2026-02-08 07:45:51,749 - DEBUG - Gerando cartão resposta: /tmp/tmp6ez7nmvc/Cartao_Resposta_1_Tipo1.pdf
+2026-02-08 07:45:51,783 - INFO - ARQUIVO: Cartão Resposta Tipo 1 - 8.95 KB [/tmp/tmp6ez7nmvc/Cartao_Resposta_1_Tipo1.pdf]
+2026-02-08 07:45:51,784 - DEBUG - Cartão resposta 1 gerado com código de rastreio: DB156D26
+2026-02-08 07:45:51,784 - DEBUG - FIM: gerar_cartao_resposta_tipo1 (0.036s) | num_questoes=25 | caderno=1 [em views.py:1705]
+2026-02-08 07:45:51,785 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.036s) | simulado=None | user=None
+2026-02-08 07:45:51,785 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:45:51,785 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo2 | num_questoes=25 | caderno=2 [em views.py:1705]
+2026-02-08 07:45:51,785 - DEBUG - Gerando cartão resposta: /tmp/tmp6ez7nmvc/Cartao_Resposta_2_Tipo2.pdf
+2026-02-08 07:45:51,812 - INFO - ARQUIVO: Cartão Resposta Tipo 2 - 8.95 KB [/tmp/tmp6ez7nmvc/Cartao_Resposta_2_Tipo2.pdf]
+2026-02-08 07:45:51,812 - DEBUG - Cartão resposta 2 gerado com código de rastreio: DB156D26
+2026-02-08 07:45:51,813 - DEBUG - FIM: gerar_cartao_resposta_tipo2 (0.028s) | num_questoes=25 | caderno=2 [em views.py:1705]
+2026-02-08 07:45:51,813 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.028s) | simulado=None | user=None
+2026-02-08 07:45:51,813 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:45:51,814 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo3 | num_questoes=25 | caderno=3 [em views.py:1705]
+2026-02-08 07:45:51,814 - DEBUG - Gerando cartão resposta: /tmp/tmp6ez7nmvc/Cartao_Resposta_3_Tipo3.pdf
+2026-02-08 07:45:51,839 - INFO - ARQUIVO: Cartão Resposta Tipo 3 - 8.95 KB [/tmp/tmp6ez7nmvc/Cartao_Resposta_3_Tipo3.pdf]
+2026-02-08 07:45:51,839 - DEBUG - Cartão resposta 3 gerado com código de rastreio: DB156D26
+2026-02-08 07:45:51,840 - DEBUG - FIM: gerar_cartao_resposta_tipo3 (0.026s) | num_questoes=25 | caderno=3 [em views.py:1705]
+2026-02-08 07:45:51,840 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.027s) | simulado=None | user=None
+2026-02-08 07:45:51,840 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:45:51,840 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo4 | num_questoes=25 | caderno=4 [em views.py:1705]
+2026-02-08 07:45:51,840 - DEBUG - Gerando cartão resposta: /tmp/tmp6ez7nmvc/Cartao_Resposta_4_Tipo4.pdf
+2026-02-08 07:45:51,866 - INFO - ARQUIVO: Cartão Resposta Tipo 4 - 8.95 KB [/tmp/tmp6ez7nmvc/Cartao_Resposta_4_Tipo4.pdf]
+2026-02-08 07:45:51,866 - DEBUG - Cartão resposta 4 gerado com código de rastreio: DB156D26
+2026-02-08 07:45:51,866 - DEBUG - FIM: gerar_cartao_resposta_tipo4 (0.026s) | num_questoes=25 | caderno=4 [em views.py:1705]
+2026-02-08 07:45:51,866 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.026s) | simulado=None | user=None
+2026-02-08 07:45:51,867 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:45:51,867 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo5 | num_questoes=25 | caderno=5 [em views.py:1705]
+2026-02-08 07:45:51,867 - DEBUG - Gerando cartão resposta: /tmp/tmp6ez7nmvc/Cartao_Resposta_5_Tipo5.pdf
+2026-02-08 07:45:51,893 - INFO - ARQUIVO: Cartão Resposta Tipo 5 - 8.95 KB [/tmp/tmp6ez7nmvc/Cartao_Resposta_5_Tipo5.pdf]
+2026-02-08 07:45:51,893 - DEBUG - Cartão resposta 5 gerado com código de rastreio: DB156D26
+2026-02-08 07:45:51,894 - DEBUG - FIM: gerar_cartao_resposta_tipo5 (0.027s) | num_questoes=25 | caderno=5 [em views.py:1705]
+2026-02-08 07:45:51,894 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.027s) | simulado=None | user=None
+2026-02-08 07:45:51,902 - DEBUG - INÍCIO FUNÇÃO: _combinar_pdfs_versoes | simulado=18 | user=None
+2026-02-08 07:45:51,902 - DEBUG - INÍCIO: combinar_htmls_em_pdf_unico | num_tipos=5 | saida=simulado_18_completo.pdf [em views.py:1274]
+2026-02-08 07:45:51,902 - INFO - 🔍 DEBUG: cartoes_resposta_paths recebidos: ['/tmp/tmp6ez7nmvc/Cartao_Resposta_1_Tipo1.pdf', '/tmp/tmp6ez7nmvc/Cartao_Resposta_2_Tipo2.pdf', '/tmp/tmp6ez7nmvc/Cartao_Resposta_3_Tipo3.pdf', '/tmp/tmp6ez7nmvc/Cartao_Resposta_4_Tipo4.pdf', '/tmp/tmp6ez7nmvc/Cartao_Resposta_5_Tipo5.pdf']
+2026-02-08 07:45:51,904 - INFO -    Cartão 1: /tmp/tmp6ez7nmvc/Cartao_Resposta_1_Tipo1.pdf - Existe: True
+2026-02-08 07:45:51,904 - INFO -    Cartão 2: /tmp/tmp6ez7nmvc/Cartao_Resposta_2_Tipo2.pdf - Existe: True
+2026-02-08 07:45:51,904 - INFO -    Cartão 3: /tmp/tmp6ez7nmvc/Cartao_Resposta_3_Tipo3.pdf - Existe: True
+2026-02-08 07:45:51,904 - INFO -    Cartão 4: /tmp/tmp6ez7nmvc/Cartao_Resposta_4_Tipo4.pdf - Existe: True
+2026-02-08 07:45:51,905 - INFO -    Cartão 5: /tmp/tmp6ez7nmvc/Cartao_Resposta_5_Tipo5.pdf - Existe: True
+2026-02-08 07:45:51,908 - INFO - Renderizando Tipo 1/5 com wkhtmltopdf...
+2026-02-08 07:45:58,405 - INFO - ✅ Questões Tipo 1 renderizadas!
+2026-02-08 07:45:58,408 - INFO - Renderizando Tipo 2/5 com wkhtmltopdf...
+2026-02-08 07:46:03,089 - INFO - ✅ Questões Tipo 2 renderizadas!
+2026-02-08 07:46:03,099 - INFO - Renderizando Tipo 3/5 com wkhtmltopdf...
+2026-02-08 07:46:06,639 - INFO - ✅ Questões Tipo 3 renderizadas!
+2026-02-08 07:46:06,641 - INFO - Renderizando Tipo 4/5 com wkhtmltopdf...
+2026-02-08 07:46:09,305 - INFO - ✅ Questões Tipo 4 renderizadas!
+2026-02-08 07:46:09,310 - INFO - Renderizando Tipo 5/5 com wkhtmltopdf...
+2026-02-08 07:46:15,130 - INFO - ✅ Questões Tipo 5 renderizadas!
+2026-02-08 07:46:15,156 - INFO - Combinando PDFs...
+2026-02-08 07:46:15,168 - INFO - Carregados 5 cartões resposta
+2026-02-08 07:46:15,168 - INFO - Montando Tipo 1...
+2026-02-08 07:46:15,169 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:46:15,176 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:46:15,428 - INFO - Montando Tipo 2...
+2026-02-08 07:46:15,444 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:46:15,449 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:46:15,583 - INFO - Montando Tipo 3...
+2026-02-08 07:46:15,585 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:46:15,587 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:46:15,681 - INFO - Montando Tipo 4...
+2026-02-08 07:46:15,685 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:46:15,687 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:46:15,793 - INFO - Montando Tipo 5...
+2026-02-08 07:46:15,795 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:46:15,798 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:46:16,052 - INFO - PDF final: 52 páginas
+2026-02-08 07:46:16,064 - INFO - ARQUIVO: PDF Único com 5 Tipos - 1.92 MB [/tmp/tmp6ez7nmvc/simulado_18_completo.pdf]
+2026-02-08 07:46:16,064 - INFO - FIM: combinar_htmls_em_pdf_unico (24.162s) | num_tipos=5 | saida=simulado_18_completo.pdf [em views.py:1274]
+2026-02-08 07:46:16,065 - INFO - FIM FUNÇÃO: _combinar_pdfs_versoes (24.163s) | simulado=18 | user=None
+2026-02-08 07:52:14,059 - DEBUG - INÍCIO: preprocessar_todas_imagens | total_questoes=25 [em views.py:1079]
+2026-02-08 07:52:14,061 - INFO - Pré-processadas 0 imagens (cache global)
+2026-02-08 07:52:14,061 - DEBUG - FIM: preprocessar_todas_imagens (0.003s) | total_questoes=25 [em views.py:1079]
+2026-02-08 07:52:14,068 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:52:14,068 - DEBUG - INÍCIO: gerar_html_tipo_1 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:52:14,069 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=1 [em views.py:1496]
+2026-02-08 07:52:14,069 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=1 [em views.py:1496]
+2026-02-08 07:52:14,069 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=1 [em views.py:1522]
+2026-02-08 07:52:14,070 - DEBUG - Tipo 1: 0 imagens processadas
+2026-02-08 07:52:14,070 - DEBUG - FIM: pre_processar_imagens (0.000s) | simulado=18 | tipo=1 [em views.py:1522]
+2026-02-08 07:52:14,070 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=1 [em views.py:1581]
+2026-02-08 07:52:14,073 - INFO - DEBUG Tipo 1 - Página 1: ESQ=[1, 2, 3, 4] DIR=[5, 6, 7]
+2026-02-08 07:52:14,073 - INFO - DEBUG Tipo 1 - Página 2: ESQ=[8, 9, 10] DIR=[11, 12]
+2026-02-08 07:52:14,073 - INFO - DEBUG Tipo 1 - Página 3: ESQ=[13] DIR=[14, 15]
+2026-02-08 07:52:14,074 - INFO - DEBUG Tipo 1 - Página 4: ESQ=[16, 17, 18] DIR=[19, 20]
+2026-02-08 07:52:14,074 - INFO - DEBUG Tipo 1 - Página 5: ESQ=[21, 22, 23, 24, 25] DIR=[]
+2026-02-08 07:52:14,074 - INFO - Tipo 1: 25 questões distribuídas em 5 páginas.
+2026-02-08 07:52:14,103 - INFO - Ordem das questões (IDs) passada para o template (Tipo 1): [5, 98, 8, 2, 9, 46, 4, 96, 10, 34, 31, 165, 97, 45, 29, 93, 43, 166, 44, 33, 92, 164, 99, 167, 3]
+2026-02-08 07:52:14,104 - DEBUG - HTML para tipo 1 gerado: 159.24 KB
+2026-02-08 07:52:14,104 - DEBUG - FIM: renderizar_html (0.034s) | simulado=18 | tipo=1 [em views.py:1581]
+2026-02-08 07:52:14,104 - DEBUG - FIM: gerar_html_tipo_1 (0.036s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:52:14,104 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.036s) | simulado=18 | user=None
+2026-02-08 07:52:14,109 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:52:14,109 - DEBUG - INÍCIO: gerar_html_tipo_2 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:52:14,109 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=2 [em views.py:1496]
+2026-02-08 07:52:14,110 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=2 [em views.py:1496]
+2026-02-08 07:52:14,110 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=2 [em views.py:1522]
+2026-02-08 07:52:14,110 - DEBUG - Tipo 2: 0 imagens processadas
+2026-02-08 07:52:14,111 - DEBUG - FIM: pre_processar_imagens (0.001s) | simulado=18 | tipo=2 [em views.py:1522]
+2026-02-08 07:52:14,111 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=2 [em views.py:1581]
+2026-02-08 07:52:14,113 - INFO - DEBUG Tipo 2 - Página 1: ESQ=[1, 2, 3] DIR=[4, 5, 6, 7, 8]
+2026-02-08 07:52:14,114 - INFO - DEBUG Tipo 2 - Página 2: ESQ=[9, 10] DIR=[11, 12, 13]
+2026-02-08 07:52:14,114 - INFO - DEBUG Tipo 2 - Página 3: ESQ=[14, 15, 16] DIR=[17, 18]
+2026-02-08 07:52:14,114 - INFO - DEBUG Tipo 2 - Página 4: ESQ=[19, 20, 21, 22] DIR=[23, 24, 25]
+2026-02-08 07:52:14,114 - INFO - Tipo 2: 25 questões distribuídas em 4 páginas.
+2026-02-08 07:52:14,125 - INFO - Ordem das questões (IDs) passada para o template (Tipo 2): [31, 4, 44, 164, 166, 29, 167, 2, 46, 93, 92, 9, 165, 97, 98, 34, 8, 45, 96, 3, 99, 10, 43, 5, 33]
+2026-02-08 07:52:14,126 - DEBUG - HTML para tipo 2 gerado: 159.10 KB
+2026-02-08 07:52:14,126 - DEBUG - FIM: renderizar_html (0.015s) | simulado=18 | tipo=2 [em views.py:1581]
+2026-02-08 07:52:14,126 - DEBUG - FIM: gerar_html_tipo_2 (0.017s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:52:14,126 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.018s) | simulado=18 | user=None
+2026-02-08 07:52:14,131 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:52:14,132 - DEBUG - INÍCIO: gerar_html_tipo_3 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:52:14,132 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=3 [em views.py:1496]
+2026-02-08 07:52:14,133 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=3 [em views.py:1496]
+2026-02-08 07:52:14,133 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=3 [em views.py:1522]
+2026-02-08 07:52:14,133 - DEBUG - Tipo 3: 0 imagens processadas
+2026-02-08 07:52:14,133 - DEBUG - FIM: pre_processar_imagens (0.000s) | simulado=18 | tipo=3 [em views.py:1522]
+2026-02-08 07:52:14,133 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=3 [em views.py:1581]
+2026-02-08 07:52:14,135 - INFO - DEBUG Tipo 3 - Página 1: ESQ=[1, 2, 3] DIR=[4, 5, 6]
+2026-02-08 07:52:14,135 - INFO - DEBUG Tipo 3 - Página 2: ESQ=[7, 8] DIR=[9, 10, 11]
+2026-02-08 07:52:14,135 - INFO - DEBUG Tipo 3 - Página 3: ESQ=[12, 13, 14] DIR=[15, 16, 17, 18]
+2026-02-08 07:52:14,136 - INFO - DEBUG Tipo 3 - Página 4: ESQ=[19, 20, 21, 22, 23] DIR=[24, 25]
+2026-02-08 07:52:14,136 - INFO - Tipo 3: 25 questões distribuídas em 4 páginas.
+2026-02-08 07:52:14,146 - INFO - Ordem das questões (IDs) passada para o template (Tipo 3): [98, 46, 31, 92, 5, 9, 33, 29, 97, 8, 4, 44, 43, 34, 10, 45, 164, 99, 165, 3, 167, 96, 166, 93, 2]
+2026-02-08 07:52:14,147 - DEBUG - HTML para tipo 3 gerado: 159.10 KB
+2026-02-08 07:52:14,147 - DEBUG - FIM: renderizar_html (0.014s) | simulado=18 | tipo=3 [em views.py:1581]
+2026-02-08 07:52:14,147 - DEBUG - FIM: gerar_html_tipo_3 (0.015s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:52:14,147 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.016s) | simulado=18 | user=None
+2026-02-08 07:52:14,152 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:52:14,152 - DEBUG - INÍCIO: gerar_html_tipo_4 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:52:14,152 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=4 [em views.py:1496]
+2026-02-08 07:52:14,153 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=4 [em views.py:1496]
+2026-02-08 07:52:14,153 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=4 [em views.py:1522]
+2026-02-08 07:52:14,153 - DEBUG - Tipo 4: 0 imagens processadas
+2026-02-08 07:52:14,153 - DEBUG - FIM: pre_processar_imagens (0.000s) | simulado=18 | tipo=4 [em views.py:1522]
+2026-02-08 07:52:14,153 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=4 [em views.py:1581]
+2026-02-08 07:52:14,155 - INFO - DEBUG Tipo 4 - Página 1: ESQ=[1, 2] DIR=[3, 4]
+2026-02-08 07:52:14,155 - INFO - DEBUG Tipo 4 - Página 2: ESQ=[5, 6, 7] DIR=[8, 9, 10, 11]
+2026-02-08 07:52:14,156 - INFO - DEBUG Tipo 4 - Página 3: ESQ=[12, 13, 14, 15] DIR=[16, 17]
+2026-02-08 07:52:14,156 - INFO - DEBUG Tipo 4 - Página 4: ESQ=[18, 19, 20] DIR=[21, 22, 23, 24, 25]
+2026-02-08 07:52:14,156 - INFO - Tipo 4: 25 questões distribuídas em 4 páginas.
+2026-02-08 07:52:14,167 - INFO - Ordem das questões (IDs) passada para o template (Tipo 4): [34, 97, 33, 96, 44, 31, 10, 46, 165, 4, 98, 92, 166, 8, 99, 45, 9, 93, 2, 29, 167, 164, 43, 5, 3]
+2026-02-08 07:52:14,168 - DEBUG - HTML para tipo 4 gerado: 159.10 KB
+2026-02-08 07:52:14,168 - DEBUG - FIM: renderizar_html (0.014s) | simulado=18 | tipo=4 [em views.py:1581]
+2026-02-08 07:52:14,168 - DEBUG - FIM: gerar_html_tipo_4 (0.016s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:52:14,168 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.016s) | simulado=18 | user=None
+2026-02-08 07:52:14,172 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:52:14,173 - DEBUG - INÍCIO: gerar_html_tipo_5 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:52:14,173 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=5 [em views.py:1496]
+2026-02-08 07:52:14,174 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=5 [em views.py:1496]
+2026-02-08 07:52:14,174 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=5 [em views.py:1522]
+2026-02-08 07:52:14,174 - DEBUG - Tipo 5: 0 imagens processadas
+2026-02-08 07:52:14,174 - DEBUG - FIM: pre_processar_imagens (0.000s) | simulado=18 | tipo=5 [em views.py:1522]
+2026-02-08 07:52:14,174 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=5 [em views.py:1581]
+2026-02-08 07:52:14,177 - INFO - DEBUG Tipo 5 - Página 1: ESQ=[1, 2] DIR=[3, 4, 5]
+2026-02-08 07:52:14,177 - INFO - DEBUG Tipo 5 - Página 2: ESQ=[6, 7] DIR=[8, 9, 10, 11]
+2026-02-08 07:52:14,178 - INFO - DEBUG Tipo 5 - Página 3: ESQ=[12, 13, 14, 15, 16] DIR=[17, 18]
+2026-02-08 07:52:14,178 - INFO - DEBUG Tipo 5 - Página 4: ESQ=[19, 20, 21, 22, 23] DIR=[24, 25]
+2026-02-08 07:52:14,178 - INFO - Tipo 5: 25 questões distribuídas em 4 páginas.
+2026-02-08 07:52:14,189 - INFO - Ordem das questões (IDs) passada para o template (Tipo 5): [45, 43, 31, 92, 167, 33, 29, 97, 98, 2, 34, 10, 96, 3, 165, 166, 9, 46, 99, 8, 164, 4, 5, 44, 93]
+2026-02-08 07:52:14,189 - DEBUG - HTML para tipo 5 gerado: 159.10 KB
+2026-02-08 07:52:14,189 - DEBUG - FIM: renderizar_html (0.015s) | simulado=18 | tipo=5 [em views.py:1581]
+2026-02-08 07:52:14,190 - DEBUG - FIM: gerar_html_tipo_5 (0.017s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:52:14,190 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.017s) | simulado=18 | user=None
+2026-02-08 07:52:14,194 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:52:14,195 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo1 | num_questoes=25 | caderno=1 [em views.py:1719]
+2026-02-08 07:52:14,272 - DEBUG - Gerando cartão resposta: /tmp/tmplptlcwl2/Cartao_Resposta_1_Tipo1.pdf
+2026-02-08 07:52:14,299 - INFO - ARQUIVO: Cartão Resposta Tipo 1 - 8.95 KB [/tmp/tmplptlcwl2/Cartao_Resposta_1_Tipo1.pdf]
+2026-02-08 07:52:14,299 - DEBUG - Cartão resposta 1 gerado com código de rastreio: F002BB36
+2026-02-08 07:52:14,299 - DEBUG - FIM: gerar_cartao_resposta_tipo1 (0.105s) | num_questoes=25 | caderno=1 [em views.py:1719]
+2026-02-08 07:52:14,300 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.105s) | simulado=None | user=None
+2026-02-08 07:52:14,300 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:52:14,300 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo2 | num_questoes=25 | caderno=2 [em views.py:1719]
+2026-02-08 07:52:14,300 - DEBUG - Gerando cartão resposta: /tmp/tmplptlcwl2/Cartao_Resposta_2_Tipo2.pdf
+2026-02-08 07:52:14,326 - INFO - ARQUIVO: Cartão Resposta Tipo 2 - 8.95 KB [/tmp/tmplptlcwl2/Cartao_Resposta_2_Tipo2.pdf]
+2026-02-08 07:52:14,326 - DEBUG - Cartão resposta 2 gerado com código de rastreio: F002BB36
+2026-02-08 07:52:14,326 - DEBUG - FIM: gerar_cartao_resposta_tipo2 (0.026s) | num_questoes=25 | caderno=2 [em views.py:1719]
+2026-02-08 07:52:14,326 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.026s) | simulado=None | user=None
+2026-02-08 07:52:14,326 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:52:14,327 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo3 | num_questoes=25 | caderno=3 [em views.py:1719]
+2026-02-08 07:52:14,327 - DEBUG - Gerando cartão resposta: /tmp/tmplptlcwl2/Cartao_Resposta_3_Tipo3.pdf
+2026-02-08 07:52:14,352 - INFO - ARQUIVO: Cartão Resposta Tipo 3 - 8.95 KB [/tmp/tmplptlcwl2/Cartao_Resposta_3_Tipo3.pdf]
+2026-02-08 07:52:14,352 - DEBUG - Cartão resposta 3 gerado com código de rastreio: F002BB36
+2026-02-08 07:52:14,352 - DEBUG - FIM: gerar_cartao_resposta_tipo3 (0.026s) | num_questoes=25 | caderno=3 [em views.py:1719]
+2026-02-08 07:52:14,352 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.026s) | simulado=None | user=None
+2026-02-08 07:52:14,352 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:52:14,353 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo4 | num_questoes=25 | caderno=4 [em views.py:1719]
+2026-02-08 07:52:14,353 - DEBUG - Gerando cartão resposta: /tmp/tmplptlcwl2/Cartao_Resposta_4_Tipo4.pdf
+2026-02-08 07:52:14,379 - INFO - ARQUIVO: Cartão Resposta Tipo 4 - 8.95 KB [/tmp/tmplptlcwl2/Cartao_Resposta_4_Tipo4.pdf]
+2026-02-08 07:52:14,379 - DEBUG - Cartão resposta 4 gerado com código de rastreio: F002BB36
+2026-02-08 07:52:14,379 - DEBUG - FIM: gerar_cartao_resposta_tipo4 (0.027s) | num_questoes=25 | caderno=4 [em views.py:1719]
+2026-02-08 07:52:14,380 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.027s) | simulado=None | user=None
+2026-02-08 07:52:14,380 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:52:14,380 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo5 | num_questoes=25 | caderno=5 [em views.py:1719]
+2026-02-08 07:52:14,380 - DEBUG - Gerando cartão resposta: /tmp/tmplptlcwl2/Cartao_Resposta_5_Tipo5.pdf
+2026-02-08 07:52:14,406 - INFO - ARQUIVO: Cartão Resposta Tipo 5 - 8.95 KB [/tmp/tmplptlcwl2/Cartao_Resposta_5_Tipo5.pdf]
+2026-02-08 07:52:14,406 - DEBUG - Cartão resposta 5 gerado com código de rastreio: F002BB36
+2026-02-08 07:52:14,406 - DEBUG - FIM: gerar_cartao_resposta_tipo5 (0.026s) | num_questoes=25 | caderno=5 [em views.py:1719]
+2026-02-08 07:52:14,406 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.027s) | simulado=None | user=None
+2026-02-08 07:52:14,412 - DEBUG - INÍCIO FUNÇÃO: _combinar_pdfs_versoes | simulado=18 | user=None
+2026-02-08 07:52:14,412 - DEBUG - INÍCIO: combinar_htmls_em_pdf_unico | num_tipos=5 | saida=simulado_18_completo.pdf [em views.py:1274]
+2026-02-08 07:52:14,412 - INFO - 🔍 DEBUG: cartoes_resposta_paths recebidos: ['/tmp/tmplptlcwl2/Cartao_Resposta_1_Tipo1.pdf', '/tmp/tmplptlcwl2/Cartao_Resposta_2_Tipo2.pdf', '/tmp/tmplptlcwl2/Cartao_Resposta_3_Tipo3.pdf', '/tmp/tmplptlcwl2/Cartao_Resposta_4_Tipo4.pdf', '/tmp/tmplptlcwl2/Cartao_Resposta_5_Tipo5.pdf']
+2026-02-08 07:52:14,413 - INFO -    Cartão 1: /tmp/tmplptlcwl2/Cartao_Resposta_1_Tipo1.pdf - Existe: True
+2026-02-08 07:52:14,413 - INFO -    Cartão 2: /tmp/tmplptlcwl2/Cartao_Resposta_2_Tipo2.pdf - Existe: True
+2026-02-08 07:52:14,413 - INFO -    Cartão 3: /tmp/tmplptlcwl2/Cartao_Resposta_3_Tipo3.pdf - Existe: True
+2026-02-08 07:52:14,413 - INFO -    Cartão 4: /tmp/tmplptlcwl2/Cartao_Resposta_4_Tipo4.pdf - Existe: True
+2026-02-08 07:52:14,414 - INFO -    Cartão 5: /tmp/tmplptlcwl2/Cartao_Resposta_5_Tipo5.pdf - Existe: True
+2026-02-08 07:52:14,418 - INFO - Renderizando Tipo 1/5 com wkhtmltopdf...
+2026-02-08 07:52:16,736 - INFO - ✅ Questões Tipo 1 renderizadas!
+2026-02-08 07:52:16,736 - INFO - Renderizando Tipo 2/5 com wkhtmltopdf...
+2026-02-08 07:52:18,398 - INFO - ✅ Questões Tipo 2 renderizadas!
+2026-02-08 07:52:18,398 - INFO - Renderizando Tipo 3/5 com wkhtmltopdf...
+2026-02-08 07:52:20,216 - INFO - ✅ Questões Tipo 3 renderizadas!
+2026-02-08 07:52:20,216 - INFO - Renderizando Tipo 4/5 com wkhtmltopdf...
+2026-02-08 07:52:22,087 - INFO - ✅ Questões Tipo 4 renderizadas!
+2026-02-08 07:52:22,088 - INFO - Renderizando Tipo 5/5 com wkhtmltopdf...
+2026-02-08 07:52:24,241 - INFO - ✅ Questões Tipo 5 renderizadas!
+2026-02-08 07:52:24,241 - INFO - Combinando PDFs...
+2026-02-08 07:52:24,244 - INFO - Carregados 5 cartões resposta
+2026-02-08 07:52:24,245 - INFO - Montando Tipo 1...
+2026-02-08 07:52:24,245 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:52:24,247 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:52:24,407 - INFO - Montando Tipo 2...
+2026-02-08 07:52:24,407 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:52:24,408 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:52:24,653 - INFO - Montando Tipo 3...
+2026-02-08 07:52:24,654 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:52:24,655 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:52:24,928 - INFO - Montando Tipo 4...
+2026-02-08 07:52:24,929 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:52:24,931 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:52:25,210 - INFO - Montando Tipo 5...
+2026-02-08 07:52:25,210 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:52:25,212 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:52:25,424 - INFO - PDF final: 35 páginas
+2026-02-08 07:52:25,425 - INFO - ARQUIVO: PDF Único com 5 Tipos - 2.03 MB [/tmp/tmplptlcwl2/simulado_18_completo.pdf]
+2026-02-08 07:52:25,425 - INFO - FIM: combinar_htmls_em_pdf_unico (11.013s) | num_tipos=5 | saida=simulado_18_completo.pdf [em views.py:1274]
+2026-02-08 07:52:25,425 - INFO - FIM FUNÇÃO: _combinar_pdfs_versoes (11.013s) | simulado=18 | user=None
+2026-02-08 07:53:30,779 - DEBUG - INÍCIO: preprocessar_todas_imagens | total_questoes=25 [em views.py:1079]
+2026-02-08 07:53:30,781 - INFO - Pré-processadas 0 imagens (cache global)
+2026-02-08 07:53:30,782 - DEBUG - FIM: preprocessar_todas_imagens (0.002s) | total_questoes=25 [em views.py:1079]
+2026-02-08 07:53:30,788 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:53:30,788 - DEBUG - INÍCIO: gerar_html_tipo_1 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:53:30,788 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=1 [em views.py:1496]
+2026-02-08 07:53:30,788 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=1 [em views.py:1496]
+2026-02-08 07:53:30,789 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=1 [em views.py:1522]
+2026-02-08 07:53:30,789 - DEBUG - Tipo 1: 0 imagens processadas
+2026-02-08 07:53:30,789 - DEBUG - FIM: pre_processar_imagens (0.000s) | simulado=18 | tipo=1 [em views.py:1522]
+2026-02-08 07:53:30,789 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=1 [em views.py:1581]
+2026-02-08 07:53:30,792 - INFO - DEBUG Tipo 1 - Página 1: ESQ=[1, 2, 3] DIR=[4, 5, 6, 7]
+2026-02-08 07:53:30,793 - INFO - DEBUG Tipo 1 - Página 2: ESQ=[8, 9, 10, 11] DIR=[12, 13, 14, 15]
+2026-02-08 07:53:30,793 - INFO - DEBUG Tipo 1 - Página 3: ESQ=[16, 17, 18] DIR=[19, 20]
+2026-02-08 07:53:30,793 - INFO - DEBUG Tipo 1 - Página 4: ESQ=[21, 22] DIR=[23, 24, 25]
+2026-02-08 07:53:30,793 - INFO - Tipo 1: 25 questões distribuídas em 4 páginas.
+2026-02-08 07:53:30,803 - INFO - Ordem das questões (IDs) passada para o template (Tipo 1): [45, 10, 34, 93, 92, 5, 99, 165, 98, 46, 166, 96, 3, 164, 31, 2, 8, 97, 43, 29, 33, 44, 9, 4, 167]
+2026-02-08 07:53:30,804 - DEBUG - HTML para tipo 1 gerado: 159.10 KB
+2026-02-08 07:53:30,804 - DEBUG - FIM: renderizar_html (0.015s) | simulado=18 | tipo=1 [em views.py:1581]
+2026-02-08 07:53:30,804 - DEBUG - FIM: gerar_html_tipo_1 (0.016s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:53:30,804 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.016s) | simulado=18 | user=None
+2026-02-08 07:53:30,809 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:53:30,809 - DEBUG - INÍCIO: gerar_html_tipo_2 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:53:30,810 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=2 [em views.py:1496]
+2026-02-08 07:53:30,810 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=2 [em views.py:1496]
+2026-02-08 07:53:30,810 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=2 [em views.py:1522]
+2026-02-08 07:53:30,810 - DEBUG - Tipo 2: 0 imagens processadas
+2026-02-08 07:53:30,810 - DEBUG - FIM: pre_processar_imagens (0.000s) | simulado=18 | tipo=2 [em views.py:1522]
+2026-02-08 07:53:30,811 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=2 [em views.py:1581]
+2026-02-08 07:53:30,812 - INFO - DEBUG Tipo 2 - Página 1: ESQ=[1, 2, 3, 4, 5] DIR=[6, 7, 8, 9]
+2026-02-08 07:53:30,813 - INFO - DEBUG Tipo 2 - Página 2: ESQ=[10, 11, 12] DIR=[13, 14]
+2026-02-08 07:53:30,813 - INFO - DEBUG Tipo 2 - Página 3: ESQ=[15, 16, 17, 18] DIR=[19, 20]
+2026-02-08 07:53:30,813 - INFO - DEBUG Tipo 2 - Página 4: ESQ=[21, 22, 23, 24] DIR=[25]
+2026-02-08 07:53:30,814 - INFO - Tipo 2: 25 questões distribuídas em 4 páginas.
+2026-02-08 07:53:30,824 - INFO - Ordem das questões (IDs) passada para o template (Tipo 2): [164, 5, 34, 166, 33, 96, 99, 98, 92, 167, 2, 45, 31, 97, 165, 8, 44, 10, 29, 46, 43, 4, 9, 3, 93]
+2026-02-08 07:53:30,824 - DEBUG - HTML para tipo 2 gerado: 159.10 KB
+2026-02-08 07:53:30,824 - DEBUG - FIM: renderizar_html (0.014s) | simulado=18 | tipo=2 [em views.py:1581]
+2026-02-08 07:53:30,825 - DEBUG - FIM: gerar_html_tipo_2 (0.015s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:53:30,825 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.016s) | simulado=18 | user=None
+2026-02-08 07:53:30,830 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:53:30,831 - DEBUG - INÍCIO: gerar_html_tipo_3 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:53:30,831 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=3 [em views.py:1496]
+2026-02-08 07:53:30,832 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=3 [em views.py:1496]
+2026-02-08 07:53:30,832 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=3 [em views.py:1522]
+2026-02-08 07:53:30,832 - DEBUG - Tipo 3: 0 imagens processadas
+2026-02-08 07:53:30,832 - DEBUG - FIM: pre_processar_imagens (0.000s) | simulado=18 | tipo=3 [em views.py:1522]
+2026-02-08 07:53:30,832 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=3 [em views.py:1581]
+2026-02-08 07:53:30,834 - INFO - DEBUG Tipo 3 - Página 1: ESQ=[1, 2, 3] DIR=[4, 5, 6, 7, 8]
+2026-02-08 07:53:30,834 - INFO - DEBUG Tipo 3 - Página 2: ESQ=[9, 10] DIR=[11, 12, 13]
+2026-02-08 07:53:30,835 - INFO - DEBUG Tipo 3 - Página 3: ESQ=[14, 15, 16, 17, 18] DIR=[19, 20, 21]
+2026-02-08 07:53:30,835 - INFO - DEBUG Tipo 3 - Página 4: ESQ=[22, 23, 24] DIR=[25]
+2026-02-08 07:53:30,835 - INFO - Tipo 3: 25 questões distribuídas em 4 páginas.
+2026-02-08 07:53:30,846 - INFO - Ordem das questões (IDs) passada para o template (Tipo 3): [92, 165, 45, 2, 34, 5, 3, 29, 93, 97, 33, 8, 98, 46, 10, 167, 166, 164, 96, 31, 99, 4, 9, 44, 43]
+2026-02-08 07:53:30,847 - DEBUG - HTML para tipo 3 gerado: 159.10 KB
+2026-02-08 07:53:30,847 - DEBUG - FIM: renderizar_html (0.015s) | simulado=18 | tipo=3 [em views.py:1581]
+2026-02-08 07:53:30,847 - DEBUG - FIM: gerar_html_tipo_3 (0.016s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:53:30,848 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.017s) | simulado=18 | user=None
+2026-02-08 07:53:30,852 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:53:30,853 - DEBUG - INÍCIO: gerar_html_tipo_4 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:53:30,853 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=4 [em views.py:1496]
+2026-02-08 07:53:30,853 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=4 [em views.py:1496]
+2026-02-08 07:53:30,853 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=4 [em views.py:1522]
+2026-02-08 07:53:30,854 - DEBUG - Tipo 4: 0 imagens processadas
+2026-02-08 07:53:30,854 - DEBUG - FIM: pre_processar_imagens (0.000s) | simulado=18 | tipo=4 [em views.py:1522]
+2026-02-08 07:53:30,854 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=4 [em views.py:1581]
+2026-02-08 07:53:30,856 - INFO - DEBUG Tipo 4 - Página 1: ESQ=[1, 2, 3, 4] DIR=[5, 6, 7]
+2026-02-08 07:53:30,856 - INFO - DEBUG Tipo 4 - Página 2: ESQ=[8, 9, 10, 11] DIR=[12, 13]
+2026-02-08 07:53:30,856 - INFO - DEBUG Tipo 4 - Página 3: ESQ=[14, 15, 16, 17] DIR=[18, 19, 20, 21]
+2026-02-08 07:53:30,856 - INFO - DEBUG Tipo 4 - Página 4: ESQ=[22, 23] DIR=[24, 25]
+2026-02-08 07:53:30,856 - INFO - Tipo 4: 25 questões distribuídas em 4 páginas.
+2026-02-08 07:53:30,868 - INFO - Ordem das questões (IDs) passada para o template (Tipo 4): [10, 166, 97, 3, 45, 5, 99, 31, 167, 98, 34, 44, 33, 93, 9, 165, 4, 8, 164, 96, 2, 43, 46, 29, 92]
+2026-02-08 07:53:30,868 - DEBUG - HTML para tipo 4 gerado: 159.10 KB
+2026-02-08 07:53:30,868 - DEBUG - FIM: renderizar_html (0.014s) | simulado=18 | tipo=4 [em views.py:1581]
+2026-02-08 07:53:30,868 - DEBUG - FIM: gerar_html_tipo_4 (0.015s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:53:30,868 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.016s) | simulado=18 | user=None
+2026-02-08 07:53:30,873 - DEBUG - INÍCIO FUNÇÃO: _gerar_versao_simulado | simulado=18 | user=None
+2026-02-08 07:53:30,874 - DEBUG - INÍCIO: gerar_html_tipo_5 | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:53:30,874 - DEBUG - INÍCIO: embaralhar_questoes | simulado=18 | tipo=5 [em views.py:1496]
+2026-02-08 07:53:30,874 - DEBUG - FIM: embaralhar_questoes (0.000s) | simulado=18 | tipo=5 [em views.py:1496]
+2026-02-08 07:53:30,874 - DEBUG - INÍCIO: pre_processar_imagens | simulado=18 | tipo=5 [em views.py:1522]
+2026-02-08 07:53:30,874 - DEBUG - Tipo 5: 0 imagens processadas
+2026-02-08 07:53:30,874 - DEBUG - FIM: pre_processar_imagens (0.000s) | simulado=18 | tipo=5 [em views.py:1522]
+2026-02-08 07:53:30,875 - DEBUG - INÍCIO: renderizar_html | simulado=18 | tipo=5 [em views.py:1581]
+2026-02-08 07:53:30,877 - INFO - DEBUG Tipo 5 - Página 1: ESQ=[1, 2] DIR=[3, 4]
+2026-02-08 07:53:30,877 - INFO - DEBUG Tipo 5 - Página 2: ESQ=[5, 6, 7] DIR=[8, 9]
+2026-02-08 07:53:30,877 - INFO - DEBUG Tipo 5 - Página 3: ESQ=[10, 11, 12] DIR=[13, 14, 15]
+2026-02-08 07:53:30,877 - INFO - DEBUG Tipo 5 - Página 4: ESQ=[16, 17, 18] DIR=[19, 20, 21]
+2026-02-08 07:53:30,877 - INFO - DEBUG Tipo 5 - Página 5: ESQ=[22, 23, 24, 25] DIR=[]
+2026-02-08 07:53:30,877 - INFO - Tipo 5: 25 questões distribuídas em 5 páginas.
+2026-02-08 07:53:30,888 - INFO - Ordem das questões (IDs) passada para o template (Tipo 5): [2, 29, 97, 31, 166, 164, 93, 45, 99, 9, 43, 5, 10, 33, 34, 44, 4, 96, 92, 3, 8, 46, 98, 165, 167]
+2026-02-08 07:53:30,889 - DEBUG - HTML para tipo 5 gerado: 159.24 KB
+2026-02-08 07:53:30,889 - DEBUG - FIM: renderizar_html (0.014s) | simulado=18 | tipo=5 [em views.py:1581]
+2026-02-08 07:53:30,889 - DEBUG - FIM: gerar_html_tipo_5 (0.016s) | simulado=18 | num_questoes=25 [em views.py:1487]
+2026-02-08 07:53:30,889 - INFO - FIM FUNÇÃO: _gerar_versao_simulado (0.016s) | simulado=18 | user=None
+2026-02-08 07:53:30,894 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:53:30,894 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo1 | num_questoes=25 | caderno=1 [em views.py:1719]
+2026-02-08 07:53:30,894 - DEBUG - Gerando cartão resposta: /tmp/tmp3j96342a/Cartao_Resposta_1_Tipo1.pdf
+2026-02-08 07:53:30,920 - INFO - ARQUIVO: Cartão Resposta Tipo 1 - 8.95 KB [/tmp/tmp3j96342a/Cartao_Resposta_1_Tipo1.pdf]
+2026-02-08 07:53:30,920 - DEBUG - Cartão resposta 1 gerado com código de rastreio: 1186D29F
+2026-02-08 07:53:30,920 - DEBUG - FIM: gerar_cartao_resposta_tipo1 (0.027s) | num_questoes=25 | caderno=1 [em views.py:1719]
+2026-02-08 07:53:30,921 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.027s) | simulado=None | user=None
+2026-02-08 07:53:30,921 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:53:30,921 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo2 | num_questoes=25 | caderno=2 [em views.py:1719]
+2026-02-08 07:53:30,921 - DEBUG - Gerando cartão resposta: /tmp/tmp3j96342a/Cartao_Resposta_2_Tipo2.pdf
+2026-02-08 07:53:30,946 - INFO - ARQUIVO: Cartão Resposta Tipo 2 - 8.95 KB [/tmp/tmp3j96342a/Cartao_Resposta_2_Tipo2.pdf]
+2026-02-08 07:53:30,946 - DEBUG - Cartão resposta 2 gerado com código de rastreio: 1186D29F
+2026-02-08 07:53:30,946 - DEBUG - FIM: gerar_cartao_resposta_tipo2 (0.025s) | num_questoes=25 | caderno=2 [em views.py:1719]
+2026-02-08 07:53:30,946 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.025s) | simulado=None | user=None
+2026-02-08 07:53:30,947 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:53:30,947 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo3 | num_questoes=25 | caderno=3 [em views.py:1719]
+2026-02-08 07:53:30,947 - DEBUG - Gerando cartão resposta: /tmp/tmp3j96342a/Cartao_Resposta_3_Tipo3.pdf
+2026-02-08 07:53:30,972 - INFO - ARQUIVO: Cartão Resposta Tipo 3 - 8.95 KB [/tmp/tmp3j96342a/Cartao_Resposta_3_Tipo3.pdf]
+2026-02-08 07:53:30,973 - DEBUG - Cartão resposta 3 gerado com código de rastreio: 1186D29F
+2026-02-08 07:53:30,973 - DEBUG - FIM: gerar_cartao_resposta_tipo3 (0.026s) | num_questoes=25 | caderno=3 [em views.py:1719]
+2026-02-08 07:53:30,973 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.026s) | simulado=None | user=None
+2026-02-08 07:53:30,973 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:53:30,973 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo4 | num_questoes=25 | caderno=4 [em views.py:1719]
+2026-02-08 07:53:30,973 - DEBUG - Gerando cartão resposta: /tmp/tmp3j96342a/Cartao_Resposta_4_Tipo4.pdf
+2026-02-08 07:53:30,999 - INFO - ARQUIVO: Cartão Resposta Tipo 4 - 8.95 KB [/tmp/tmp3j96342a/Cartao_Resposta_4_Tipo4.pdf]
+2026-02-08 07:53:31,000 - DEBUG - Cartão resposta 4 gerado com código de rastreio: 1186D29F
+2026-02-08 07:53:31,000 - DEBUG - FIM: gerar_cartao_resposta_tipo4 (0.027s) | num_questoes=25 | caderno=4 [em views.py:1719]
+2026-02-08 07:53:31,000 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.027s) | simulado=None | user=None
+2026-02-08 07:53:31,000 - DEBUG - INÍCIO FUNÇÃO: _gerar_cartao_resposta | simulado=None | user=None
+2026-02-08 07:53:31,000 - DEBUG - INÍCIO: gerar_cartao_resposta_tipo5 | num_questoes=25 | caderno=5 [em views.py:1719]
+2026-02-08 07:53:31,001 - DEBUG - Gerando cartão resposta: /tmp/tmp3j96342a/Cartao_Resposta_5_Tipo5.pdf
+2026-02-08 07:53:31,026 - INFO - ARQUIVO: Cartão Resposta Tipo 5 - 8.95 KB [/tmp/tmp3j96342a/Cartao_Resposta_5_Tipo5.pdf]
+2026-02-08 07:53:31,026 - DEBUG - Cartão resposta 5 gerado com código de rastreio: 1186D29F
+2026-02-08 07:53:31,026 - DEBUG - FIM: gerar_cartao_resposta_tipo5 (0.026s) | num_questoes=25 | caderno=5 [em views.py:1719]
+2026-02-08 07:53:31,027 - INFO - FIM FUNÇÃO: _gerar_cartao_resposta (0.026s) | simulado=None | user=None
+2026-02-08 07:53:31,033 - DEBUG - INÍCIO FUNÇÃO: _combinar_pdfs_versoes | simulado=18 | user=None
+2026-02-08 07:53:31,034 - DEBUG - INÍCIO: combinar_htmls_em_pdf_unico | num_tipos=5 | saida=simulado_18_completo.pdf [em views.py:1274]
+2026-02-08 07:53:31,034 - INFO - 🔍 DEBUG: cartoes_resposta_paths recebidos: ['/tmp/tmp3j96342a/Cartao_Resposta_1_Tipo1.pdf', '/tmp/tmp3j96342a/Cartao_Resposta_2_Tipo2.pdf', '/tmp/tmp3j96342a/Cartao_Resposta_3_Tipo3.pdf', '/tmp/tmp3j96342a/Cartao_Resposta_4_Tipo4.pdf', '/tmp/tmp3j96342a/Cartao_Resposta_5_Tipo5.pdf']
+2026-02-08 07:53:31,034 - INFO -    Cartão 1: /tmp/tmp3j96342a/Cartao_Resposta_1_Tipo1.pdf - Existe: True
+2026-02-08 07:53:31,034 - INFO -    Cartão 2: /tmp/tmp3j96342a/Cartao_Resposta_2_Tipo2.pdf - Existe: True
+2026-02-08 07:53:31,035 - INFO -    Cartão 3: /tmp/tmp3j96342a/Cartao_Resposta_3_Tipo3.pdf - Existe: True
+2026-02-08 07:53:31,036 - INFO -    Cartão 4: /tmp/tmp3j96342a/Cartao_Resposta_4_Tipo4.pdf - Existe: True
+2026-02-08 07:53:31,036 - INFO -    Cartão 5: /tmp/tmp3j96342a/Cartao_Resposta_5_Tipo5.pdf - Existe: True
+2026-02-08 07:53:31,037 - INFO - Renderizando Tipo 1/5 com wkhtmltopdf...
+2026-02-08 07:53:33,174 - INFO - ✅ Questões Tipo 1 renderizadas!
+2026-02-08 07:53:33,174 - INFO - Renderizando Tipo 2/5 com wkhtmltopdf...
+2026-02-08 07:53:35,015 - INFO - ✅ Questões Tipo 2 renderizadas!
+2026-02-08 07:53:35,015 - INFO - Renderizando Tipo 3/5 com wkhtmltopdf...
+2026-02-08 07:53:36,818 - INFO - ✅ Questões Tipo 3 renderizadas!
+2026-02-08 07:53:36,818 - INFO - Renderizando Tipo 4/5 com wkhtmltopdf...
+2026-02-08 07:53:38,631 - INFO - ✅ Questões Tipo 4 renderizadas!
+2026-02-08 07:53:38,631 - INFO - Renderizando Tipo 5/5 com wkhtmltopdf...
+2026-02-08 07:53:40,277 - INFO - ✅ Questões Tipo 5 renderizadas!
+2026-02-08 07:53:40,277 - INFO - Combinando PDFs...
+2026-02-08 07:53:40,283 - INFO - Carregados 5 cartões resposta
+2026-02-08 07:53:40,284 - INFO - Montando Tipo 1...
+2026-02-08 07:53:40,284 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:53:40,286 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:53:40,627 - INFO - Montando Tipo 2...
+2026-02-08 07:53:40,627 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:53:40,629 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:53:40,813 - INFO - Montando Tipo 3...
+2026-02-08 07:53:40,813 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:53:40,815 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:53:40,995 - INFO - Montando Tipo 4...
+2026-02-08 07:53:40,996 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:53:40,997 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:53:41,333 - INFO - Montando Tipo 5...
+2026-02-08 07:53:41,333 - INFO -   🎫 Adicionando CARTÃO RESPOSTA
+2026-02-08 07:53:41,335 - INFO -   📝 Adicionando QUESTÕES
+2026-02-08 07:53:41,685 - INFO - PDF final: 37 páginas
+2026-02-08 07:53:41,685 - INFO - ARQUIVO: PDF Único com 5 Tipos - 2.05 MB [/tmp/tmp3j96342a/simulado_18_completo.pdf]
+2026-02-08 07:53:41,685 - INFO - FIM: combinar_htmls_em_pdf_unico (10.651s) | num_tipos=5 | saida=simulado_18_completo.pdf [em views.py:1274]
+2026-02-08 07:53:41,685 - INFO - FIM FUNÇÃO: _combinar_pdfs_versoes (10.652s) | simulado=18 | user=None

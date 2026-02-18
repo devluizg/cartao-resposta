@@ -6,7 +6,7 @@ import 'dart:async'; // Para o TimeoutException
 
 class AuthService {
   // URL base da API - Atualizado para PythonAnywhere
-  static const String baseUrl = 'https://devluizg.pythonanywhere.com';
+  static const String baseUrl = 'http://192.168.1.10:8000';
   static const Duration timeoutDuration = Duration(seconds: 30);
 
   // Chaves para armazenamento dos tokens e informações do usuário

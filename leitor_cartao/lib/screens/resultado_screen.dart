@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../widgets/custom_app_bar.dart';
 
 class ResultadoScreen extends StatefulWidget {
   final String nomeAluno;
@@ -40,16 +41,18 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
   bool _hasSubmitted = false;
   String _submissionMessage = '';
 
+
+  
   // Paleta de cores baseada no site
-  static const Color primaryColor = Color(0xFF00A4D9); // Ciano vibrante
-  static const Color secondaryColor = Color(0xFF434891); // Índigo profundo
-  static const Color bgDark = Color(0xFF121425); // Fundo ultra escuro
-  static const Color bgSurface = Color(0xFF1D203A); // Superfícies
-  static const Color borderColor = Color(0xFF31355B); // Bordas
-  static const Color textLight = Color(0xFFE0E6F1); // Texto claro
-  static const Color textMuted = Color(0xFF8C96C3); // Texto secundário
-  static const Color successColor = Color(0xFF2DD8A3); // Verde de sucesso
-  static const Color dangerColor = Color(0xFFE94B6A); // Vermelho de erro
+  static const Color primaryColor = Color(0xFF0DA6F2);  // Azul claro/primário
+  static const Color secondaryColor = Color(0xFF003D5C); // Azul escuro
+  static const Color bgLight = Color(0xFFF8FAFC);       // Cinza super claro (fundo - modo claro)
+  static const Color bgSurfaceLight = Color(0xFFFFFFFF);// Cards modo claro
+  static const Color borderColor = Color(0xFFDBE2E6);   // Cinza claro (bordas)
+  static const Color textDark = Color(0xFF003D5C);      // Texto escuro para modo claro
+  static const Color textMuted = Color(0xFF94A3B8);     // Slate 400
+  static const Color successColor = Color(0xFF16A34A);  // Verde
+  static const Color dangerColor = Color(0xFFEF4444);   // Vermelho 500
 
   @override
   void initState() {
@@ -83,48 +86,8 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
         totalQuestoes > 0 ? (questoesAcertadas / totalQuestoes) * 100 : 0;
 
     return Scaffold(
-      backgroundColor: bgDark,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: bgSurface,
-        foregroundColor: textLight,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [primaryColor, secondaryColor],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.assessment,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'Resultado do Aluno',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                color: textLight,
-              ),
-            ),
-          ],
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(
-            height: 1,
-            color: borderColor,
-          ),
-        ),
-      ),
+      backgroundColor: bgLight,
+      appBar: const CustomAppBar(),
       body: SafeArea(
         child: Column(
           children: [
@@ -137,14 +100,14 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(16.0),
                       child: Container(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [secondaryColor, primaryColor],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: borderColor, width: 1),
                           boxShadow: [
                             BoxShadow(
@@ -160,10 +123,10 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
                             Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(12),
+                                  padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(4),
+                                    borderRadius: BorderRadius.circular(6),
                                     border: Border.all(
                                       color: Colors.white.withOpacity(0.3),
                                       width: 1,
@@ -171,11 +134,11 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
                                   ),
                                   child: const Icon(
                                     Icons.person_outline,
-                                    color: textLight,
-                                    size: 24,
+                                    color: Colors.white,
+                                    size: 20,
                                   ),
                                 ),
-                                const SizedBox(width: 16),
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -184,15 +147,15 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
                                       const Text(
                                         'Aluno:',
                                         style: TextStyle(
-                                          color: textMuted,
+                                          color: Colors.white,
                                           fontSize: 14,
                                         ),
                                       ),
                                       Text(
                                         widget.nomeAluno,
                                         style: const TextStyle(
-                                          color: textLight,
-                                          fontSize: 18,
+                                          color: Colors.white,
+                                          fontSize: 16,
                                           fontWeight: FontWeight.bold,
                                         ),
                                         overflow: TextOverflow.ellipsis,
@@ -214,12 +177,12 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(Icons.check,
-                                            size: 16, color: textLight),
+                                            size: 16, color: Colors.white),
                                         SizedBox(width: 4),
                                         Text(
                                           'Enviado',
                                           style: TextStyle(
-                                            color: textLight,
+                                            color: Colors.white,
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,
                                           ),
@@ -245,15 +208,15 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
                                             const Text(
                                               'Turma:',
                                               style: TextStyle(
-                                                color: textMuted,
+                                                color: Colors.white,
                                                 fontSize: 12,
                                               ),
                                             ),
                                             Text(
                                               widget.nomeTurma!,
                                               style: const TextStyle(
-                                                color: textLight,
-                                                fontSize: 14,
+                                                color: Colors.white,
+                                                fontSize: 13,
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
@@ -268,15 +231,15 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
                                             const Text(
                                               'Simulado:',
                                               style: TextStyle(
-                                                color: textMuted,
+                                                color: Colors.white,
                                                 fontSize: 12,
                                               ),
                                             ),
                                             Text(
                                               widget.nomeSimulado!,
                                               style: const TextStyle(
-                                                color: textLight,
-                                                fontSize: 14,
+                                                color: Colors.white,
+                                                fontSize: 13,
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
@@ -292,15 +255,15 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
                                     const Text(
                                       'Versão da Prova:',
                                       style: TextStyle(
-                                        color: textMuted,
+                                        color: Colors.white,
                                         fontSize: 12,
                                       ),
                                     ),
                                     Text(
                                       '${widget.tipoProva}',
                                       style: const TextStyle(
-                                        color: textLight,
-                                        fontSize: 16,
+                                        color: Colors.white,
+                                        fontSize: 15,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -318,10 +281,10 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
                   SliverToBoxAdapter(
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 16.0),
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: bgSurface.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(8),
+                        color: bgSurfaceLight,
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: borderColor, width: 1),
                         boxShadow: [
                           BoxShadow(
@@ -561,14 +524,14 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
                             bottom: 8.0,
                           ),
                           decoration: BoxDecoration(
-                            color: bgSurface.withOpacity(0.5),
+                            color: bgSurfaceLight,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: borderColor, width: 1),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.3),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
+                                color: Colors.black.withOpacity(0.08),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
                               ),
                             ],
                           ),
@@ -587,7 +550,7 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
                                   numeroQuestao,
                                   style: const TextStyle(
                                     fontSize: 14,
-                                    color: textLight,
+                                    color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -626,7 +589,7 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
                                   style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: textLight,
+                                    color: secondaryColor,
                                   ),
                                 ),
                               ],
@@ -687,7 +650,7 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
             Container(
               padding: const EdgeInsets.all(16.0),
               decoration: BoxDecoration(
-                color: bgSurface,
+                color: bgSurfaceLight,
                 border: const Border(top: BorderSide(color: borderColor)),
                 boxShadow: [
                   BoxShadow(
@@ -708,7 +671,7 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
-                            color: bgSurface,
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(color: borderColor, width: 2),
                           ),
@@ -716,12 +679,12 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.arrow_back,
-                                  size: 18, color: textLight),
+                                  size: 18, color: secondaryColor),
                               SizedBox(width: 8),
                               Text(
                                 'Voltar',
                                 style: TextStyle(
-                                  color: textLight,
+                                  color: secondaryColor,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
