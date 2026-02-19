@@ -368,7 +368,7 @@ def _criar_template_bolha(raio_px):
     return _criar_template_bolha_cached(raio_px)
 
 def _detectar_hough_adaptativo(binary, min_radius, max_radius):
-    """Detecta círculos usando HoughCircles com parâmetros adaptativos."""
+    """Detecta círculos usando HoughCircles com parâmetros adaptativos (mais sensível)."""
     img_for_circles = 255 - binary.copy()
     img_for_circles = cv2.GaussianBlur(img_for_circles, (5, 5), 0)
 
@@ -376,11 +376,11 @@ def _detectar_hough_adaptativo(binary, min_radius, max_radius):
         img_for_circles,
         cv2.HOUGH_GRADIENT,
         dp=1.2,
-        minDist=max(min_radius, 15),
-        param1=50,
-        param2=25,
-        minRadius=min_radius,
-        maxRadius=max_radius
+        minDist=max(min_radius * 0.8, 10),  # Reduzido para melhor detecção
+        param1=40,  # Reduzido de 50 para mais sensibilidade
+        param2=20,  # Reduzido de 25 para mais sensibilidade
+        minRadius=int(min_radius * 0.8),  # Reduzido para aceitar círculos menores
+        maxRadius=int(max_radius * 1.2)   # Aumentado para aceitar círculos maiores
     )
 
     if circles is not None:
@@ -388,46 +388,75 @@ def _detectar_hough_adaptativo(binary, min_radius, max_radius):
     return np.array([])
 
 def _detectar_template_matching(binary, raio_px):
-    """Detecta círculos usando template matching."""
+    """Detecta círculos usando template matching com NMS (dilation + contornos)."""
     template = _criar_template_bolha(raio_px)
 
-    result = cv2.matchTemplate(binary, template, cv2.TM_CCOEFF)
-    threshold_template = np.max(result) * 0.7
+    if template.shape[0] > binary.shape[0] or template.shape[1] > binary.shape[1]:
+        return np.array([])
+
+    # Usar correlação normalizada com threshold fixo (evita threshold relativo instável)
+    result = cv2.matchTemplate(binary, template, cv2.TM_CCOEFF_NORMED)
+    threshold_template = 0.50
+
+    # Criar máscara de regiões acima do threshold
+    mask = (result >= threshold_template).astype(np.uint8)
+
+    if not mask.any():
+        return np.array([])
+
+    # NMS via dilatação + contornos: agrupa pixels próximos em um único candidato
+    kernel_size = max(3, raio_px * 2 - 1)
+    if kernel_size % 2 == 0:
+        kernel_size += 1
+    kernel = np.ones((kernel_size, kernel_size), np.uint8)
+    dilated = cv2.dilate(mask, kernel)
+
+    contornos, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     circles = []
-    for y in range(result.shape[0]):
-        for x in range(result.shape[1]):
-            if result[y, x] > threshold_template:
-                circles.append([x + raio_px, y + raio_px, raio_px])
+    for cnt in contornos:
+        M = cv2.moments(cnt)
+        if M["m00"] == 0:
+            continue
+        cx = int(M["m10"] / M["m00"])
+        cy = int(M["m01"] / M["m00"])
+        circles.append([cx + raio_px, cy + raio_px, raio_px])
 
     return np.array(circles)
 
 def _detectar_mser(binary, min_radius, max_radius):
     """Detecta regiões extremais estáveis (MSER) e filtra por circularidade."""
-    mser = cv2.MSER_create()
-    regions = mser.detectRegions(binary)
+    try:
+        mser = cv2.MSER_create()
+        regions, _ = mser.detectRegions(binary)
 
-    circles = []
-    for region in regions:
-        if len(region) < 5:
-            continue
+        circles = []
+        for region in regions:
+            if len(region) < 5:
+                continue
 
-        # Calcular propriedades geométricas
-        area = cv2.contourArea(region)
-        if area < np.pi * (min_radius ** 2) or area > np.pi * (max_radius ** 2):
-            continue
+            # Converter região para contour (formato esperado)
+            contour = np.array(region, dtype=np.int32).reshape(-1, 1, 2)
 
-        # Círculo equivalente
-        radius_equiv = np.sqrt(area / np.pi)
+            # Calcular propriedades geométricas
+            area = cv2.contourArea(contour)
+            if area < np.pi * (min_radius ** 2) or area > np.pi * (max_radius ** 2):
+                continue
 
-        # Calcular centroide
-        M = cv2.moments(region)
-        if M["m00"] != 0:
-            cx = int(M["m10"] / M["m00"])
-            cy = int(M["m01"] / M["m00"])
-            circles.append([cx, cy, int(radius_equiv)])
+            # Círculo equivalente
+            radius_equiv = np.sqrt(area / np.pi)
 
-    return np.array(circles)
+            # Calcular centroide
+            M = cv2.moments(contour)
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+                circles.append([cx, cy, int(radius_equiv)])
+
+        return np.array(circles)
+    except:
+        # Fallback se MSER falhar
+        return np.array([])
 
 def _detectar_contornos_com_features(binary, min_radius, max_radius):
     """Detecta círculos por contornos com filtro de Hu Moments."""
@@ -468,7 +497,7 @@ def _detectar_contornos_com_features(binary, min_radius, max_radius):
 def _aplicar_voting_system(circle_lists, threshold_distancia):
     """
     Aplica voting system: círculos precisam estar em acordo
-    com pelo menos 2 dos 4 métodos de detecção.
+    com pelo menos 1 dos 4 métodos de detecção (mais sensível).
     """
     if all(len(circles) == 0 for circles in circle_lists):
         return np.array([])
@@ -493,13 +522,13 @@ def _aplicar_voting_system(circle_lists, threshold_distancia):
         grupo = [circulo]
         for j, outro in enumerate(todos_circulos):
             if i != j and j not in usados:
-                dist = np.sqrt((circulo[0] - outro[0])**2 + (circulo[1] - outro[1])**2)
+                dist = np.sqrt((int(circulo[0]) - int(outro[0]))**2 + (int(circulo[1]) - int(outro[1]))**2)
                 if dist < threshold_distancia:
                     grupo.append(outro)
                     usados.add(j)
 
-        # Verificar se o grupo tem concordância mínima (2+ métodos)
-        if len(grupo) >= 2:
+        # Verificar se o grupo tem concordância (1+ métodos é suficiente agora)
+        if len(grupo) >= 1:  # Reduzido de 2 para 1 (mais sensível)
             # Média do grupo
             cx_medio = int(np.mean([c[0] for c in grupo]))
             cy_medio = int(np.mean([c[1] for c in grupo]))
@@ -552,9 +581,10 @@ def detectar_bolhas_avancado(binary, debug_image=None, threshold=100, sensitivit
     # Método 4: Contornos com features
     circles_contour = _detectar_contornos_com_features(binary, min_radius, max_radius)
 
-    # Voting System: precisa 2+ métodos concordando
+    # Voting System: agrupa círculos próximos de diferentes métodos
+    # Threshold aumentado de 0.3 para 0.8 para melhor fusão entre métodos
     circle_lists = [circles_hough, circles_template, circles_mser, circles_contour]
-    bolhas_votadas = _aplicar_voting_system(circle_lists, raio_px * 0.3)
+    bolhas_votadas = _aplicar_voting_system(circle_lists, raio_px * 0.8)
 
     # Converter para formato de bolhas
     bolhas = []
@@ -600,12 +630,12 @@ def detectar_bolhas_avancado(binary, debug_image=None, threshold=100, sensitivit
 def agrupar_bolhas_por_questoes(bolhas, num_questoes=10, num_alternativas=5):
     """
     Agrupa bolhas por questões usando clustering adaptativo.
-    
+
     Args:
         bolhas: Lista de dicionários com informações das bolhas
         num_questoes: Número esperado de questões
         num_alternativas: Número esperado de alternativas por questão
-    
+
     Returns:
         questoes: Lista de listas de bolhas agrupadas por questão
     """
@@ -615,43 +645,46 @@ def agrupar_bolhas_por_questoes(bolhas, num_questoes=10, num_alternativas=5):
 
     if not bolhas:
         return []
-    
+
     # Extrair centros das bolhas para clustering
     if 'centro' in bolhas[0]:
         centros = np.array([bolha['centro'] for bolha in bolhas])
     else:
         centros = np.array([[bolha['x'], bolha['y']] for bolha in bolhas])
-    
-    # Análise preliminar de distribuição dos pontos para configurar melhor o DBSCAN
+
+    # ── ESTRATÉGIA PRINCIPAL: DBSCAN sobre coordenadas Y ─────────────────────
+    # eps = 1.5× raio médio: bolhas da mesma linha ficam juntas,
+    # bolhas de linhas adjacentes ficam em clusters separados.
+    # Isso elimina o problema de KMeans juntar 2 linhas físicas num mesmo cluster
+    # (sintoma: fill_rate ~0.97 em múltiplas bolhas da mesma "questão").
+    from sklearn.cluster import KMeans
+
     y_coords = np.array([c[1] for c in centros])
-    y_sorted = np.sort(y_coords)
-    y_diffs = np.diff(y_sorted)
-    
-    # Adaptação automática do epsilon baseada na estrutura do documento
-    if len(y_diffs) > 0:
-        # Análise da distribuição vertical para determinar o agrupamento
-        # Usar percentil para reduzir influência de outliers
-        epsilon = np.percentile(y_diffs, 25) * 0.75  # 75% do primeiro quartil
-        epsilon = max(epsilon, 10.0)  # Mínimo de 10 pixels para evitar micro-agrupamentos
-    else:
-        epsilon = 20.0  # Valor padrão para poucos pontos
-    
-    # Agrupar pontos verticalmente (por linhas/questões)
     y_only = y_coords.reshape(-1, 1)
-    min_samples_calc = max(1, len(bolhas) // num_questoes) if num_questoes > 0 else 1
-    db = DBSCAN(eps=epsilon, min_samples=min(2, min_samples_calc)).fit(y_only)
-    
-    # Lidar com casos onde DBSCAN produz mais clusters que questões esperadas
-    labels = db.labels_
-    unique_labels = np.unique(labels)
-    num_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)
-    
-    # Se temos significativamente mais clusters que questões, ajustar epsilon e recalcular
-    if num_clusters > num_questoes * 1.5 and num_clusters > 1:
-        # Aumentar epsilon gradualmente
-        epsilon *= 1.5
-        db = DBSCAN(eps=epsilon, min_samples=min(2, len(bolhas)//num_questoes)).fit(y_only)
-        labels = db.labels_
+
+    raio_medio_bolhas = float(np.median([b.get('radius', 10) for b in bolhas]))
+    eps_linha = max(raio_medio_bolhas * 1.5, 8.0)
+
+    db_linhas = DBSCAN(eps=eps_linha, min_samples=1).fit(y_only)
+    linhas_labels = db_linhas.labels_
+    linhas_naturais = len(set(linhas_labels[linhas_labels != -1]))
+
+    # Se DBSCAN encontrou um número coerente com o esperado → usar direto.
+    # Tolerância superior de 1.5× cobre detecções com pequeno ruído extra.
+    if num_questoes <= linhas_naturais <= int(num_questoes * 1.5):
+        labels = linhas_labels
+        print(f"DBSCAN: {linhas_naturais} linhas físicas detectadas (esperado {num_questoes}). Usando DBSCAN.")
+    else:
+        # Fallback: KMeans com número efetivo
+        effective_clusters = linhas_naturais if (0 < linhas_naturais < num_questoes) else num_questoes
+        if 0 < linhas_naturais < num_questoes:
+            print(f"Aviso: DBSCAN detectou apenas {linhas_naturais} linhas (esperado {num_questoes}). "
+                  f"Usando KMeans({effective_clusters}).")
+        try:
+            kmeans = KMeans(n_clusters=effective_clusters, random_state=42, n_init=10)
+            labels = kmeans.fit_predict(y_only)
+        except Exception:
+            labels = linhas_labels  # último recurso
     
     # Agrupar bolhas por clusters
     clusters = defaultdict(list)
@@ -668,39 +701,69 @@ def agrupar_bolhas_por_questoes(bolhas, num_questoes=10, num_alternativas=5):
     # Verificação para caso de falta ou excesso de clusters
     if len(sorted_clusters) != num_questoes:
         print(f"Aviso: Detectadas {len(sorted_clusters)} linhas de questões (esperado {num_questoes}).")
-        
+
         # Caso 1: Mais clusters que questões esperadas
         if len(sorted_clusters) > num_questoes:
-            # Manter apenas os clusters mais populosos ou melhor formados
-            clusters_scores = []
-            for cluster in sorted_clusters:
-                # Calcular score baseado em número de bolhas e alinhamento horizontal
-                num_bolhas = len(cluster)
-                if num_bolhas >= num_alternativas:
-                    # Calcular variância das coordenadas X para ver se estão bem alinhadas horizontalmente
-                    x_coords = [b['centro'][0] if 'centro' in b else b['x'] for b in cluster]
-                    # Calcular distâncias entre pontos consecutivos ordenados
-                    x_sorted = np.sort(x_coords)
-                    x_diffs = np.diff(x_sorted)
-                    # Calcular desvio padrão das diferenças (quanto menor, mais uniforme)
-                    x_std = np.std(x_diffs) if len(x_diffs) > 0 else float('inf')
-                    score = num_bolhas / (1 + x_std/100)  # Score maior para mais bolhas e menor variância
+            # Estratégia: selecionar os N clusters cujos centros Y formam a
+            # progressão aritmética mais uniforme (menor variância dos gaps).
+            # Questões reais de cartão-resposta sempre têm espaçamento regular.
+            y_means = np.array([
+                np.mean([b['centro'][1] if 'centro' in b else b['y'] for b in c])
+                for c in sorted_clusters
+            ])
+            n = len(sorted_clusters)
+            k = num_questoes
+
+            # Pré-filtrar clusters com menos de 2 bolhas (provável artefato)
+            min_bolhas = 2
+            candidatos = [(i, c) for i, c in enumerate(sorted_clusters)
+                         if len(c) >= min_bolhas]
+
+            if len(candidatos) < k:
+                # Se candidatos insuficientes, usar todos
+                candidatos = list(enumerate(sorted_clusters))
+
+            if len(candidatos) == k:
+                sorted_clusters = [c for _, c in candidatos]
+            else:
+                # Busca greedy: percorre todos os subconjuntos de tamanho k
+                # escolhendo o de menor variância nos gaps (O(n*k) aprox.)
+                idxs_cands = [i for i, _ in candidatos]
+                y_cands = y_means[idxs_cands]
+
+                melhor_var = float('inf')
+                melhor_escolha = idxs_cands[:k]
+
+                # Janela deslizante não serve aqui pois candidatos podem
+                # não ser contíguos. Usamos combinações parciais com poda.
+                from itertools import combinations
+                # Limitar busca se muitos candidatos (para performance)
+                if len(candidatos) <= 20:
+                    for combo in combinations(range(len(candidatos)), k):
+                        ys_sel = y_cands[list(combo)]
+                        gaps = np.diff(np.sort(ys_sel))
+                        if len(gaps) > 0:
+                            var = float(np.std(gaps))
+                            if var < melhor_var:
+                                melhor_var = var
+                                melhor_escolha = [idxs_cands[j] for j in combo]
                 else:
-                    score = num_bolhas / num_alternativas  # Score proporcional para clusters incompletos
-                
-                clusters_scores.append((cluster, score))
-            
-            # Ordenar clusters por score e manter apenas os melhores
-            sorted_clusters = [c for c, _ in sorted(clusters_scores, key=lambda x: x[1], reverse=True)[:num_questoes]]
-            # Reordenar verticalmente
+                    # Fallback: remover os clusters com menos bolhas e mais isolados
+                    clusters_info = []
+                    for i, c in enumerate(sorted_clusters):
+                        nb = len(c)
+                        clusters_info.append((nb, i, c))
+                    # Manter os k com mais bolhas
+                    clusters_info.sort(reverse=True)
+                    melhor_escolha = sorted([info[1] for info in clusters_info[:k]])
+
+                sorted_clusters = [sorted_clusters[i] for i in melhor_escolha]
+
+            # Reordenar verticalmente após seleção
             sorted_clusters = sorted(
                 sorted_clusters,
                 key=lambda cluster: np.mean([b['centro'][1] if 'centro' in b else b['y'] for b in cluster])
             )
-        
-        # Caso 2: Menos clusters que questões esperadas
-        # Neste caso, mantemos o que temos e processamos normalmente
-        # O código que recebe o resultado precisará lidar com questões faltantes
     
     # Limitar ao número de questões esperado
     sorted_clusters = sorted_clusters[:num_questoes]
@@ -719,30 +782,46 @@ def agrupar_bolhas_por_questoes(bolhas, num_questoes=10, num_alternativas=5):
         
         # Se há mais alternativas que o esperado, filtrar
         if len(bolhas_ordenadas) > num_alternativas:
-            # Cálculo de divisão horizontal equidistante
-            x_min = min(b['centro'][0] if 'centro' in b else b['x'] for b in bolhas_ordenadas)
-            x_max = max(b['centro'][0] if 'centro' in b else b['x'] for b in bolhas_ordenadas)
-            largura_total = max(1, x_max - x_min)  # Evitar divisão por zero
-            largura_grupo = largura_total / num_alternativas
+            # Bug 3 fix: filtrar bolhas que estejam muito longe do centro-Y do cluster
+            # (evita que KMeans misture bolhas de linhas físicas adjacentes)
+            y_vals = [b.get('y', b['centro'][1]) for b in bolhas_ordenadas]
+            y_range = max(y_vals) - min(y_vals)
+            raio_cluster = float(np.median([b.get('radius', 10) for b in bolhas_ordenadas]))
+            if y_range > raio_cluster * 2:
+                y_med = float(np.median(y_vals))
+                bolhas_ordenadas = [b for b in bolhas_ordenadas
+                                    if abs(b.get('y', b['centro'][1]) - y_med) <= raio_cluster * 1.5]
+                bolhas_ordenadas = sorted(bolhas_ordenadas,
+                                         key=lambda b: b['centro'][0] if 'centro' in b else b['x'])
+
+            # Se após o filtro ainda há mais bolhas que alternativas, usar bucket assignment
+            if len(bolhas_ordenadas) > num_alternativas:
+                # Cálculo de divisão horizontal equidistante
+                x_min = min(b['centro'][0] if 'centro' in b else b['x'] for b in bolhas_ordenadas)
+                x_max = max(b['centro'][0] if 'centro' in b else b['x'] for b in bolhas_ordenadas)
+                largura_total = max(1, x_max - x_min)  # Evitar divisão por zero
+                largura_grupo = largura_total / num_alternativas
+
+                # Agrupar bolhas em buckets equidistantes
+                buckets = [[] for _ in range(num_alternativas)]
+                for bolha in bolhas_ordenadas:
+                    x = bolha['centro'][0] if 'centro' in bolha else bolha['x']
+                    # Calcular em qual bucket a bolha pertence
+                    # Bug 4 fix: usar floor com clamp explícito para evitar off-by-one na borda
+                    raw_idx = (x - x_min) / largura_grupo if largura_grupo > 0 else 0
+                    idx = min(int(raw_idx), num_alternativas - 1)
+                    buckets[idx].append(bolha)
             
-            # Agrupar bolhas em buckets equidistantes
-            buckets = [[] for _ in range(num_alternativas)]
-            for bolha in bolhas_ordenadas:
-                x = bolha['centro'][0] if 'centro' in bolha else bolha['x']
-                # Calcular em qual bucket a bolha pertence
-                idx = min(int((x - x_min) / largura_grupo), num_alternativas - 1)
-                buckets[idx].append(bolha)
-            
-            # Selecionar a melhor bolha de cada bucket (maior taxa de preenchimento)
-            bolhas_selecionadas = []
-            for bucket in buckets:
-                if bucket:
-                    melhor_bolha = max(bucket, 
-                                      key=lambda b: b.get('fill_rate', b.get('preenchimento', 0)))
-                    bolhas_selecionadas.append(melhor_bolha)
-            
-            bolhas_ordenadas = sorted(bolhas_selecionadas, 
-                                     key=lambda b: b['centro'][0] if 'centro' in b else b['x'])
+                # Selecionar a melhor bolha de cada bucket (maior taxa de preenchimento)
+                bolhas_selecionadas = []
+                for bucket in buckets:
+                    if bucket:
+                        melhor_bolha = max(bucket,
+                                          key=lambda b: b.get('fill_rate', b.get('preenchimento', 0)))
+                        bolhas_selecionadas.append(melhor_bolha)
+
+                bolhas_ordenadas = sorted(bolhas_selecionadas,
+                                         key=lambda b: b['centro'][0] if 'centro' in b else b['x'])
         
         # Se há menos alternativas que o esperado, preencher com bolhas sintéticas
         if len(bolhas_ordenadas) < num_alternativas:

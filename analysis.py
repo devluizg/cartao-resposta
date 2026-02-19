@@ -212,63 +212,111 @@ def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 
     if todas_taxas:
         media_global = np.mean(todas_taxas)
         desvio_global = np.std(todas_taxas)
-        threshold_adaptativo = max(0.3, media_global + 0.8 * desvio_global)
-        print(f"Análise Adaptativa: Média de preenchimento={media_global:.2f}, Desvio={desvio_global:.2f}")
-        print(f"Threshold Adaptativo Definido: {threshold_adaptativo:.2f}")
+
+        # Threshold global usado como referência para "questão sem marcação"
+        # (quando TODAS as bolhas estão abaixo do threshold → sem marcação clara)
+        # Usamos percentil 80 das taxas como ponto de referência para capturar
+        # apenas as bolhas claramente marcadas
+        taxas_arr = np.array(todas_taxas)
+        threshold_referencia = float(np.percentile(taxas_arr, 80))
+        threshold_referencia = float(np.clip(threshold_referencia, 0.55, 0.90))
+
+        print(f"Análise Adaptativa: Média={media_global:.2f}, Desvio={desvio_global:.2f}, "
+              f"Threshold_ref={threshold_referencia:.2f}")
     else:
-        threshold_adaptativo = 0.3
+        threshold_referencia = 0.65
         print("Aviso: Nenhuma bolha detectada para análise adaptativa. Usando threshold padrão.")
 
-    # --- ANÁLISE POR QUESTÃO COM DETECÇÃO DE MÚLTIPLAS MARCAÇÕES ---
+    # --- ANÁLISE POR QUESTÃO: gap máximo entre fills consecutivos ─────────────
+    # Cada questão encontra sua própria "marcada" pelo maior salto na dist. de fills.
+    # Isso é robusto a variações de contraste sem depender de threshold absoluto.
     for i, questao in enumerate(questoes):
         num_questao = i + 1
         if num_questao > num_questoes:
             break
         if not questao:
             continue
-        
-        # 1. Coletar preenchimentos e identificar candidatas
-        preenchimentos = []
-        for bolha in questao:
-            preenchimentos.append(bolha.get('fill_rate', 0.0))
-        
-        candidatas_marcadas = []
-        for j, preenchimento in enumerate(preenchimentos):
-            if preenchimento > threshold_adaptativo:
-                candidatas_marcadas.append({
-                    'indice': j,
-                    'preenchimento': preenchimento
-                })
 
-        # 2. Tomar a decisão baseada no número de candidatas
-        if len(candidatas_marcadas) == 1:
-            # Caso ideal: Apenas uma alternativa marcada
-            marcada = candidatas_marcadas[0]
-            alt_index = marcada['indice']
-            
-            # Ordenar preenchimentos para calcular confiança
-            preenchimentos.sort(reverse=True)
-            max_preenchimento = preenchimentos[0]
-            second_max = preenchimentos[1] if len(preenchimentos) > 1 else 0.0
-            
-            diferenca = max_preenchimento - second_max
-            nivel_confianca = min(max(diferenca * 2, 0.0), 1.0)
+        # 1. Coletar fill_rates e seus índices originais
+        bolhas_com_idx = [(j, bolha.get('fill_rate', 0.0)) for j, bolha in enumerate(questao)
+                         if not bolha.get('sintetica', False)]
 
-            resultados[num_questao] = alternativas[alt_index]
+        if not bolhas_com_idx:
+            continue
+
+        # Ordenar pelo fill_rate (decrescente) para encontrar o maior gap
+        bolhas_sorted = sorted(bolhas_com_idx, key=lambda x: x[1], reverse=True)
+        fills_sorted = [f for _, f in bolhas_sorted]
+
+        max_fill = fills_sorted[0]
+        second_fill = fills_sorted[1] if len(fills_sorted) > 1 else 0.0
+
+        # 2. Estratégia per-questão: maior gap entre fills consecutivos
+        # A marcada é a que está no grupo "acima do maior salto"
+        if len(fills_sorted) >= 2:
+            # Encontrar o maior gap entre fills consecutivos
+            gaps = [fills_sorted[k] - fills_sorted[k+1] for k in range(len(fills_sorted)-1)]
+            maior_gap_idx = int(np.argmax(gaps))
+            # Bolhas "marcadas": apenas as fills_sorted[0..maior_gap_idx] (acima do gap)
+            # Usar índice direto evita o problema de threshold=0 incluir fills intermediários
+            idx_no_gap = [j for j, _ in bolhas_sorted[:maior_gap_idx + 1]]
+            candidatas_acima = bolhas_sorted[:maior_gap_idx + 1]
+        else:
+            candidatas_acima = bolhas_sorted
+
+        # 3. Validação por threshold de referência global:
+        # Se a bolha mais alta não atinge o threshold_referencia, é questão suspeita
+        # (pode ser área sem marcação real → usar forced choice com confiança baixa)
+        if max_fill < threshold_referencia * 0.6:
+            # Fill muito baixo mesmo para a mais cheia → forced choice
+            alt_index = bolhas_com_idx[0][0]  # índice do maior fill original
+            resultados[num_questao] = alternativas[alt_index] if alt_index < len(alternativas) else None
+            confianca[num_questao] = max(0.1, min(max_fill * 1.5, 0.3))
+            print(f"Q{num_questao}: Fill muito baixo — usando máximo "
+                  f"({alternativas[alt_index] if alt_index < len(alternativas) else '?'}={max_fill:.2f})")
+            continue
+
+        if len(candidatas_acima) == 1:
+            # Caso ideal: apenas uma bolha acima do maior gap
+            idx_orig, fill_val = candidatas_acima[0]
+            gap_val = gaps[maior_gap_idx] if len(fills_sorted) >= 2 else fill_val
+            nivel_confianca = min(gap_val * 2, 1.0)
+            resultados[num_questao] = alternativas[idx_orig] if idx_orig < len(alternativas) else None
             confianca[num_questao] = nivel_confianca
 
-        elif len(candidatas_marcadas) > 1:
-            # Erro: Múltiplas alternativas marcadas
-            letras_marcadas = [alternativas[c['indice']] for c in candidatas_marcadas]
-            print(f"Q{num_questao}: ERRO - Múltiplas marcações detectadas: {', '.join(letras_marcadas)}")
-            resultados[num_questao] = "ERRO_MULTIPLA"
-            confianca[num_questao] = 0.0
-        
+        elif len(candidatas_acima) > 1 and len(gaps) > 0:
+            melhor_idx, melhor_fill = candidatas_acima[0]
+            segunda_fill = candidatas_acima[1][1]
+            gap_entre = melhor_fill - segunda_fill
+
+            # Filtro de dominância relativa: se a melhor tem fill >= 1.5x da segunda,
+            # ela é a única marcada (ex: D=0.99, A=0.51 → 0.99/0.51=1.94 > 1.5 → apenas D)
+            if segunda_fill > 0 and melhor_fill / segunda_fill >= 1.5:
+                idx_orig = melhor_idx
+                gap_val = gaps[maior_gap_idx] if maior_gap_idx < len(gaps) else melhor_fill
+                nivel_confianca = min(gap_val * 2, 1.0)
+                resultados[num_questao] = alternativas[idx_orig] if idx_orig < len(alternativas) else None
+                confianca[num_questao] = nivel_confianca
+                continue  # pulo para próxima questão
+
+            # gap até o próximo grupo (abaixo do maior gap)
+            letras_marcadas = [alternativas[j] for j, f in candidatas_acima if j < len(alternativas)]
+            nivel_confianca = min(max(gap_entre * 2, 0.0), 0.5)
+
+            print(f"Q{num_questao}: Múltiplas candidatas ({', '.join(letras_marcadas)}), "
+                  f"escolhendo {alternativas[melhor_idx] if melhor_idx < len(alternativas) else '?'} "
+                  f"(fill={melhor_fill:.2f})")
+            resultados[num_questao] = alternativas[melhor_idx] if melhor_idx < len(alternativas) else None
+            confianca[num_questao] = nivel_confianca
+
         else:
-            # Nenhuma alternativa atingiu o threshold, questão em branco
-            resultados[num_questao] = None
-            confianca[num_questao] = 0.0
-            
+            # Sem candidatas claras → usar a de maior fill (forced choice)
+            idx_orig = bolhas_sorted[0][0]
+            resultados[num_questao] = alternativas[idx_orig] if idx_orig < len(alternativas) else None
+            confianca[num_questao] = max(0.1, min(max_fill * 2, 0.4))
+            print(f"Q{num_questao}: Sem candidata clara — usando máximo "
+                  f"({alternativas[idx_orig] if idx_orig < len(alternativas) else '?'}={max_fill:.2f})")
+
     return resultados, confianca
 
 def validar_resultados(resultados, confianca, num_questoes, num_alternativas=5):
@@ -537,64 +585,61 @@ class CartaoRespostaAnalyzer:
     def analisar_cartao_melhorado(self, image, binary, debug_image, num_questoes, num_colunas, sensitivity):
         resultados = {}
         h, w = binary.shape
-        
-        # CORREÇÃO: Garantir que binary seja binário correto para o cv2.findContours
+
+        # Garantir que binary esteja no range 0-255
         if binary.max() <= 1.0:
-            binary_contours = (binary * 255).astype(np.uint8)
+            binary_proc = (binary * 255).astype(np.uint8)
         else:
-            binary_contours = binary.copy()
-            
-        contornos, _ = cv2.findContours(binary_contours, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            binary_proc = binary.copy()
+
+        # ── Quando é uma coluna individual (já segmentada pelo MultiColumn),
+        # não tentar detectar retângulo interno — a detecção de contorno captura
+        # sub-áreas incorretas dentro da coluna, causando clustering fragmentado.
+        # Processar toda a coluna diretamente.
+        if num_colunas <= 1:
+            return self.analisar_cartao_fallback(image, binary, debug_image, num_questoes, num_colunas, sensitivity)
+
+        # ── Para imagem completa (num_colunas > 1): tentar detecção de retângulo ──
+        contornos, _ = cv2.findContours(binary_proc, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         potenciais_retangulos = []
-        
+
         for contorno in contornos:
             area = cv2.contourArea(contorno)
             perimetro = cv2.arcLength(contorno, True)
             if area < 1000:
                 continue
             approx = cv2.approxPolyDP(contorno, 0.02 * perimetro, True)
-            if len(approx) == 4:
+            if 4 <= len(approx) <= 8:
                 potenciais_retangulos.append(approx)
-                
+
         if potenciais_retangulos:
             potenciais_retangulos.sort(key=cv2.contourArea, reverse=True)
             retangulo_cartao = potenciais_retangulos[0]
             x, y, w, h = cv2.boundingRect(retangulo_cartao)
-            
-            # CORREÇÃO: Garantir que as coordenadas estão dentro dos limites
+
             x = max(0, x)
             y = max(0, y)
             w = min(w, binary.shape[1] - x)
             h = min(h, binary.shape[0] - y)
-            
+
             cv2.rectangle(debug_image, (x, y), (x+w, y+h), (0, 255, 0), 2)
-            
-            # CORREÇÃO: Verificar se a ROI tem tamanho válido
+
             if w > 0 and h > 0:
-                roi_cartao = binary[y:y+h, x:x+w]
+                roi_cartao = binary_proc[y:y+h, x:x+w]
                 roi_debug = debug_image[y:y+h, x:x+w]
-                
-                # CORREÇÃO: Garantir que binary para detectar_bolhas_avancado esteja na faixa correta
-                if roi_cartao.max() <= 1.0:
-                    roi_cartao = (roi_cartao * 255).astype(np.uint8)
-                
+
                 bolhas, debug_area = detectar_bolhas_avancado(roi_cartao, roi_debug, sensitivity=sensitivity)
-                
-                # CORREÇÃO: Atualizar a região de debug com as marcações
                 debug_image[y:y+h, x:x+w] = debug_area
-                
+
                 for bolha in bolhas:
                     bolha['centro'] = (bolha['centro'][0] + x, bolha['centro'][1] + y)
                     bolha['x'] += x
                     bolha['y'] += y
-                
+
                 if bolhas:
                     questoes = agrupar_bolhas_por_questoes(bolhas, num_questoes, 5)
-                    
-                    # CORREÇÃO: Chamar a função de análise correta que lida com erros e adaptabilidade
                     resultados, confianca = analisar_gabarito(questoes, num_questoes, self.alternativas)
 
-                    # Manter o feedback visual (debug) atualizado com a nova lógica
                     for i, questao in enumerate(questoes):
                         if i >= num_questoes: break
                         num_questao = i + 1

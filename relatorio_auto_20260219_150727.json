@@ -1,0 +1,489 @@
+{
+  "data": "2026-02-19T15:07:27.041552",
+  "gabarito_usado": [
+    "D",
+    "C",
+    "C",
+    "B",
+    "C",
+    "D",
+    "E",
+    "E",
+    "C",
+    "C",
+    "B",
+    "C",
+    "D",
+    "C",
+    "B",
+    "C",
+    "C",
+    "C",
+    "D",
+    "E",
+    "D",
+    "C",
+    "B",
+    "A"
+  ],
+  "num_questoes": 24,
+  "num_colunas": 2,
+  "sensitivity": 0.1,
+  "total_imagens": 4,
+  "total_acertos": 33,
+  "total_questoes": 96,
+  "taxa_geral": 34.375,
+  "resultados": [
+    {
+      "imagem": "WhatsApp Image 2026-02-19 at 08.1.jpeg",
+      "detectado": [
+        "C",
+        "B",
+        "B",
+        "B",
+        "D",
+        "B",
+        "E",
+        "A",
+        "C",
+        "B",
+        "C",
+        "C",
+        "D",
+        "B",
+        "C",
+        "C",
+        "E",
+        "C",
+        "C",
+        "D",
+        "D",
+        "C",
+        "A",
+        "A"
+      ],
+      "acertos": 10,
+      "erros": 14,
+      "taxa": 41.66666666666667,
+      "detalhes": [
+        {
+          "questao": 1,
+          "detectado": "C",
+          "esperado": "D"
+        },
+        {
+          "questao": 2,
+          "detectado": "B",
+          "esperado": "C"
+        },
+        {
+          "questao": 3,
+          "detectado": "B",
+          "esperado": "C"
+        },
+        {
+          "questao": 5,
+          "detectado": "D",
+          "esperado": "C"
+        },
+        {
+          "questao": 6,
+          "detectado": "B",
+          "esperado": "D"
+        },
+        {
+          "questao": 8,
+          "detectado": "A",
+          "esperado": "E"
+        },
+        {
+          "questao": 10,
+          "detectado": "B",
+          "esperado": "C"
+        },
+        {
+          "questao": 11,
+          "detectado": "C",
+          "esperado": "B"
+        },
+        {
+          "questao": 14,
+          "detectado": "B",
+          "esperado": "C"
+        },
+        {
+          "questao": 15,
+          "detectado": "C",
+          "esperado": "B"
+        },
+        {
+          "questao": 17,
+          "detectado": "E",
+          "esperado": "C"
+        },
+        {
+          "questao": 19,
+          "detectado": "C",
+          "esperado": "D"
+        },
+        {
+          "questao": 20,
+          "detectado": "D",
+          "esperado": "E"
+        },
+        {
+          "questao": 23,
+          "detectado": "A",
+          "esperado": "B"
+        }
+      ]
+    },
+    {
+      "imagem": "WhatsApp Image 2026-02-19 at 08.16.01.jpeg",
+      "detectado": [
+        "D",
+        "D",
+        "C",
+        "B",
+        "B",
+        "D",
+        "D",
+        "B",
+        "E",
+        "D",
+        "B",
+        "D",
+        "B",
+        "C",
+        "C",
+        "B",
+        "B",
+        "C",
+        "D",
+        "D",
+        "D",
+        "B",
+        "B",
+        "B"
+      ],
+      "acertos": 10,
+      "erros": 14,
+      "taxa": 41.66666666666667,
+      "detalhes": [
+        {
+          "questao": 2,
+          "detectado": "D",
+          "esperado": "C"
+        },
+        {
+          "questao": 5,
+          "detectado": "B",
+          "esperado": "C"
+        },
+        {
+          "questao": 7,
+          "detectado": "D",
+          "esperado": "E"
+        },
+        {
+          "questao": 8,
+          "detectado": "B",
+          "esperado": "E"
+        },
+        {
+          "questao": 9,
+          "detectado": "E",
+          "esperado": "C"
+        },
+        {
+          "questao": 10,
+          "detectado": "D",
+          "esperado": "C"
+        },
+        {
+          "questao": 12,
+          "detectado": "D",
+          "esperado": "C"
+        },
+        {
+          "questao": 13,
+          "detectado": "B",
+          "esperado": "D"
+        },
+        {
+          "questao": 15,
+          "detectado": "C",
+          "esperado": "B"
+        },
+        {
+          "questao": 16,
+          "detectado": "B",
+          "esperado": "C"
+        },
+        {
+          "questao": 17,
+          "detectado": "B",
+          "esperado": "C"
+        },
+        {
+          "questao": 20,
+          "detectado": "D",
+          "esperado": "E"
+        },
+        {
+          "questao": 22,
+          "detectado": "B",
+          "esperado": "C"
+        },
+        {
+          "questao": 24,
+          "detectado": "B",
+          "esperado": "A"
+        }
+      ]
+    },
+    {
+      "imagem": "WhatsApp Image 2026-02-19 at 08.16.0155.jpeg",
+      "detectado": [
+        "D",
+        "C",
+        "B",
+        "B",
+        "B",
+        "C",
+        "D",
+        "D",
+        "B",
+        "A",
+        "C",
+        "A",
+        "D",
+        "B",
+        "E",
+        "D",
+        "A",
+        "B",
+        "D",
+        "C",
+        "C",
+        "C",
+        "B",
+        "B"
+      ],
+      "acertos": 7,
+      "erros": 17,
+      "taxa": 29.166666666666668,
+      "detalhes": [
+        {
+          "questao": 3,
+          "detectado": "B",
+          "esperado": "C"
+        },
+        {
+          "questao": 5,
+          "detectado": "B",
+          "esperado": "C"
+        },
+        {
+          "questao": 6,
+          "detectado": "C",
+          "esperado": "D"
+        },
+        {
+          "questao": 7,
+          "detectado": "D",
+          "esperado": "E"
+        },
+        {
+          "questao": 8,
+          "detectado": "D",
+          "esperado": "E"
+        },
+        {
+          "questao": 9,
+          "detectado": "B",
+          "esperado": "C"
+        },
+        {
+          "questao": 10,
+          "detectado": "A",
+          "esperado": "C"
+        },
+        {
+          "questao": 11,
+          "detectado": "C",
+          "esperado": "B"
+        },
+        {
+          "questao": 12,
+          "detectado": "A",
+          "esperado": "C"
+        },
+        {
+          "questao": 14,
+          "detectado": "B",
+          "esperado": "C"
+        },
+        {
+          "questao": 15,
+          "detectado": "E",
+          "esperado": "B"
+        },
+        {
+          "questao": 16,
+          "detectado": "D",
+          "esperado": "C"
+        },
+        {
+          "questao": 17,
+          "detectado": "A",
+          "esperado": "C"
+        },
+        {
+          "questao": 18,
+          "detectado": "B",
+          "esperado": "C"
+        },
+        {
+          "questao": 20,
+          "detectado": "C",
+          "esperado": "E"
+        },
+        {
+          "questao": 21,
+          "detectado": "C",
+          "esperado": "D"
+        },
+        {
+          "questao": 24,
+          "detectado": "B",
+          "esperado": "A"
+        }
+      ]
+    },
+    {
+      "imagem": "WhatsApp Image 2026-02-19 at 08.16.02.jpeg",
+      "detectado": [
+        "D",
+        "C",
+        "B",
+        "A",
+        "C",
+        "C",
+        "D",
+        "D",
+        "D",
+        "B",
+        "C",
+        "C",
+        "E",
+        "B",
+        "D",
+        "C",
+        "A",
+        "B",
+        "A",
+        "C",
+        "D",
+        "E",
+        "A",
+        "B"
+      ],
+      "acertos": 6,
+      "erros": 18,
+      "taxa": 25.0,
+      "detalhes": [
+        {
+          "questao": 3,
+          "detectado": "B",
+          "esperado": "C"
+        },
+        {
+          "questao": 4,
+          "detectado": "A",
+          "esperado": "B"
+        },
+        {
+          "questao": 6,
+          "detectado": "C",
+          "esperado": "D"
+        },
+        {
+          "questao": 7,
+          "detectado": "D",
+          "esperado": "E"
+        },
+        {
+          "questao": 8,
+          "detectado": "D",
+          "esperado": "E"
+        },
+        {
+          "questao": 9,
+          "detectado": "D",
+          "esperado": "C"
+        },
+        {
+          "questao": 10,
+          "detectado": "B",
+          "esperado": "C"
+        },
+        {
+          "questao": 11,
+          "detectado": "C",
+          "esperado": "B"
+        },
+        {
+          "questao": 13,
+          "detectado": "E",
+          "esperado": "D"
+        },
+        {
+          "questao": 14,
+          "detectado": "B",
+          "esperado": "C"
+        },
+        {
+          "questao": 15,
+          "detectado": "D",
+          "esperado": "B"
+        },
+        {
+          "questao": 17,
+          "detectado": "A",
+          "esperado": "C"
+        },
+        {
+          "questao": 18,
+          "detectado": "B",
+          "esperado": "C"
+        },
+        {
+          "questao": 19,
+          "detectado": "A",
+          "esperado": "D"
+        },
+        {
+          "questao": 20,
+          "detectado": "C",
+          "esperado": "E"
+        },
+        {
+          "questao": 22,
+          "detectado": "E",
+          "esperado": "C"
+        },
+        {
+          "questao": 23,
+          "detectado": "A",
+          "esperado": "B"
+        },
+        {
+          "questao": 24,
+          "detectado": "B",
+          "esperado": "A"
+        }
+      ]
+    }
+  ]
+}
