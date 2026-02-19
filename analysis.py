@@ -4,6 +4,196 @@ from collections import defaultdict
 from sklearn.cluster import DBSCAN
 import cv2
 from image_processing import detectar_bolhas_avancado, agrupar_bolhas_por_questoes
+from skimage import feature  # Para LBP (Local Binary Patterns)
+
+def _calcular_lbp(roi):
+    """Calcula Local Binary Patterns para análise de textura."""
+    try:
+        if roi.size == 0:
+            return np.array([])
+        # Redimensionar para tamanho padrão se necessário
+        if roi.shape[0] < 8 or roi.shape[1] < 8:
+            return np.array([])
+        lbp = feature.local_binary_pattern(roi, 8, 1, method='uniform')
+        return lbp.flatten()
+    except:
+        return np.array([])
+
+def _detectar_sombra(roi_rect, gradiente):
+    """Detecta se a região contém sombra."""
+    if roi_rect.size == 0:
+        return False
+
+    # Sombras geralmente têm baixo gradiente e distribuição suave
+    energia_gradiente = np.sum(np.abs(gradiente))
+    max_gradiente = np.max(np.abs(gradiente))
+
+    # Se gradiente muito baixo, provavelmente é sombra
+    if max_gradiente < 20:
+        return True
+
+    return False
+
+def _detectar_dobra(roi_rect, simetria):
+    """Detecta se a região contém dobra."""
+    # Dobras têm baixa simetria radial e padrões lineares
+    if simetria < 0.5:
+        return True
+    return False
+
+def _detectar_sujeira(textura):
+    """Detecta se a região contém sujeira ou ruído."""
+    if len(textura) == 0:
+        return False
+
+    # Sujeira tem alta variação de textura
+    uniformidade_textura = np.std(textura)
+    if uniformidade_textura > 50:
+        return True
+    return False
+
+def _calcular_simetria_radial(roi_circular, cx, cy, r):
+    """Calcula a simetria radial da região."""
+    try:
+        if roi_circular.size == 0 or r < 3:
+            return 0.5
+
+        # Dividir a região em quadrantes e medir similaridade
+        h, w = roi_circular.shape
+        cx_local = min(max(cx, 0), w - 1)
+        cy_local = min(max(cy, 0), h - 1)
+
+        quadrantes = []
+        r_safe = max(1, min(r, h // 2, w // 2))
+
+        # Extrair quadrantes
+        if cy_local - r_safe >= 0 and cx_local - r_safe >= 0:
+            quadrantes.append(np.sum(roi_circular[cy_local-r_safe:cy_local, cx_local-r_safe:cx_local]))
+        if cy_local - r_safe >= 0 and cx_local + r_safe < w:
+            quadrantes.append(np.sum(roi_circular[cy_local-r_safe:cy_local, cx_local:cx_local+r_safe]))
+        if cy_local + r_safe < h and cx_local - r_safe >= 0:
+            quadrantes.append(np.sum(roi_circular[cy_local:cy_local+r_safe, cx_local-r_safe:cx_local]))
+        if cy_local + r_safe < h and cx_local + r_safe < w:
+            quadrantes.append(np.sum(roi_circular[cy_local:cy_local+r_safe, cx_local:cx_local+r_safe]))
+
+        if len(quadrantes) < 4:
+            return 0.5
+
+        # Calcular coeficiente de variação dos quadrantes
+        media_quad = np.mean(quadrantes)
+        if media_quad == 0:
+            return 0.5
+
+        cv_quad = np.std(quadrantes) / media_quad
+        # Normalizar para 0-1
+        simetria = 1.0 / (1.0 + cv_quad)
+        return float(simetria)
+    except:
+        return 0.5
+
+def analisar_preenchimento_avancado(binary, image, bolha):
+    """
+    Análise avançada de preenchimento com múltiplas métricas.
+
+    Args:
+        binary: Imagem binária
+        image: Imagem original (opcional, para análise de intensidade)
+        bolha: Dicionário com informações da bolha
+
+    Returns:
+        resultado: Dicionário com análise detalhada
+    """
+    cx, cy, r = bolha['x'], bolha['y'], bolha['radius']
+
+    # ROI circular
+    mask_circular = np.zeros_like(binary)
+    cv2.circle(mask_circular, (cx, cy), int(r * 0.8), 255, -1)
+    roi_circular = cv2.bitwise_and(binary, mask_circular)
+
+    # ROI retangular
+    x_min = max(0, cx - r)
+    y_min = max(0, cy - r)
+    x_max = min(binary.shape[1], cx + r)
+    y_max = min(binary.shape[0], cy + r)
+    roi_rect = binary[y_min:y_max, x_min:x_max]
+
+    # Métrica 1: Fill rate
+    inner_r = int(r * 0.8)
+    inner_area = np.pi * inner_r * inner_r
+    filled_pixels_circular = cv2.countNonZero(roi_circular)
+    fill_rate_circular = filled_pixels_circular / inner_area if inner_area > 0 else 0
+
+    # Métrica 2: Fill rate retangular
+    if roi_rect.size > 0:
+        fill_rate_rect = cv2.countNonZero(roi_rect) / roi_rect.size
+    else:
+        fill_rate_rect = 0
+
+    # Métrica 3: Intensidade média
+    if image is not None:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
+        intensidade_media = np.mean(gray[y_min:y_max, x_min:x_max]) if roi_rect.size > 0 else 0
+    else:
+        intensidade_media = 0
+
+    # Métrica 4: Gradiente
+    gradiente = cv2.Sobel(roi_rect.astype(np.float32), cv2.CV_64F, 1, 1, ksize=3)
+    energia_gradiente = np.sum(np.abs(gradiente))
+
+    # Métrica 5: Textura (LBP)
+    textura = _calcular_lbp(roi_rect.astype(np.uint8))
+    uniformidade_textura = np.std(textura) if len(textura) > 0 else 0
+
+    # Métrica 6: Simetria radial
+    simetria = _calcular_simetria_radial(roi_circular, cx - x_min, cy - y_min, inner_r)
+
+    # Detector de anomalias
+    is_sombra = _detectar_sombra(roi_rect, gradiente)
+    is_dobra = _detectar_dobra(roi_rect, simetria)
+    is_sujeira = _detectar_sujeira(textura)
+
+    # Classificação com pesos
+    score = (
+        fill_rate_circular * 0.4 +
+        fill_rate_rect * 0.2 +
+        (intensidade_media / 255.0 if intensidade_media > 0 else 0) * 0.15 +
+        (1.0 - min(uniformidade_textura / 255.0, 1.0)) * 0.15 +
+        simetria * 0.1
+    )
+
+    # Penalizar anomalias
+    if is_sombra or is_dobra or is_sujeira:
+        score *= 0.5
+        confianca = 0.3
+    else:
+        confianca = min(abs(score - 0.5) * 2, 1.0)
+
+    # Classificação final
+    if score > 0.5:
+        estado = "marcada"
+    elif score > 0.2:
+        estado = "parcial"
+    else:
+        estado = "vazia"
+
+    return {
+        'estado': estado,
+        'score': float(score),
+        'confianca': float(confianca),
+        'metricas': {
+            'fill_rate_circular': float(fill_rate_circular),
+            'fill_rate_rect': float(fill_rate_rect),
+            'intensidade': float(intensidade_media),
+            'textura': float(uniformidade_textura),
+            'simetria': float(simetria),
+            'energia_gradiente': float(energia_gradiente),
+            'anomalias': {
+                'sombra': bool(is_sombra),
+                'dobra': bool(is_dobra),
+                'sujeira': bool(is_sujeira)
+            }
+        }
+    }
 
 def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 'E']):
     resultados = {}

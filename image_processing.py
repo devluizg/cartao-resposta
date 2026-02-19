@@ -3,6 +3,61 @@ import cv2
 import numpy as np
 from collections import defaultdict
 from sklearn.cluster import DBSCAN
+import functools
+import threading
+
+# Cache thread-safe para templates
+_template_cache = {}
+_template_cache_lock = threading.Lock()
+
+# Constantes de otimização
+MAX_IMAGE_WIDTH = 1500
+MAX_IMAGE_HEIGHT = 2000
+
+def redimensionar_imagem_otimizada(image, max_width=MAX_IMAGE_WIDTH):
+    """
+    Redimensiona a imagem para um tamanho padrão otimizado para processamento.
+    Mantém a proporção aspect ratio.
+    """
+    h, w = image.shape[:2]
+
+    if w <= max_width:
+        return image, 1.0  # Sem redimensionamento
+
+    # Calcular fator de escala
+    scale = max_width / w
+    new_h = int(h * scale)
+
+    # Redimensionar
+    resized = cv2.resize(image, (max_width, new_h), interpolation=cv2.INTER_AREA)
+    return resized, scale
+
+def _criar_template_bolha_cached(raio_px):
+    """Cria ou recupera template bolha do cache (thread-safe)."""
+    cache_key = f"template_{raio_px}"
+
+    with _template_cache_lock:
+        if cache_key in _template_cache:
+            return _template_cache[cache_key]
+
+        # Criar novo template
+        if raio_px < 3:
+            raio_px = 3
+
+        size = raio_px * 2 + 1
+        template = np.zeros((size, size), dtype=np.uint8)
+        cv2.circle(template, (raio_px, raio_px), raio_px, 255, -1)
+
+        # Armazenar em cache
+        _template_cache[cache_key] = template
+
+        return template
+
+def limpar_cache_templates():
+    """Limpa o cache de templates para liberar memória."""
+    global _template_cache
+    with _template_cache_lock:
+        _template_cache.clear()
 
 def melhorar_pre_processamento(image):
     """
@@ -52,72 +107,412 @@ def melhorar_pre_processamento(image):
     
     return binary, normalized
 
+def melhorar_pre_processamento_adaptativo(image):
+    """
+    Pré-processamento adaptativo avançado da imagem com múltiplas técnicas
+    para melhorar detecção de bolhas em diferentes condições de iluminação.
+
+    Args:
+        image: Imagem original em BGR
+
+    Returns:
+        binary: Imagem binária otimizada para detecção de bolhas
+        metadata: Dicionário com informações sobre o pré-processamento
+    """
+    # 1. Converter para LAB e normalizar L channel
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+    l, a, b = cv2.split(lab)
+
+    # Normalizar L channel (0-255)
+    l_norm = cv2.normalize(l, None, 0, 255, cv2.NORM_MINMAX)
+
+    # 2. Detectar perfil de iluminação
+    hist = cv2.calcHist([l_norm], [0], None, [256], [0, 256])
+    brightness = np.mean(l_norm)
+    contrast = np.std(l_norm)
+
+    # Perfil de iluminação para log
+    metadata = {
+        'brightness': float(brightness),
+        'contrast': float(contrast),
+        'illumination_profile': None
+    }
+
+    # 3. Aplicar CLAHE adaptativo baseado no perfil de iluminação
+    if brightness < 100:  # Luz baixa
+        clahe = cv2.createCLAHE(clipLimit=5.0, tileGridSize=(8, 8))
+        metadata['illumination_profile'] = 'low_light'
+    elif brightness > 180:  # Luz alta
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(16, 16))
+        metadata['illumination_profile'] = 'high_light'
+    else:  # Normal
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(12, 12))
+        metadata['illumination_profile'] = 'normal'
+
+    l_clahe = clahe.apply(l_norm)
+
+    # 4. Shadow removal com top-hat morphological
+    kernel_tophat = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+    tophat = cv2.morphologyEx(l_clahe, cv2.MORPH_TOPHAT, kernel_tophat)
+    l_corrected = cv2.add(l_clahe, tophat)
+
+    # 5. Bilateral filter (preserva bordas enquanto suaviza)
+    filtered = cv2.bilateralFilter(l_corrected.astype(np.uint8), 9, 75, 75)
+
+    # 6. Multi-threshold combinado
+    # Threshold adaptativo
+    binary_adaptive = cv2.adaptiveThreshold(
+        filtered, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY_INV, 21, 10
+    )
+
+    # Threshold Otsu
+    _, binary_otsu = cv2.threshold(filtered, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    # Threshold Triangle (alternativa)
+    _, binary_triangle = cv2.threshold(filtered, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_TRIANGLE)
+
+    # Combinar com pesos
+    binary = cv2.addWeighted(binary_adaptive, 0.5, binary_otsu, 0.3, 0)
+    binary = cv2.bitwise_or(binary, (binary_triangle.astype(np.uint8) * 0.2).astype(np.uint8))
+
+    # 7. Limpeza morfológica otimizada
+    kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+
+    # Opening: remove pequenos ruídos
+    binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel_open)
+
+    # Closing: fecha pequenas quebras
+    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel_close)
+
+    return binary, metadata
+
+def _detectar_retangulo_por_contorno(binary):
+    """Tenta detectar o retângulo do cartão usando contornos."""
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if not contours:
+        return None
+
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+    largest_contour = contours[0]
+
+    perimeter = cv2.arcLength(largest_contour, True)
+    approx = cv2.approxPolyDP(largest_contour, 0.02 * perimeter, True)
+
+    if len(approx) == 4:
+        return approx.reshape(4, 2)
+
+    # Fallback para convex hull
+    hull = cv2.convexHull(largest_contour)
+    approx = cv2.approxPolyDP(hull, 0.02 * cv2.arcLength(hull, True), True)
+
+    if len(approx) == 4:
+        return approx.reshape(4, 2)
+
+    return None
+
+def _detectar_retangulo_por_ransac(binary):
+    """Tenta detectar o retângulo usando Hough Lines e RANSAC."""
+    # Detectar linhas retas na imagem
+    lines = cv2.HoughLinesP(binary, 1, np.pi/180, 50, minLineLength=50, maxLineGap=10)
+
+    if lines is None or len(lines) < 4:
+        return None
+
+    # Extrair pontos das linhas
+    points = []
+    for line in lines:
+        x1, y1, x2, y2 = line[0]
+        points.append([x1, y1])
+        points.append([x2, y2])
+
+    if len(points) < 4:
+        return None
+
+    points = np.array(points, dtype=np.float32)
+
+    # Encontrar convex hull dos pontos
+    hull = cv2.convexHull(points)
+
+    if len(hull) >= 4:
+        # Aproximar para um retângulo (4 vértices)
+        perimeter = cv2.arcLength(hull, True)
+        approx = cv2.approxPolyDP(hull, 0.02 * perimeter, True)
+
+        if len(approx) == 4:
+            return approx.reshape(4, 2)
+
+    return None
+
+def _validar_proporcoes_a4(rect, tolerance=0.2):
+    """Valida se o retângulo tem proporções A4 (1.414)."""
+    if rect is None or len(rect) < 4:
+        return False
+
+    # Calcular dimensões
+    width_A = np.sqrt(((rect[2][0] - rect[3][0]) ** 2) + ((rect[2][1] - rect[3][1]) ** 2))
+    height_A = np.sqrt(((rect[1][0] - rect[2][0]) ** 2) + ((rect[1][1] - rect[2][1]) ** 2))
+
+    if max(width_A, height_A) == 0:
+        return False
+
+    ratio = max(width_A, height_A) / min(width_A, height_A)
+
+    # A4 ratio é 1.414 (±tolerance)
+    return (1.414 * (1 - tolerance) < ratio < 1.414 * (1 + tolerance))
+
 def corrigir_perspectiva(image, binary):
     """
-    Detecta e corrige a perspectiva do cartão de respostas.
-    
+    Detecta e corrige a perspectiva do cartão de respostas com fallback robusto.
+
     Args:
         image: Imagem original em BGR
         binary: Imagem binária pré-processada
-    
+
     Returns:
         corrected_image: Imagem corrigida em perspectiva
         corrected_binary: Binária corrigida em perspectiva
         success: Boolean indicando sucesso na correção
     """
-    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    if not contours:
+    h, w = binary.shape
+
+    # Método 1: Detectar por contornos
+    rect = _detectar_retangulo_por_contorno(binary)
+
+    # Método 2: Fallback para Hough Lines + RANSAC
+    if rect is None:
+        rect = _detectar_retangulo_por_ransac(binary)
+
+    # Método 3: Fallback para bounding box
+    if rect is None:
+        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not contours:
+            return image, binary, False
+
+        largest = max(contours, key=cv2.contourArea)
+        x, y, w_rect, h_rect = cv2.boundingRect(largest)
+        rect = np.array([[x, y], [x + w_rect, y], [x + w_rect, y + h_rect], [x, y + h_rect]], dtype=np.float32)
+
+    if rect is None:
         return image, binary, False
-    
-    contours = sorted(contours, key=cv2.contourArea, reverse=True)
-    largest_contour = contours[0]
-    
-    perimeter = cv2.arcLength(largest_contour, True)
-    approx = cv2.approxPolyDP(largest_contour, 0.02 * perimeter, True)
-    
-    if len(approx) != 4:
-        hull = cv2.convexHull(largest_contour)
-        approx = cv2.approxPolyDP(hull, 0.02 * cv2.arcLength(hull, True), True)
-        
-        if len(approx) != 4:
-            x, y, w, h = cv2.boundingRect(largest_contour)
-            approx = np.array([[x, y], [x+w, y], [x+w, y+h], [x, y+h]], dtype=np.float32).reshape(-1, 1, 2)
-    
-    approx = approx.reshape(4, 2)
-    sum_coords = approx.sum(axis=1)
-    diff_coords = np.diff(approx, axis=1)
-    
-    rect = np.zeros((4, 2), dtype=np.float32)
-    rect[0] = approx[np.argmin(sum_coords)]
-    rect[2] = approx[np.argmax(sum_coords)]
-    rect[1] = approx[np.argmin(diff_coords)]
-    rect[3] = approx[np.argmax(diff_coords)]
-    
-    width_A = np.sqrt(((rect[2][0] - rect[3][0]) ** 2) + ((rect[2][1] - rect[3][1]) ** 2))
-    width_B = np.sqrt(((rect[1][0] - rect[0][0]) ** 2) + ((rect[1][1] - rect[0][1]) ** 2))
+
+    # Ordenar pontos do retângulo
+    rect = rect.reshape(4, 2).astype(np.float32)
+    sum_coords = rect.sum(axis=1)
+    diff_coords = np.diff(rect, axis=1)
+
+    ordered_rect = np.zeros((4, 2), dtype=np.float32)
+    ordered_rect[0] = rect[np.argmin(sum_coords)]      # Top-left
+    ordered_rect[2] = rect[np.argmax(sum_coords)]      # Bottom-right
+    ordered_rect[1] = rect[np.argmin(diff_coords)]     # Top-right
+    ordered_rect[3] = rect[np.argmax(diff_coords)]     # Bottom-left
+
+    # Validar proporções A4
+    if not _validar_proporcoes_a4(ordered_rect):
+        # Se não é A4, usar método direto sem validação
+        pass
+
+    # Calcular dimensões de saída
+    width_A = np.sqrt(((ordered_rect[2][0] - ordered_rect[3][0]) ** 2) + ((ordered_rect[2][1] - ordered_rect[3][1]) ** 2))
+    width_B = np.sqrt(((ordered_rect[1][0] - ordered_rect[0][0]) ** 2) + ((ordered_rect[1][1] - ordered_rect[0][1]) ** 2))
     max_width = max(int(width_A), int(width_B))
-    
-    height_A = np.sqrt(((rect[1][0] - rect[2][0]) ** 2) + ((rect[1][1] - rect[2][1]) ** 2))
-    height_B = np.sqrt(((rect[0][0] - rect[3][0]) ** 2) + ((rect[0][1] - rect[3][1]) ** 2))
+
+    height_A = np.sqrt(((ordered_rect[1][0] - ordered_rect[2][0]) ** 2) + ((ordered_rect[1][1] - ordered_rect[2][1]) ** 2))
+    height_B = np.sqrt(((ordered_rect[0][0] - ordered_rect[3][0]) ** 2) + ((ordered_rect[0][1] - ordered_rect[3][1]) ** 2))
     max_height = max(int(height_A), int(height_B))
-    
+
+    # Validar área mínima (30% da imagem)
+    area = max_width * max_height
+    min_area = (h * w) * 0.3
+
+    if area < min_area:
+        return image, binary, False
+
+    # Limitar tamanho máximo razoável
+    if max_width > w * 2 or max_height > h * 2:
+        return image, binary, False
+
     dst = np.array([
         [0, 0],
         [max_width - 1, 0],
         [max_width - 1, max_height - 1],
         [0, max_height - 1]
     ], dtype=np.float32)
-    
-    transform_matrix = cv2.getPerspectiveTransform(rect, dst)
-    corrected_image = cv2.warpPerspective(image, transform_matrix, (max_width, max_height))
-    corrected_binary = cv2.warpPerspective(binary, transform_matrix, (max_width, max_height))
-    
-    return corrected_image, corrected_binary, True
+
+    try:
+        transform_matrix = cv2.getPerspectiveTransform(ordered_rect, dst)
+        corrected_image = cv2.warpPerspective(image, transform_matrix, (max_width, max_height))
+        corrected_binary = cv2.warpPerspective(binary, transform_matrix, (max_width, max_height))
+
+        return corrected_image, corrected_binary, True
+    except Exception as e:
+        print(f"Erro na transformação de perspectiva: {e}")
+        return image, binary, False
+
+def _estimar_escala_imagem(binary):
+    """
+    Estima a escala da imagem (pixels por mm) baseado na análise
+    da estrutura do cartão resposta.
+    """
+    h, w = binary.shape
+    # Assumindo cartão A4: ~210mm x 297mm
+    # Estimativa conservadora: pixels_por_mm = min(w, h) / 100
+    pixels_por_mm = min(w, h) / 100.0
+    return max(pixels_por_mm, 1.0)
+
+def _criar_template_bolha(raio_px):
+    """Cria um template circular para template matching (usa cache)."""
+    return _criar_template_bolha_cached(raio_px)
+
+def _detectar_hough_adaptativo(binary, min_radius, max_radius):
+    """Detecta círculos usando HoughCircles com parâmetros adaptativos."""
+    img_for_circles = 255 - binary.copy()
+    img_for_circles = cv2.GaussianBlur(img_for_circles, (5, 5), 0)
+
+    circles = cv2.HoughCircles(
+        img_for_circles,
+        cv2.HOUGH_GRADIENT,
+        dp=1.2,
+        minDist=max(min_radius, 15),
+        param1=50,
+        param2=25,
+        minRadius=min_radius,
+        maxRadius=max_radius
+    )
+
+    if circles is not None:
+        return np.uint16(np.around(circles[0]))
+    return np.array([])
+
+def _detectar_template_matching(binary, raio_px):
+    """Detecta círculos usando template matching."""
+    template = _criar_template_bolha(raio_px)
+
+    result = cv2.matchTemplate(binary, template, cv2.TM_CCOEFF)
+    threshold_template = np.max(result) * 0.7
+
+    circles = []
+    for y in range(result.shape[0]):
+        for x in range(result.shape[1]):
+            if result[y, x] > threshold_template:
+                circles.append([x + raio_px, y + raio_px, raio_px])
+
+    return np.array(circles)
+
+def _detectar_mser(binary, min_radius, max_radius):
+    """Detecta regiões extremais estáveis (MSER) e filtra por circularidade."""
+    mser = cv2.MSER_create()
+    regions = mser.detectRegions(binary)
+
+    circles = []
+    for region in regions:
+        if len(region) < 5:
+            continue
+
+        # Calcular propriedades geométricas
+        area = cv2.contourArea(region)
+        if area < np.pi * (min_radius ** 2) or area > np.pi * (max_radius ** 2):
+            continue
+
+        # Círculo equivalente
+        radius_equiv = np.sqrt(area / np.pi)
+
+        # Calcular centroide
+        M = cv2.moments(region)
+        if M["m00"] != 0:
+            cx = int(M["m10"] / M["m00"])
+            cy = int(M["m01"] / M["m00"])
+            circles.append([cx, cy, int(radius_equiv)])
+
+    return np.array(circles)
+
+def _detectar_contornos_com_features(binary, min_radius, max_radius):
+    """Detecta círculos por contornos com filtro de Hu Moments."""
+    contours, _ = cv2.findContours(binary, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+
+    circles = []
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+
+        # Filtrar por área
+        min_area = np.pi * (min_radius ** 2)
+        max_area = np.pi * (max_radius ** 2)
+        if area < min_area or area > max_area:
+            continue
+
+        perimeter = cv2.arcLength(cnt, True)
+        if perimeter == 0:
+            continue
+
+        # Calcular circularidade
+        circularity = 4 * np.pi * area / (perimeter * perimeter)
+        if circularity < 0.6:  # Menos rigoroso que antes
+            continue
+
+        # Calcular centroide
+        M = cv2.moments(cnt)
+        if M["m00"] != 0:
+            cx = int(M["m10"] / M["m00"])
+            cy = int(M["m01"] / M["m00"])
+
+            # Estimar raio
+            radius = int(np.sqrt(area / np.pi))
+            if min_radius <= radius <= max_radius:
+                circles.append([cx, cy, radius])
+
+    return np.array(circles)
+
+def _aplicar_voting_system(circle_lists, threshold_distancia):
+    """
+    Aplica voting system: círculos precisam estar em acordo
+    com pelo menos 2 dos 4 métodos de detecção.
+    """
+    if all(len(circles) == 0 for circles in circle_lists):
+        return np.array([])
+
+    # Combinar todos os círculos
+    todos_circulos = []
+    for circles in circle_lists:
+        todos_circulos.extend(circles)
+
+    if len(todos_circulos) == 0:
+        return np.array([])
+
+    # Clustering de círculos próximos
+    bolhas_finais = []
+    usados = set()
+
+    for i, circulo in enumerate(todos_circulos):
+        if i in usados:
+            continue
+
+        # Encontrar todos os círculos próximos
+        grupo = [circulo]
+        for j, outro in enumerate(todos_circulos):
+            if i != j and j not in usados:
+                dist = np.sqrt((circulo[0] - outro[0])**2 + (circulo[1] - outro[1])**2)
+                if dist < threshold_distancia:
+                    grupo.append(outro)
+                    usados.add(j)
+
+        # Verificar se o grupo tem concordância mínima (2+ métodos)
+        if len(grupo) >= 2:
+            # Média do grupo
+            cx_medio = int(np.mean([c[0] for c in grupo]))
+            cy_medio = int(np.mean([c[1] for c in grupo]))
+            r_medio = int(np.mean([c[2] for c in grupo]))
+            bolhas_finais.append([cx_medio, cy_medio, r_medio])
+
+        usados.add(i)
+
+    return np.array(bolhas_finais)
 
 def detectar_bolhas_avancado(binary, debug_image=None, threshold=100, sensitivity=0.5):
     """
-    Detecta bolhas em um cartão resposta com métodos robustos e filtragem melhorada.
+    Detecta bolhas em um cartão resposta com método híbrido (4 detctores + voting system).
 
     Args:
         binary: Imagem binária pré-processada
@@ -129,151 +524,76 @@ def detectar_bolhas_avancado(binary, debug_image=None, threshold=100, sensitivit
         bolhas: Lista de dicionários com informações de cada bolha detectada
         debug_img: Imagem com visualização do processamento
     """
-    import numpy as np
-    import cv2
-
     if debug_image is None:
         debug_img = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
     else:
         debug_img = debug_image.copy()
-    
-    # Preparar imagem para HoughCircles - inversão para que círculos sejam mais claros que o fundo
-    img_for_circles = 255 - binary.copy()
-    # Suavização para melhorar detecção
-    img_for_circles = cv2.GaussianBlur(img_for_circles, (5, 5), 0)
 
-    # Aplicar HoughCircles com parâmetros mais robustos
-    circles = cv2.HoughCircles(
-        img_for_circles,
-        cv2.HOUGH_GRADIENT,
-        dp=1.2,
-        minDist=25,
-        param1=50,   # Sensibilidade do detector de bordas
-        param2=25,   # Threshold para detecção de círculos
-        minRadius=10,
-        maxRadius=30
-    )
+    h, w = binary.shape
 
+    # Calcular escala da imagem
+    escala = _estimar_escala_imagem(binary)
+
+    # Adaptar parâmetros de raio baseado na escala
+    raio_esperado_mm = 3  # 3mm de diâmetro típico
+    raio_px = int(raio_esperado_mm * escala)
+    min_radius = max(int(raio_px * 0.7), 5)
+    max_radius = int(raio_px * 1.3)
+
+    # Método 1: HoughCircles Adaptativo
+    circles_hough = _detectar_hough_adaptativo(binary, min_radius, max_radius)
+
+    # Método 2: Template Matching
+    circles_template = _detectar_template_matching(binary, raio_px)
+
+    # Método 3: MSER + Circularidade
+    circles_mser = _detectar_mser(binary, min_radius, max_radius)
+
+    # Método 4: Contornos com features
+    circles_contour = _detectar_contornos_com_features(binary, min_radius, max_radius)
+
+    # Voting System: precisa 2+ métodos concordando
+    circle_lists = [circles_hough, circles_template, circles_mser, circles_contour]
+    bolhas_votadas = _aplicar_voting_system(circle_lists, raio_px * 0.3)
+
+    # Converter para formato de bolhas
     bolhas = []
-    
-    if circles is not None:
-        circles = np.uint16(np.around(circles[0]))
-        centros_detectados = []
+    for circulo in bolhas_votadas:
+        x, y, r = int(circulo[0]), int(circulo[1]), int(circulo[2])
 
-        for (x, y, r) in circles:
-            # Verificar limites da imagem
-            if (x - r < 0 or y - r < 0 or 
-                x + r >= binary.shape[1] or y + r >= binary.shape[0]):
-                continue
-                
-            # Verifica duplicatas por proximidade
-            if any(np.linalg.norm(np.array((x, y)) - np.array(c)) < 20 for c in centros_detectados):
-                continue
-            
-            centros_detectados.append((x, y))
+        # Validar limites
+        if x - r < 0 or y - r < 0 or x + r >= w or y + r >= h:
+            continue
 
-            # Melhor análise de preenchimento usando máscara circular
-            mask = np.zeros_like(binary)
-            cv2.circle(mask, (x, y), r, 255, -1)
-            
-            # Usar uma máscara menor para análise interna (80% do raio)
-            inner_mask = np.zeros_like(binary)
-            inner_r = int(r * 0.8)  # Raio interno
-            cv2.circle(inner_mask, (x, y), inner_r, 255, -1)
-            
-            # Calcular preenchimento apenas na região interna
-            roi = cv2.bitwise_and(binary, inner_mask)
-            inner_area = np.pi * inner_r * inner_r
-            filled_pixels = cv2.countNonZero(roi)
-            fill_rate = filled_pixels / inner_area
-            
-            # Aplicar threshold com base na sensibilidade
-            is_filled = fill_rate > sensitivity
+        # Analisar preenchimento
+        mask = np.zeros_like(binary)
+        cv2.circle(mask, (x, y), r, 255, -1)
 
-            bolhas.append({
-                'x': x,
-                'y': y,
-                'centro': (x, y),
-                'radius': r,
-                'fill_rate': fill_rate,
-                'filled': is_filled
-            })
+        inner_mask = np.zeros_like(binary)
+        inner_r = int(r * 0.8)
+        cv2.circle(inner_mask, (x, y), inner_r, 255, -1)
 
-            # Desenha para debug
-            color = (0, 0, 255) if is_filled else (0, 255, 0)
-            cv2.circle(debug_img, (x, y), r, color, 2)
-            cv2.putText(debug_img, f"{int(fill_rate * 100)}%", (x - 20, y - 15),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
-    
-    # Método alternativo se não foram encontrados círculos suficientes
-    if len(bolhas) < 10:
-        # Método alternativo: detecção por contornos 
-        contornos, _ = cv2.findContours(binary, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        roi = cv2.bitwise_and(binary, inner_mask)
+        inner_area = np.pi * inner_r * inner_r
+        filled_pixels = cv2.countNonZero(roi)
+        fill_rate = filled_pixels / inner_area if inner_area > 0 else 0
 
-        for cnt in contornos:
-            area = cv2.contourArea(cnt)
-            
-            # Filtragem por área
-            if area < 100 or area > 900:
-                continue
+        is_filled = fill_rate > sensitivity
 
-            perimeter = cv2.arcLength(cnt, True)
-            if perimeter == 0:
-                continue
-                
-            # Filtragem por circularidade
-            circularity = 4 * np.pi * area / (perimeter * perimeter)
-            if circularity < 0.7:
-                continue
+        bolhas.append({
+            'x': x,
+            'y': y,
+            'centro': (x, y),
+            'radius': r,
+            'fill_rate': fill_rate,
+            'filled': is_filled
+        })
 
-            # Filtragem por proporção de dimensões
-            x, y, w, h = cv2.boundingRect(cnt)
-            if w / h < 0.7 or w / h > 1.3:
-                continue
-
-            # Criar máscara circular para análise de preenchimento
-            mask = np.zeros_like(binary)
-            center = (x + w // 2, y + h // 2)
-            radius = (w + h) // 4
-            cv2.circle(mask, center, int(radius * 0.8), 255, -1)
-            
-            # Analisar preenchimento mais preciso
-            roi = cv2.bitwise_and(binary, mask)
-            masked_area = cv2.countNonZero(mask)
-            if masked_area == 0:
-                continue
-                
-            filled_pixels = cv2.countNonZero(roi)
-            fill_rate = filled_pixels / masked_area
-            is_filled = fill_rate > sensitivity
-
-            # Calcular centro
-            M = cv2.moments(cnt)
-            if M["m00"] != 0:
-                cx = int(M["m10"] / M["m00"])
-                cy = int(M["m01"] / M["m00"])
-            else:
-                cx, cy = x + w // 2, y + h // 2
-
-            # Verificar se já existe uma bolha muito próxima
-            if any(np.linalg.norm(np.array((cx, cy)) - np.array(b['centro'])) < 20 for b in bolhas):
-                continue
-
-            bolhas.append({
-                'x': cx,
-                'y': cy,
-                'centro': (cx, cy),
-                'radius': radius,
-                'fill_rate': fill_rate,
-                'filled': is_filled,
-                'contour': cnt
-            })
-
-            # Desenha para debug
-            color = (0, 0, 255) if is_filled else (0, 255, 0)
-            cv2.circle(debug_img, (cx, cy), radius, color, 2)
-            cv2.putText(debug_img, f"{int(fill_rate * 100)}%", (cx - 20, cy - 15),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+        # Desenhar para debug
+        color = (0, 0, 255) if is_filled else (0, 255, 0)
+        cv2.circle(debug_img, (x, y), r, color, 2)
+        cv2.putText(debug_img, f"{int(fill_rate * 100)}%", (x - 20, y - 15),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
 
     return bolhas, debug_img
 
@@ -513,6 +833,82 @@ def agrupar_bolhas_por_questoes(bolhas, num_questoes=10, num_alternativas=5):
         questoes.append(bolhas_ordenadas[:num_alternativas])
     
     return questoes
+
+def validar_geometria_questao(bolhas, num_alternativas=5):
+    """
+    Valida a geometria de um grupo de bolhas (questão).
+    Verifica alinhamento horizontal, espaçamento uniforme e outliers.
+
+    Args:
+        bolhas: Lista de bolhas de uma questão
+        num_alternativas: Número esperado de alternativas
+
+    Returns:
+        is_valid: Boolean indicando se a questão é válida
+        quality_score: Score de qualidade da detecção (0-1)
+        message: Mensagem descritiva
+    """
+    from scipy import stats
+
+    if len(bolhas) != num_alternativas:
+        return False, 0.0, f"Número de bolhas incorreto: {len(bolhas)} (esperado {num_alternativas})"
+
+    # Extrair coordenadas
+    y_coords = np.array([b['y'] for b in bolhas])
+    x_coords = np.array([b['x'] for b in bolhas])
+    raios = np.array([b['radius'] for b in bolhas])
+
+    y_mean = np.mean(y_coords)
+    y_std = np.std(y_coords)
+    raio_medio = np.mean(raios)
+
+    # 1. Validar alinhamento horizontal (5% do raio)
+    if y_std > raio_medio * 0.05:
+        return False, 0.3, f"Desalinhamento vertical: {y_std:.1f}px (esperado < {raio_medio * 0.05:.1f}px)"
+
+    # 2. Validar espaçamento uniforme
+    x_sorted = np.sort(x_coords)
+    espacos = np.diff(x_sorted)
+
+    if len(espacos) > 0:
+        media_espacos = np.mean(espacos)
+        if media_espacos > 0:
+            cv_espacos = np.std(espacos) / media_espacos  # Coeficiente de variação
+        else:
+            cv_espacos = float('inf')
+
+        if cv_espacos > 0.15:  # 15%
+            return False, 0.4, f"Espaçamento irregular: CV={cv_espacos:.2f} (esperado < 0.15)"
+    else:
+        cv_espacos = 0
+
+    # 3. Detectar outliers (Z-score > 2.5)
+    try:
+        z_scores = np.abs(stats.zscore(x_coords))
+        if np.any(z_scores > 2.5):
+            outliers = np.where(z_scores > 2.5)[0]
+            return False, 0.5, f"Outliers detectados em índices: {outliers.tolist()}"
+    except:
+        pass  # Se não conseguir calcular z-score, continua
+
+    # 4. Validar proporções de espaçamento
+    if len(espacos) > 0:
+        largura_total = x_sorted[-1] - x_sorted[0]
+        espaco_esperado = largura_total / (num_alternativas - 1)
+        desvios = np.abs(espacos - espaco_esperado)
+        desvio_max = np.max(desvios)
+
+        if desvio_max > raio_medio:
+            return False, 0.6, f"Desvio de espaçamento: {desvio_max:.1f}px (esperado < {raio_medio:.1f}px)"
+
+    # Calcular score de qualidade
+    penalty_alignment = min(y_std / (raio_medio * 0.05), 1.0) if raio_medio > 0 else 0
+    penalty_spacing = min(cv_espacos / 0.15, 1.0)
+    penalty_deviation = min(desvio_max / raio_medio, 1.0) if raio_medio > 0 else 0
+
+    quality_score = max(0.0, 1.0 - (penalty_alignment + penalty_spacing + penalty_deviation) / 3)
+
+    return True, quality_score, "OK"
 
 def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 'E']):
     """
