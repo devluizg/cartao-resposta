@@ -4,121 +4,40 @@ from collections import defaultdict
 from sklearn.cluster import DBSCAN
 import cv2
 from image_processing import detectar_bolhas_avancado, agrupar_bolhas_por_questoes
-from skimage import feature  # Para LBP (Local Binary Patterns)
 
-def _calcular_lbp(roi):
-    """Calcula Local Binary Patterns para análise de textura."""
-    try:
-        if roi.size == 0:
-            return np.array([])
-        # Redimensionar para tamanho padrão se necessário
-        if roi.shape[0] < 8 or roi.shape[1] < 8:
-            return np.array([])
-        lbp = feature.local_binary_pattern(roi, 8, 1, method='uniform')
-        return lbp.flatten()
-    except:
-        return np.array([])
-
-def _detectar_sombra(roi_rect, gradiente):
-    """Detecta se a região contém sombra."""
-    if roi_rect.size == 0:
-        return False
-
-    # Sombras geralmente têm baixo gradiente e distribuição suave
-    energia_gradiente = np.sum(np.abs(gradiente))
-    max_gradiente = np.max(np.abs(gradiente))
-
-    # Se gradiente muito baixo, provavelmente é sombra
-    if max_gradiente < 20:
-        return True
-
-    return False
-
-def _detectar_dobra(roi_rect, simetria):
-    """Detecta se a região contém dobra."""
-    # Dobras têm baixa simetria radial e padrões lineares
-    if simetria < 0.5:
-        return True
-    return False
-
-def _detectar_sujeira(textura):
-    """Detecta se a região contém sujeira ou ruído."""
-    if len(textura) == 0:
-        return False
-
-    # Sujeira tem alta variação de textura
-    uniformidade_textura = np.std(textura)
-    if uniformidade_textura > 50:
-        return True
-    return False
-
-def _calcular_simetria_radial(roi_circular, cx, cy, r):
-    """Calcula a simetria radial da região."""
-    try:
-        if roi_circular.size == 0 or r < 3:
-            return 0.5
-
-        # Dividir a região em quadrantes e medir similaridade
-        h, w = roi_circular.shape
-        cx_local = min(max(cx, 0), w - 1)
-        cy_local = min(max(cy, 0), h - 1)
-
-        quadrantes = []
-        r_safe = max(1, min(r, h // 2, w // 2))
-
-        # Extrair quadrantes
-        if cy_local - r_safe >= 0 and cx_local - r_safe >= 0:
-            quadrantes.append(np.sum(roi_circular[cy_local-r_safe:cy_local, cx_local-r_safe:cx_local]))
-        if cy_local - r_safe >= 0 and cx_local + r_safe < w:
-            quadrantes.append(np.sum(roi_circular[cy_local-r_safe:cy_local, cx_local:cx_local+r_safe]))
-        if cy_local + r_safe < h and cx_local - r_safe >= 0:
-            quadrantes.append(np.sum(roi_circular[cy_local:cy_local+r_safe, cx_local-r_safe:cx_local]))
-        if cy_local + r_safe < h and cx_local + r_safe < w:
-            quadrantes.append(np.sum(roi_circular[cy_local:cy_local+r_safe, cx_local:cx_local+r_safe]))
-
-        if len(quadrantes) < 4:
-            return 0.5
-
-        # Calcular coeficiente de variação dos quadrantes
-        media_quad = np.mean(quadrantes)
-        if media_quad == 0:
-            return 0.5
-
-        cv_quad = np.std(quadrantes) / media_quad
-        # Normalizar para 0-1
-        simetria = 1.0 / (1.0 + cv_quad)
-        return float(simetria)
-    except:
-        return 0.5
 
 def analisar_preenchimento_avancado(binary, image, bolha):
     """
     Análise avançada de preenchimento com múltiplas métricas.
+    Agora EFETIVAMENTE usada no fluxo de análise para bolhas ambíguas.
 
     Args:
         binary: Imagem binária
-        image: Imagem original (opcional, para análise de intensidade)
+        image: Imagem original (para análise de intensidade)
         bolha: Dicionário com informações da bolha
 
     Returns:
         resultado: Dicionário com análise detalhada
     """
     cx, cy, r = bolha['x'], bolha['y'], bolha['radius']
+    h_img, w_img = binary.shape
+
+    # Limites seguros
+    x_min = max(0, cx - r)
+    y_min = max(0, cy - r)
+    x_max = min(w_img, cx + r)
+    y_max = min(h_img, cy + r)
 
     # ROI circular
     mask_circular = np.zeros_like(binary)
-    cv2.circle(mask_circular, (cx, cy), int(r * 0.8), 255, -1)
+    inner_r = int(r * 0.8)
+    cv2.circle(mask_circular, (cx, cy), inner_r, 255, -1)
     roi_circular = cv2.bitwise_and(binary, mask_circular)
 
     # ROI retangular
-    x_min = max(0, cx - r)
-    y_min = max(0, cy - r)
-    x_max = min(binary.shape[1], cx + r)
-    y_max = min(binary.shape[0], cy + r)
     roi_rect = binary[y_min:y_max, x_min:x_max]
 
-    # Métrica 1: Fill rate
-    inner_r = int(r * 0.8)
+    # Métrica 1: Fill rate circular
     inner_area = np.pi * inner_r * inner_r
     filled_pixels_circular = cv2.countNonZero(roi_circular)
     fill_rate_circular = filled_pixels_circular / inner_area if inner_area > 0 else 0
@@ -129,49 +48,42 @@ def analisar_preenchimento_avancado(binary, image, bolha):
     else:
         fill_rate_rect = 0
 
-    # Métrica 3: Intensidade média
+    # Métrica 3: Intensidade média na imagem original
+    intensidade_media = 0
     if image is not None:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
-        intensidade_media = np.mean(gray[y_min:y_max, x_min:x_max]) if roi_rect.size > 0 else 0
+        roi_gray = gray[y_min:y_max, x_min:x_max]
+        if roi_gray.size > 0:
+            intensidade_media = float(np.mean(roi_gray))
+
+    # Métrica 4: Energia do gradiente (bordas fortes = preenchido ou contorno)
+    if roi_rect.size > 0 and roi_rect.shape[0] > 2 and roi_rect.shape[1] > 2:
+        gradiente = cv2.Sobel(roi_rect.astype(np.float32), cv2.CV_64F, 1, 1, ksize=3)
+        energia_gradiente = float(np.sum(np.abs(gradiente)))
     else:
-        intensidade_media = 0
+        gradiente = np.array([0])
+        energia_gradiente = 0.0
 
-    # Métrica 4: Gradiente
-    gradiente = cv2.Sobel(roi_rect.astype(np.float32), cv2.CV_64F, 1, 1, ksize=3)
-    energia_gradiente = np.sum(np.abs(gradiente))
-
-    # Métrica 5: Textura (LBP)
-    textura = _calcular_lbp(roi_rect.astype(np.uint8))
-    uniformidade_textura = np.std(textura) if len(textura) > 0 else 0
-
-    # Métrica 6: Simetria radial
-    simetria = _calcular_simetria_radial(roi_circular, cx - x_min, cy - y_min, inner_r)
-
-    # Detector de anomalias
-    is_sombra = _detectar_sombra(roi_rect, gradiente)
-    is_dobra = _detectar_dobra(roi_rect, simetria)
-    is_sujeira = _detectar_sujeira(textura)
+    # Métrica 5: Simetria radial
+    simetria = _calcular_simetria_radial(binary[y_min:y_max, x_min:x_max], 
+                                          cx - x_min, cy - y_min, inner_r)
 
     # Classificação com pesos
+    # Pesos ajustados: fill_rate circular é o mais confiável
     score = (
-        fill_rate_circular * 0.4 +
-        fill_rate_rect * 0.2 +
-        (intensidade_media / 255.0 if intensidade_media > 0 else 0) * 0.15 +
-        (1.0 - min(uniformidade_textura / 255.0, 1.0)) * 0.15 +
-        simetria * 0.1
+        fill_rate_circular * 0.50 +
+        fill_rate_rect * 0.20 +
+        (1.0 - min(intensidade_media / 255.0, 1.0)) * 0.15 +  # Invertido: escuro = alto
+        simetria * 0.15
     )
 
-    # Penalizar anomalias
-    if is_sombra or is_dobra or is_sujeira:
-        score *= 0.5
-        confianca = 0.3
-    else:
-        confianca = min(abs(score - 0.5) * 2, 1.0)
+    # Confiança baseada na clareza da decisão
+    confianca = min(abs(score - 0.35) * 2.5, 1.0)
 
     # Classificação final
-    if score > 0.5:
+    if score > 0.45:
         estado = "marcada"
-    elif score > 0.2:
+    elif score > 0.20:
         estado = "parcial"
     else:
         estado = "vazia"
@@ -184,25 +96,63 @@ def analisar_preenchimento_avancado(binary, image, bolha):
             'fill_rate_circular': float(fill_rate_circular),
             'fill_rate_rect': float(fill_rate_rect),
             'intensidade': float(intensidade_media),
-            'textura': float(uniformidade_textura),
             'simetria': float(simetria),
             'energia_gradiente': float(energia_gradiente),
-            'anomalias': {
-                'sombra': bool(is_sombra),
-                'dobra': bool(is_dobra),
-                'sujeira': bool(is_sujeira)
-            }
         }
     }
 
-def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 'E']):
+
+def _calcular_simetria_radial(roi_circular, cx, cy, r):
+    """Calcula a simetria radial da região."""
+    try:
+        if roi_circular.size == 0 or r < 3:
+            return 0.5
+
+        h, w = roi_circular.shape
+        cx_local = min(max(cx, 0), w - 1)
+        cy_local = min(max(cy, 0), h - 1)
+
+        r_safe = max(1, min(r, h // 2, w // 2))
+
+        quadrantes = []
+        if cy_local - r_safe >= 0 and cx_local - r_safe >= 0:
+            quadrantes.append(np.sum(roi_circular[cy_local-r_safe:cy_local, cx_local-r_safe:cx_local]))
+        if cy_local - r_safe >= 0 and cx_local + r_safe < w:
+            quadrantes.append(np.sum(roi_circular[cy_local-r_safe:cy_local, cx_local:cx_local+r_safe]))
+        if cy_local + r_safe < h and cx_local - r_safe >= 0:
+            quadrantes.append(np.sum(roi_circular[cy_local:cy_local+r_safe, cx_local-r_safe:cx_local]))
+        if cy_local + r_safe < h and cx_local + r_safe < w:
+            quadrantes.append(np.sum(roi_circular[cy_local:cy_local+r_safe, cx_local:cx_local+r_safe]))
+
+        if len(quadrantes) < 4:
+            return 0.5
+
+        media_quad = np.mean(quadrantes)
+        if media_quad == 0:
+            return 0.5
+
+        cv_quad = np.std(quadrantes) / media_quad
+        simetria = 1.0 / (1.0 + cv_quad)
+        return float(simetria)
+    except:
+        return 0.5
+
+
+def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 'E'], binary=None, image=None):
+    """
+    Analisa as questões agrupadas usando estratégia de gap máximo.
+    
+    Esta é a versão PRINCIPAL usada pelo pipeline multi-colunas.
+    Usa o método de "maior gap entre fill_rates consecutivos" para
+    identificar a bolha marcada, que é robusto a variações de contraste.
+    """
     resultados = {}
     confianca = {}
     for q in range(1, num_questoes + 1):
         resultados[q] = None
         confianca[q] = 0.0
 
-    # --- LÓGICA ADAPTATIVA (EXISTENTE) ---
+    # --- ANÁLISE ADAPTATIVA GLOBAL ---
     todas_taxas = []
     for questao in questoes:
         for bolha in questao:
@@ -213,10 +163,6 @@ def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 
         media_global = np.mean(todas_taxas)
         desvio_global = np.std(todas_taxas)
 
-        # Threshold global usado como referência para "questão sem marcação"
-        # (quando TODAS as bolhas estão abaixo do threshold → sem marcação clara)
-        # Usamos percentil 80 das taxas como ponto de referência para capturar
-        # apenas as bolhas claramente marcadas
         taxas_arr = np.array(todas_taxas)
         threshold_referencia = float(np.percentile(taxas_arr, 80))
         threshold_referencia = float(np.clip(threshold_referencia, 0.55, 0.90))
@@ -227,9 +173,7 @@ def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 
         threshold_referencia = 0.65
         print("Aviso: Nenhuma bolha detectada para análise adaptativa. Usando threshold padrão.")
 
-    # --- ANÁLISE POR QUESTÃO: gap máximo entre fills consecutivos ─────────────
-    # Cada questão encontra sua própria "marcada" pelo maior salto na dist. de fills.
-    # Isso é robusto a variações de contraste sem depender de threshold absoluto.
+    # --- ANÁLISE POR QUESTÃO: gap máximo ---
     for i, questao in enumerate(questoes):
         num_questao = i + 1
         if num_questao > num_questoes:
@@ -237,39 +181,32 @@ def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 
         if not questao:
             continue
 
-        # 1. Coletar fill_rates e seus índices originais
+        # 1. Coletar fill_rates com índices originais
         bolhas_com_idx = [(j, bolha.get('fill_rate', 0.0)) for j, bolha in enumerate(questao)
                          if not bolha.get('sintetica', False)]
 
         if not bolhas_com_idx:
             continue
 
-        # Ordenar pelo fill_rate (decrescente) para encontrar o maior gap
+        # Ordenar pelo fill_rate (decrescente)
         bolhas_sorted = sorted(bolhas_com_idx, key=lambda x: x[1], reverse=True)
         fills_sorted = [f for _, f in bolhas_sorted]
 
         max_fill = fills_sorted[0]
         second_fill = fills_sorted[1] if len(fills_sorted) > 1 else 0.0
 
-        # 2. Estratégia per-questão: maior gap entre fills consecutivos
-        # A marcada é a que está no grupo "acima do maior salto"
+        # 2. Estratégia: maior gap entre fills consecutivos
         if len(fills_sorted) >= 2:
-            # Encontrar o maior gap entre fills consecutivos
             gaps = [fills_sorted[k] - fills_sorted[k+1] for k in range(len(fills_sorted)-1)]
             maior_gap_idx = int(np.argmax(gaps))
-            # Bolhas "marcadas": apenas as fills_sorted[0..maior_gap_idx] (acima do gap)
-            # Usar índice direto evita o problema de threshold=0 incluir fills intermediários
-            idx_no_gap = [j for j, _ in bolhas_sorted[:maior_gap_idx + 1]]
             candidatas_acima = bolhas_sorted[:maior_gap_idx + 1]
         else:
             candidatas_acima = bolhas_sorted
+            gaps = []
 
-        # 3. Validação por threshold de referência global:
-        # Se a bolha mais alta não atinge o threshold_referencia, é questão suspeita
-        # (pode ser área sem marcação real → usar forced choice com confiança baixa)
+        # 3. Validação: fill muito baixo → forced choice com confiança baixa
         if max_fill < threshold_referencia * 0.6:
-            # Fill muito baixo mesmo para a mais cheia → forced choice
-            alt_index = bolhas_com_idx[0][0]  # índice do maior fill original
+            alt_index = bolhas_com_idx[0][0]
             resultados[num_questao] = alternativas[alt_index] if alt_index < len(alternativas) else None
             confianca[num_questao] = max(0.1, min(max_fill * 1.5, 0.3))
             print(f"Q{num_questao}: Fill muito baixo — usando máximo "
@@ -279,8 +216,20 @@ def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 
         if len(candidatas_acima) == 1:
             # Caso ideal: apenas uma bolha acima do maior gap
             idx_orig, fill_val = candidatas_acima[0]
-            gap_val = gaps[maior_gap_idx] if len(fills_sorted) >= 2 else fill_val
+            gap_val = gaps[maior_gap_idx] if gaps else fill_val
             nivel_confianca = min(gap_val * 2, 1.0)
+            
+            # Validação Avançada
+            if binary is not None and (nivel_confianca < 0.6 or fill_val < threshold_referencia):
+                bolha_alvo = questao[idx_orig]
+                res_adv = analisar_preenchimento_avancado(binary, image, bolha_alvo)
+                if res_adv['score'] > 0.45:
+                    nivel_confianca = res_adv['confianca']
+                    fill_val = res_adv['score']
+                else:
+                    # Mesmo a única opção estava fraca
+                    pass
+                    
             resultados[num_questao] = alternativas[idx_orig] if idx_orig < len(alternativas) else None
             confianca[num_questao] = nivel_confianca
 
@@ -288,18 +237,30 @@ def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 
             melhor_idx, melhor_fill = candidatas_acima[0]
             segunda_fill = candidatas_acima[1][1]
             gap_entre = melhor_fill - segunda_fill
+            
+            # --- TENTAR DESEMPATAR COM ANÁLISE AVANÇADA ---
+            if binary is not None and melhor_fill - segunda_fill < 0.2:
+                for idx_c, val_c in candidatas_acima:
+                    idx_real = idx_c
+                    if idx_real < len(questao):
+                        res_adv = analisar_preenchimento_avancado(binary, image, questao[idx_real])
+                        # Atualiza fill interno para o score híbrido
+                        bolhas_com_idx[idx_real] = (idx_real, res_adv['score'])
+                
+                # Re-ordenar após analysis avançada
+                candidatas_revisadas = sorted([bolhas_com_idx[idx_c] for idx_c, _ in candidatas_acima], key=lambda x: x[1], reverse=True)
+                melhor_idx, melhor_fill = candidatas_revisadas[0]
+                segunda_fill = candidatas_revisadas[1][1] if len(candidatas_revisadas) > 1 else 0
 
-            # Filtro de dominância relativa: se a melhor tem fill >= 1.5x da segunda,
-            # ela é a única marcada (ex: D=0.99, A=0.51 → 0.99/0.51=1.94 > 1.5 → apenas D)
+            # Filtro de dominância relativa revisado
             if segunda_fill > 0 and melhor_fill / segunda_fill >= 1.5:
                 idx_orig = melhor_idx
                 gap_val = gaps[maior_gap_idx] if maior_gap_idx < len(gaps) else melhor_fill
                 nivel_confianca = min(gap_val * 2, 1.0)
                 resultados[num_questao] = alternativas[idx_orig] if idx_orig < len(alternativas) else None
                 confianca[num_questao] = nivel_confianca
-                continue  # pulo para próxima questão
+                continue
 
-            # gap até o próximo grupo (abaixo do maior gap)
             letras_marcadas = [alternativas[j] for j, f in candidatas_acima if j < len(alternativas)]
             nivel_confianca = min(max(gap_entre * 2, 0.0), 0.5)
 
@@ -310,8 +271,15 @@ def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 
             confianca[num_questao] = nivel_confianca
 
         else:
-            # Sem candidatas claras → usar a de maior fill (forced choice)
+            # Sem candidatas claras → forced choice
             idx_orig = bolhas_sorted[0][0]
+            
+            if binary is not None:
+                bolha_alvo = questao[idx_orig]
+                res_adv = analisar_preenchimento_avancado(binary, image, bolha_alvo)
+                if res_adv['score'] > 0.45:
+                    max_fill = res_adv['score']
+            
             resultados[num_questao] = alternativas[idx_orig] if idx_orig < len(alternativas) else None
             confianca[num_questao] = max(0.1, min(max_fill * 2, 0.4))
             print(f"Q{num_questao}: Sem candidata clara — usando máximo "
@@ -319,39 +287,59 @@ def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 
 
     return resultados, confianca
 
+
 def validar_resultados(resultados, confianca, num_questoes, num_alternativas=5):
+    """Valida e marca respostas suspeitas."""
+    from collections import Counter
+
     resultados_corrigidos = resultados.copy()
+
+    valores_confianca = [v for v in confianca.values() if v > 0]
+    if valores_confianca:
+        media_confianca = np.mean(valores_confianca)
+        limite_suspeito = max(0.2, media_confianca * 0.5)
+    else:
+        limite_suspeito = 0.2
+
     for q in range(1, num_questoes + 1):
-        if q in confianca and confianca[q] < 0.2:
-            resultados_corrigidos[q] = f"{resultados[q]}?" if resultados[q] else None
-    contagem = {'A': 0, 'B': 0, 'C': 0, 'D': 0, 'E': 0, None: 0}
-    for alt in resultados.values():
-        if alt in contagem:
-            contagem[alt] += 1
-    total_marcadas = sum(1 for alt in resultados.values() if alt is not None)
+        if q in confianca and confianca[q] < limite_suspeito and resultados[q] is not None:
+            resultados_corrigidos[q] = f"{resultados[q]}?"
+
+    contagem = Counter([r for r in resultados.values() if r is not None and not str(r).endswith('?')])
+    total_respostas = sum(contagem.values())
+
+    if total_respostas >= num_questoes * 0.3:
+        esperado = total_respostas / num_alternativas
+        for alt, count in contagem.items():
+            if count > esperado * 2.0 and count > 3:
+                print(f"Aviso: Alternativa '{alt}' aparece {count} vezes (esperado ~{esperado:.1f})")
+                for q in range(1, num_questoes + 1):
+                    if resultados[q] == alt and confianca[q] < 0.4:
+                        resultados_corrigidos[q] = f"{alt}?"
+
+    respostas_detectadas = sum(1 for r in resultados_corrigidos.values() if r is not None)
+    if respostas_detectadas < num_questoes * 0.5:
+        print(f"Aviso: Apenas {respostas_detectadas} de {num_questoes} questões detectadas.")
+
     return resultados_corrigidos
 
+
 def detectar_colunas(binary_image):
-    """Detecta automaticamente o número de colunas no cartão resposta"""
-    # Projeção vertical da imagem binária
+    """Detecta automaticamente o número de colunas no cartão resposta."""
     projection = np.sum(binary_image, axis=0)
-    
-    # Normalizar e suavizar a projeção
+
     projection = projection / np.max(projection) if np.max(projection) > 0 else projection
     window_size = max(len(projection) // 100, 10)
     projection_smooth = np.convolve(projection, np.ones(window_size)/window_size, mode='same')
-    
-    # Encontrar vales na projeção (possíveis separadores de colunas)
+
     valleys = []
     for i in range(1, len(projection_smooth)-1):
         if projection_smooth[i] < projection_smooth[i-1] and projection_smooth[i] < projection_smooth[i+1]:
             valleys.append((i, projection_smooth[i]))
-    
-    # Filtrar vales significativos
+
     valleys = sorted(valleys, key=lambda x: x[1])
-    significant_valleys = [v for v in valleys if v[1] < 0.3]  # Threshold ajustável
-    
-    # Determinar número de colunas
+    significant_valleys = [v for v in valleys if v[1] < 0.3]
+
     if len(significant_valleys) >= 2:
         return 3
     elif len(significant_valleys) == 1:
@@ -359,194 +347,135 @@ def detectar_colunas(binary_image):
     else:
         return 1
 
+
 def segmentar_colunas_com_bordas(binary, num_colunas):
     """
-    Segmenta a imagem em colunas usando uma combinação de projeção vertical e detecção de bordas/retângulos.
-    Esta abordagem é mais robusta para diferentes ângulos de captura e variações na perspectiva.
-    
-    Args:
-        binary: Imagem binária (thresholded)
-        num_colunas: Número esperado de colunas
-        
-    Returns:
-        regioes: Lista de tuples (x_inicio, x_fim) para cada coluna
+    Segmenta a imagem em colunas usando projeção vertical + detecção de retângulos.
     """
-    import numpy as np
-    import cv2
-    
     h, w = binary.shape
-    
-    # MÉTODO 1: Projeção vertical (similar ao método original)
+
+    # MÉTODO 1: Projeção vertical
     projection = np.sum(binary, axis=0)
-    
-    # Suavizar a projeção
+
     window_size = max(w // 100, 5)
     smooth_proj = np.convolve(projection, np.ones(window_size)/window_size, mode='same')
-    
-    # Normalizar
+
     max_val = np.max(smooth_proj)
     smooth_proj = smooth_proj / max_val if max_val > 0 else smooth_proj
-    
-    # Encontrar vales na projeção (possíveis divisões entre colunas)
+
     threshold = 0.2
     valleys = []
-    
+
     for i in range(window_size, len(smooth_proj)-window_size):
         if smooth_proj[i] < threshold:
-            # Verificar se é um vale local
             window = 20
             left_max = max(smooth_proj[max(0, i-window):i]) if i > 0 else 0
             right_max = max(smooth_proj[i+1:min(len(smooth_proj), i+window+1)]) if i < len(smooth_proj)-1 else 0
-            
+
             if smooth_proj[i] <= left_max * 0.7 and smooth_proj[i] <= right_max * 0.7:
                 valleys.append(i)
-    
+
     # MÉTODO 2: Detecção de retângulos/contornos
-    # Preparar imagem para detecção de contornos
-    # Usar morfologia para conectar elementos e destacar estruturas retangulares
     kernel = np.ones((5, 5), np.uint8)
     morph = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
-    
-    # Encontrar contornos externos principais
+
     contours, _ = cv2.findContours(morph, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    # Filtrar contornos por área para eliminar ruído
-    min_area = (h * w) / (num_colunas * 10)  # Área mínima proporcional
+
+    min_area = (h * w) / (num_colunas * 10)
     valid_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_area]
-    
-    # Extrair os retângulos que possivelmente representam colunas
+
     rectangles = []
     for cnt in valid_contours:
-        # Aproximar o contorno para um polígono
         epsilon = 0.02 * cv2.arcLength(cnt, True)
         approx = cv2.approxPolyDP(cnt, epsilon, True)
-        
-        # Verificar se é um retângulo (4 vértices) ou algo próximo
-        if len(approx) >= 4 and len(approx) <= 8:  # Ser flexível com o número de vértices
+
+        if len(approx) >= 4 and len(approx) <= 8:
             x, y, w_rect, h_rect = cv2.boundingRect(cnt)
-            # Verificar proporção altura/largura para garantir que é uma coluna
-            if h_rect > h/2:  # Altura mínima para ser considerado coluna
+            if h_rect > h/2:
                 rectangles.append((x, x + w_rect))
-    
-    # Ordenar retângulos da esquerda para a direita
+
     rectangles.sort(key=lambda r: r[0])
-    
-    # MÉTODO 3: Combinar os dois métodos para resultado mais robusto
-    
-    # Se encontramos retângulos suficientes, usá-los como base
+
+    # MÉTODO 3: Combinar
     if len(rectangles) >= num_colunas:
-        # Agrupar retângulos próximos (podem pertencer à mesma coluna)
         merged_rectangles = []
         current_group = rectangles[0]
-        
+
         for i in range(1, len(rectangles)):
-            # Se o retângulo atual está próximo do grupo atual, fundi-los
-            if rectangles[i][0] - current_group[1] < w * 0.05:  # Threshold de proximidade
+            if rectangles[i][0] - current_group[1] < w * 0.05:
                 current_group = (current_group[0], max(current_group[1], rectangles[i][1]))
             else:
                 merged_rectangles.append(current_group)
                 current_group = rectangles[i]
-        
+
         merged_rectangles.append(current_group)
-        
-        # Se temos retângulos demais, selecionar os mais significativos
+
         if len(merged_rectangles) > num_colunas:
-            # Ordenar por largura (assumindo que colunas principais são mais largas)
             merged_rectangles.sort(key=lambda r: r[1] - r[0], reverse=True)
             merged_rectangles = merged_rectangles[:num_colunas]
-            # Reordenar da esquerda para a direita
             merged_rectangles.sort(key=lambda r: r[0])
-        
-        # Se temos retângulos de menos, complementar com divisão baseada em vales
+
         if len(merged_rectangles) < num_colunas:
-            # Usar vales detectados para complementar
             if valleys:
-                # Ordenar vales
                 valleys.sort()
-                
-                # Adicionar vales que não conflitem com retângulos já detectados
                 for valley in valleys:
-                    # Verificar se o vale não está dentro de nenhum retângulo existente
                     is_valid = True
                     for rect in merged_rectangles:
                         if rect[0] <= valley <= rect[1]:
                             is_valid = False
                             break
-                    
+
                     if is_valid:
-                        # Encontrar posição correta para inserir
                         pos = 0
                         while pos < len(merged_rectangles) and merged_rectangles[pos][0] < valley:
                             pos += 1
-                        
-                        # Dividir o espaço usando este vale
+
                         if pos > 0 and pos < len(merged_rectangles):
-                            # Vale entre dois retângulos - ajustar os limites
                             left_rect = merged_rectangles[pos-1]
                             right_rect = merged_rectangles[pos]
-                            
-                            # Criar dois novos retângulos a partir do vale
                             merged_rectangles[pos-1] = (left_rect[0], valley)
                             merged_rectangles.insert(pos, (valley, right_rect[1]))
-                        
-                        # Se ainda não temos retângulos suficientes, parar quando atingir o número desejado
+
                         if len(merged_rectangles) >= num_colunas:
                             break
-        
-        # Se ainda não temos retângulos suficientes, complementar com divisão uniforme
+
         rectangles = merged_rectangles
-    
-    # Se ainda não conseguimos número suficiente de divisões, recorrer à divisão baseada em vales
+
     if len(rectangles) < num_colunas:
-        # Usar vales se tivermos o suficiente
         if len(valleys) >= num_colunas - 1:
-            # Selecionar os vales mais significativos
-            valleys.sort()  # Ordenar por posição
-            
-            # Verificar distribuição de vales e selecionar os melhores
+            valleys.sort()
+
             if len(valleys) > num_colunas - 1:
-                # Calcular a distância ideal entre vales
-                ideal_spacing = w / num_colunas
-                
-                # Selecionar vales para obter espaçamento mais uniforme
                 selected_valleys = []
-                start = 0
-                
+                valleys_copy = list(valleys)
+
                 for i in range(num_colunas - 1):
-                    # Encontrar o vale mais próximo da posição ideal
                     target_pos = (i + 1) * w / num_colunas
-                    best_valley = min(valleys, key=lambda v: abs(v - target_pos))
-                    
+                    best_valley = min(valleys_copy, key=lambda v: abs(v - target_pos))
                     selected_valleys.append(best_valley)
-                    # Remover o vale selecionado e proximidades para evitar duplicação
-                    valleys = [v for v in valleys if abs(v - best_valley) > w * 0.05]
-                    
-                    if not valleys:  # Se acabarem os vales
+                    valleys_copy = [v for v in valleys_copy if abs(v - best_valley) > w * 0.05]
+                    if not valleys_copy:
                         break
-                
+
                 valleys = sorted(selected_valleys)
-            
-            # Criar regiões a partir dos vales selecionados
+
             regioes = []
             inicio = 0
-            
+
             for v in valleys[:num_colunas-1]:
                 regioes.append((inicio, v))
                 inicio = v
-            
+
             regioes.append((inicio, w))
             return regioes
-    
-    # Combinação final: usar retângulos detectados + divisão uniforme se necessário
+
     if len(rectangles) == num_colunas:
         return rectangles
-    
-    # Se chegamos aqui, recorrer à divisão uniforme com ajustes
-    # Ajustar com qualquer informação disponível (retângulos parciais e vales)
+
+    # Fallback: divisão uniforme
     divisoes = []
-    
+
     if rectangles:
-        # Usar as divisões de retângulos que temos
         for i, (start, end) in enumerate(rectangles):
             if i == 0 and start > 0:
                 divisoes.append((0, start))
@@ -555,28 +484,25 @@ def segmentar_colunas_com_bordas(binary, num_colunas):
                 divisoes.append((end, rectangles[i+1][0]))
         if rectangles[-1][1] < w:
             divisoes.append((rectangles[-1][1], w))
-    
-    # Se ainda não temos divisões suficientes, dividir espaços uniformemente
+
     if not divisoes or len(divisoes) != num_colunas:
         return [(i * w // num_colunas, (i+1) * w // num_colunas) for i in range(num_colunas)]
-    
-    # Se temos divisões demais, combinar as menores
+
     while len(divisoes) > num_colunas:
-        # Encontrar o par de divisões adjacentes com menor largura combinada
         min_width = float('inf')
         min_index = 0
-        
+
         for i in range(len(divisoes) - 1):
             width = divisoes[i+1][1] - divisoes[i][0]
             if width < min_width:
                 min_width = width
                 min_index = i
-        
-        # Combinar as duas divisões
+
         divisoes[min_index] = (divisoes[min_index][0], divisoes[min_index+1][1])
         divisoes.pop(min_index + 1)
-    
+
     return divisoes
+
 
 class CartaoRespostaAnalyzer:
     def __init__(self):
@@ -586,20 +512,16 @@ class CartaoRespostaAnalyzer:
         resultados = {}
         h, w = binary.shape
 
-        # Garantir que binary esteja no range 0-255
         if binary.max() <= 1.0:
             binary_proc = (binary * 255).astype(np.uint8)
         else:
             binary_proc = binary.copy()
 
-        # ── Quando é uma coluna individual (já segmentada pelo MultiColumn),
-        # não tentar detectar retângulo interno — a detecção de contorno captura
-        # sub-áreas incorretas dentro da coluna, causando clustering fragmentado.
-        # Processar toda a coluna diretamente.
+        # Quando é coluna individual (já segmentada), processar direto
         if num_colunas <= 1:
             return self.analisar_cartao_fallback(image, binary, debug_image, num_questoes, num_colunas, sensitivity)
 
-        # ── Para imagem completa (num_colunas > 1): tentar detecção de retângulo ──
+        # Para imagem completa: tentar detecção de retângulo
         contornos, _ = cv2.findContours(binary_proc, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         potenciais_retangulos = []
 
@@ -638,32 +560,33 @@ class CartaoRespostaAnalyzer:
 
                 if bolhas:
                     questoes = agrupar_bolhas_por_questoes(bolhas, num_questoes, 5)
-                    resultados, confianca = analisar_gabarito(questoes, num_questoes, self.alternativas)
+                    resultados, confianca_res = analisar_gabarito(questoes, num_questoes, self.alternativas, binary=roi_cartao, image=image[y:y+h, x:x+w])
 
                     for i, questao in enumerate(questoes):
                         if i >= num_questoes: break
                         num_questao = i + 1
                         resposta = resultados.get(num_questao)
-                        
-                        # Definir cor para o debug
+
                         if "ERRO" in str(resposta):
-                            cor = (0, 0, 255)  # Vermelho para erro de múltipla marcação
+                            cor = (0, 0, 255)
                         elif resposta is not None:
-                            cor = (0, 255, 0)  # Verde para resposta válida
+                            cor = (0, 255, 0)
                         else:
-                            cor = (255, 0, 0)  # Azul para não marcada
+                            cor = (255, 0, 0)
 
                         for j, bolha in enumerate(questao):
                             if j >= 5: break
                             cv2.circle(debug_image, bolha['centro'], bolha['radius'], cor, 2)
                             alt_letra = self.alternativas[j]
-                            cv2.putText(debug_image, alt_letra, (bolha['centro'][0] - 5, bolha['centro'][1] + 5), cv2.FONT_HERSHEY_SIMPLEX, 0.7, cor, 2)
+                            cv2.putText(debug_image, alt_letra, 
+                                       (bolha['centro'][0] - 5, bolha['centro'][1] + 5), 
+                                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, cor, 2)
                 else:
                     for i in range(1, num_questoes + 1):
                         resultados[i] = None
         else:
             return self.analisar_cartao_fallback(image, binary, debug_image, num_questoes, num_colunas, sensitivity)
-        
+
         for i in range(1, num_questoes + 1):
             if i not in resultados:
                 resultados[i] = None
@@ -671,43 +594,37 @@ class CartaoRespostaAnalyzer:
 
     def analisar_cartao_fallback(self, image, binary, debug_image, num_questoes, num_colunas, sensitivity):
         resultados = {i: None for i in range(1, num_questoes + 1)}
-        
-        # CORREÇÃO: Garantir que binary esteja na faixa correta para detectar_bolhas_avancado
+
         if binary.max() <= 1.0:
             binary_proc = (binary * 255).astype(np.uint8)
         else:
             binary_proc = binary.copy()
-            
+
         bolhas, debug_img = detectar_bolhas_avancado(binary_proc, debug_image, sensitivity=sensitivity)
-        
-        # CORREÇÃO: Atualizar debug_image com as marcações
+
         debug_image[:] = debug_img[:]
-        
+
         if bolhas:
             questoes = agrupar_bolhas_por_questoes(bolhas, num_questoes, len(self.alternativas))
-            resultados_analise, confianca = analisar_gabarito(questoes, num_questoes, self.alternativas)
-            resultados = validar_resultados(resultados_analise, confianca, num_questoes)
+            resultados_analise, confianca_res = analisar_gabarito(questoes, num_questoes, self.alternativas, binary=binary_proc, image=image)
+            resultados = validar_resultados(resultados_analise, confianca_res, num_questoes)
         return resultados
+
 
 class MultiColumnCartaoAnalyzer:
     def __init__(self, analyzer):
-        """
-        Inicializa o analisador de múltiplas colunas
-        
-        Args:
-            analyzer: Instância de CartaoRespostaAnalyzer para delegar a análise
-        """
         self.analyzer = analyzer
         self.alternativas = ['A', 'B', 'C', 'D', 'E']
-    
+
     def criar_visualizacao_simplificada(self, clean_image, resultados, binary, num_colunas):
-        # Não processar todas as bolhas juntas
+        from image_processing import detectar_retangulos_colunas, detectar_bolhas_avancado
+        
         h, w = binary.shape
         
-        # Obter regiões das colunas como na função principal
-        regioes_colunas = segmentar_colunas_com_bordas(binary, num_colunas)
+        # Tentar usar retângulos detectados
+        # Nota: não temos acesso à image original aqui, criar uma versão gray
+        gray_bin = binary  # já é binária
         
-        # Distribuir questões entre colunas (como na função principal)
         num_questoes = len(resultados)
         if num_colunas == 2:
             questoes_por_coluna = [(num_questoes + 1) // 2, num_questoes // 2]
@@ -719,76 +636,76 @@ class MultiColumnCartaoAnalyzer:
             base = num_questoes // num_colunas
             resto = num_questoes % num_colunas
             questoes_por_coluna = [base + (1 if i < resto else 0) for i in range(num_colunas)]
+
+        # Usar segmentação por bordas como fallback
+        regioes_colunas = segmentar_colunas_com_bordas(binary, num_colunas)
         
         questao_atual = 1
-        
-        # Processar cada coluna separadamente
+
         for idx, (x_inicio, x_fim) in enumerate(regioes_colunas):
             if idx >= len(questoes_por_coluna):
                 break
-                
+
             x_inicio = max(0, min(x_inicio, w-1))
             x_fim = max(0, min(x_fim, w))
-            
+
             if x_fim <= x_inicio:
                 continue
-                
+
             coluna_bin = binary[:, x_inicio:x_fim]
-            
-            # Processar apenas as bolhas desta coluna
+
             if coluna_bin.max() <= 1.0:
                 coluna_bin_proc = (coluna_bin * 255).astype(np.uint8)
             else:
                 coluna_bin_proc = coluna_bin.copy()
-                
+
             bolhas_coluna, _ = detectar_bolhas_avancado(coluna_bin_proc, None, sensitivity=0.1)
-            
-            # Ajustar as coordenadas X das bolhas para o contexto global
+
             for bolha in bolhas_coluna:
                 bolha['x'] += x_inicio
                 if 'centro' in bolha:
                     cx, cy = bolha['centro']
                     bolha['centro'] = (cx + x_inicio, cy)
-            
-            # Agrupar bolhas desta coluna por questões
+
             questoes_nesta_coluna = questoes_por_coluna[idx]
+            from image_processing import agrupar_bolhas_por_questoes
             questoes_agrupadas = agrupar_bolhas_por_questoes(bolhas_coluna, questoes_nesta_coluna, 5)
-            
-            # Marcar as bolhas desta coluna
+
             for i, bolhas_questao in enumerate(questoes_agrupadas):
                 num_questao = questao_atual + i
                 resposta = resultados.get(num_questao)
-                
+
                 if resposta is None or '?' in str(resposta):
                     continue
-                    
+
                 try:
                     alt_index = self.alternativas.index(resposta[0] if isinstance(resposta, str) else resposta)
                 except ValueError:
                     continue
-                    
+
                 if alt_index < 0 or alt_index >= len(bolhas_questao):
                     continue
-                    
+
                 bolha = bolhas_questao[alt_index]
-                
-                # Desenhar um círculo verde sobre a alternativa marcada
-                cv2.circle(clean_image, 
-                        (bolha['centro'][0], bolha['centro'][1]), 
-                        bolha['radius'], 
-                        (0, 255, 0),  # Cor verde
-                        -1)  # Preenchido
-            
+
+                cv2.circle(clean_image,
+                          (bolha['centro'][0], bolha['centro'][1]),
+                          bolha['radius'],
+                          (0, 255, 0),
+                          -1)
+
             questao_atual += questoes_nesta_coluna
 
     def analisar_cartao_multicolunas(self, image, binary, debug_image, num_questoes, num_colunas, sensitivity, threshold=150, return_debug_image=False):
         """
-        Analisa um cartão resposta com múltiplas colunas
+        v2: Usa detecção de retângulos impressos como âncora para as colunas.
+        Fallback para segmentação por projeção se retângulos não forem encontrados.
         """
+        from image_processing import detectar_retangulos_colunas
+        
         h, w = binary.shape
         resultados = {}
-        
-        # Criar uma cópia limpa da imagem original para a visualização simplificada
+
         clean_image = image.copy()
         clean_debug = cv2.cvtColor(clean_image, cv2.COLOR_BGR2RGB)
 
@@ -796,77 +713,133 @@ class MultiColumnCartaoAnalyzer:
             resultados = self.analyzer.analisar_cartao_melhorado(
                 image, binary, debug_image, num_questoes, num_colunas, sensitivity
             )
-            # Criar a visualização simplificada após processar os resultados
             self.criar_visualizacao_simplificada(clean_debug, resultados, binary, num_colunas)
-            
+
             if return_debug_image:
                 return resultados, clean_debug
             return resultados
 
-        # Obter regiões das colunas
-        regioes_colunas = segmentar_colunas_com_bordas(binary, num_colunas)
-
-        # Distribuir questões entre colunas
-        if num_colunas == 2:
-            questoes_por_coluna = [(num_questoes + 1) // 2, num_questoes // 2]
-        elif num_colunas == 3:
-            base = num_questoes // 3
-            resto = num_questoes % 3
-            questoes_por_coluna = [base + (1 if i < resto else 0) for i in range(3)]
-        else:
-            base = num_questoes // num_colunas
-            resto = num_questoes % num_colunas
-            questoes_por_coluna = [base + (1 if i < resto else 0) for i in range(num_colunas)]
-
-        print(f"Divisão de questões por coluna: {questoes_por_coluna}")
-
-        questao_atual = 1
-
-        for idx, (x_inicio, x_fim) in enumerate(regioes_colunas):
-            if idx >= len(questoes_por_coluna):
-                break
-
-            # Garantir que as coordenadas estejam dentro dos limites da imagem
-            x_inicio = max(0, min(x_inicio, w-1))
-            x_fim = max(0, min(x_fim, w))
+        # === NOVO: Tentar detectar retângulos impressos ===
+        retangulos = detectar_retangulos_colunas(binary, image, num_colunas)
+        
+        if retangulos is not None:
+            # Usar retângulos detectados como ROI para cada coluna
+            print(f"  Usando retângulos detectados: {retangulos}")
             
-            # Somente processar se a coluna tiver largura válida
-            if x_fim <= x_inicio:
-                continue
+            if num_colunas == 2:
+                questoes_por_coluna = [(num_questoes + 1) // 2, num_questoes // 2]
+            elif num_colunas == 3:
+                base = num_questoes // 3
+                resto = num_questoes % 3
+                questoes_por_coluna = [base + (1 if i < resto else 0) for i in range(3)]
+            else:
+                base = num_questoes // num_colunas
+                resto = num_questoes % num_colunas
+                questoes_por_coluna = [base + (1 if i < resto else 0) for i in range(num_colunas)]
+
+            print(f"Divisão de questões por coluna: {questoes_por_coluna}")
+            
+            questao_atual = 1
+            
+            for idx, (rx, ry, rw, rh) in enumerate(retangulos):
+                if idx >= len(questoes_por_coluna):
+                    break
                 
-            coluna_bin = binary[:, x_inicio:x_fim]
-            coluna_img = image[:, x_inicio:x_fim].copy()
-            coluna_debug = debug_image[:, x_inicio:x_fim]  
+                # Adicionar margem pequena
+                margin = int(min(rw, rh) * 0.02)
+                rx = max(0, rx - margin)
+                ry = max(0, ry - margin)
+                rw = min(rw + 2*margin, w - rx)
+                rh = min(rh + 2*margin, h - ry)
+                
+                coluna_bin = binary[ry:ry+rh, rx:rx+rw]
+                coluna_img = image[ry:ry+rh, rx:rx+rw].copy()
+                coluna_debug = debug_image[ry:ry+rh, rx:rx+rw]
+                
+                questoes_nesta_coluna = questoes_por_coluna[idx]
+                
+                if questoes_nesta_coluna <= 0:
+                    continue
+                
+                # Garantir binary no range correto
+                if coluna_bin.max() <= 1.0:
+                    coluna_bin = (coluna_bin * 255).astype(np.uint8)
+                
+                resultados_coluna = self.analyzer.analisar_cartao_fallback(
+                    coluna_img, coluna_bin, coluna_debug,
+                    questoes_nesta_coluna, 1, sensitivity
+                )
+                
+                debug_image[ry:ry+rh, rx:rx+rw] = coluna_debug
+                
+                for q, resposta in resultados_coluna.items():
+                    if q <= questoes_nesta_coluna:
+                        resultados[questao_atual + q - 1] = resposta
+                
+                questao_atual += questoes_nesta_coluna
             
-            questoes_nesta_coluna = questoes_por_coluna[idx]
-
-            if questoes_nesta_coluna <= 0:
-                continue
-
-            resultados_coluna = self.analyzer.analisar_cartao_melhorado(
-                coluna_img,
-                coluna_bin,
-                coluna_debug,
-                questoes_nesta_coluna, 1, sensitivity
-            )
-
-            debug_image[:, x_inicio:x_fim] = coluna_debug
+        else:
+            # === FALLBACK: Segmentação por projeção vertical ===
+            print("  ⚠️ Fallback: usando segmentação por projeção vertical")
             
-            # Mapear resultados para questão global
-            for q, resposta in resultados_coluna.items():
-                if q <= questoes_nesta_coluna:
-                    resultados[questao_atual + q - 1] = resposta
+            regioes_colunas = segmentar_colunas_com_bordas(binary, num_colunas)
 
-            questao_atual += questoes_nesta_coluna
+            if num_colunas == 2:
+                questoes_por_coluna = [(num_questoes + 1) // 2, num_questoes // 2]
+            elif num_colunas == 3:
+                base = num_questoes // 3
+                resto = num_questoes % 3
+                questoes_por_coluna = [base + (1 if i < resto else 0) for i in range(3)]
+            else:
+                base = num_questoes // num_colunas
+                resto = num_questoes % num_colunas
+                questoes_por_coluna = [base + (1 if i < resto else 0) for i in range(num_colunas)]
 
-        # Preenche questões faltantes com None
+            print(f"Divisão de questões por coluna: {questoes_por_coluna}")
+
+            questao_atual = 1
+
+            for idx, (x_inicio, x_fim) in enumerate(regioes_colunas):
+                if idx >= len(questoes_por_coluna):
+                    break
+
+                x_inicio = max(0, min(x_inicio, w-1))
+                x_fim = max(0, min(x_fim, w))
+
+                if x_fim <= x_inicio:
+                    continue
+
+                coluna_bin = binary[:, x_inicio:x_fim]
+                coluna_img = image[:, x_inicio:x_fim].copy()
+                coluna_debug = debug_image[:, x_inicio:x_fim]
+
+                questoes_nesta_coluna = questoes_por_coluna[idx]
+
+                if questoes_nesta_coluna <= 0:
+                    continue
+
+                resultados_coluna = self.analyzer.analisar_cartao_melhorado(
+                    coluna_img,
+                    coluna_bin,
+                    coluna_debug,
+                    questoes_nesta_coluna, 1, sensitivity
+                )
+
+                debug_image[:, x_inicio:x_fim] = coluna_debug
+
+                for q, resposta in resultados_coluna.items():
+                    if q <= questoes_nesta_coluna:
+                        resultados[questao_atual + q - 1] = resposta
+
+                questao_atual += questoes_nesta_coluna
+
+        # Preencher questões faltantes
         for q in range(1, num_questoes + 1):
             if q not in resultados:
                 resultados[q] = None
 
-        # Criar a visualização simplificada após processar todas as colunas
         self.criar_visualizacao_simplificada(clean_debug, resultados, binary, num_colunas)
-        
+
         if return_debug_image:
             return resultados, clean_debug
 
