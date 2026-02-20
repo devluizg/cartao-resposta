@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cartão-Resposta — SimuladoApp v2</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Arial', sans-serif;
+      background: #f0f0f0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
+    }
+
+    .page-wrapper {
+      background: white;
+      width: 210mm;
+      min-height: 297mm;
+      padding: 8mm;
+      position: relative;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+
+    /* ── MARCADORES DE CANTO (OMR fiducials) ──────────────────── */
+    /* Círculos sólidos nos 4 cantos — detectados pelo back-end    */
+    .corner-marker {
+      position: absolute;
+      width: 14mm;
+      height: 14mm;
+      background: #000;
+      border-radius: 50%;
+      z-index: 10;
+    }
+    .corner-tl { top: 4mm;  left: 4mm; }
+    .corner-tr { top: 4mm;  right: 4mm; }
+    .corner-bl { bottom: 4mm; left: 4mm; }
+    .corner-br { bottom: 4mm; right: 4mm; }
+
+    /* ── CABEÇALHO ────────────────────────────────────────────── */
+    .header {
+      border: 2px solid #000;
+      border-radius: 4px;
+      padding: 6px 10px;
+      margin-bottom: 5mm;
+      margin-left: 12mm;
+      margin-right: 12mm;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .app-brand {
+      font-size: 11pt;
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: #000;
+    }
+
+    .app-brand span {
+      color: #0077cc;
+    }
+
+    .cartao-id {
+      font-size: 8pt;
+      color: #555;
+      font-family: monospace;
+    }
+
+    .header-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+    }
+
+    .header-fields.three-cols {
+      grid-template-columns: 2fr 1fr 1fr;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .field-label {
+      font-size: 6.5pt;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-bottom: 2px;
+    }
+
+    .field-line {
+      border-bottom: 1.5px solid #000;
+      height: 16px;
+      width: 100%;
+    }
+
+    /* ── TIPO DE PROVA ────────────────────────────────────────── */
+    .tipo-prova-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 4px 0 5mm;
+      margin-left: 12mm;
+      margin-right: 12mm;
+    }
+
+    .tipo-prova-label {
+      font-size: 7pt;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    .tipo-bubbles {
+      display: flex;
+      gap: 6px;
+    }
+
+    .tipo-bubble-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .tipo-bubble-group span {
+      font-size: 6pt;
+      color: #333;
+    }
+
+    .tipo-bubble {
+      width: 8mm;
+      height: 8mm;
+      border: 1.8px solid #000;
+      border-radius: 50%;
+      background: white;
+    }
+
+    /* ── ÁREA DE RESPOSTAS ────────────────────────────────────── */
+    .answers-area {
+      display: flex;
+      gap: 4mm;
+      margin-left: 12mm;
+      margin-right: 12mm;
+      flex: 1;
+    }
+
+    .column {
+      flex: 1;
+      border: 1.5px solid #555;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .column-header {
+      background: #000;
+      color: #fff;
+      text-align: center;
+      font-size: 7pt;
+      font-weight: bold;
+      padding: 2px 0;
+      letter-spacing: 1px;
+    }
+
+    .question-row {
+      display: flex;
+      align-items: center;
+      border-bottom: 0.8px solid #ddd;
+      padding: 1.5px 4px;
+    }
+
+    .question-row:last-child { border-bottom: none; }
+    .question-row:nth-child(even) { background: #f9f9f9; }
+
+    .q-number {
+      font-size: 7pt;
+      font-weight: bold;
+      color: #000;
+      width: 10mm;
+      text-align: right;
+      padding-right: 3px;
+      flex-shrink: 0;
+    }
+
+    .q-bubbles {
+      display: flex;
+      gap: 3px;
+      align-items: center;
+    }
+
+    .bubble-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+    }
+
+    .bubble-letter {
+      font-size: 5.5pt;
+      font-weight: bold;
+      color: #333;
+      line-height: 1;
+    }
+
+    .bubble {
+      width: 6.5mm;
+      height: 6.5mm;
+      border: 1.8px solid #000;
+      border-radius: 50%;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── RODAPÉ ────────────────────────────────────────────────── */
+    .footer {
+      margin-top: 4mm;
+      margin-left: 12mm;
+      margin-right: 12mm;
+      border-top: 1px dashed #aaa;
+      padding-top: 3mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-text {
+      font-size: 6pt;
+      color: #888;
+    }
+
+    .footer-url {
+      font-size: 6pt;
+      color: #0077cc;
+    }
+
+    /* ── INSTRUÇÃO ─────────────────────────────────────────────── */
+    .instructions {
+      margin-left: 12mm;
+      margin-right: 12mm;
+      margin-bottom: 4mm;
+      padding: 4px 8px;
+      background: #fffbe6;
+      border: 1px solid #f0c030;
+      border-radius: 3px;
+      font-size: 6.5pt;
+      color: #555;
+    }
+
+    /* ── IMPRESSÃO ─────────────────────────────────────────────── */
+    @media print {
+      body { background: white; padding: 0; }
+      .page-wrapper { box-shadow: none; margin: 0; padding: 8mm; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-wrapper" id="cartao">
+  <!-- ── MARCADORES DE CANTO (fiduciais OMR) ── -->
+  <div class="corner-marker corner-tl"></div>
+  <div class="corner-marker corner-tr"></div>
+  <div class="corner-marker corner-bl"></div>
+  <div class="corner-marker corner-br"></div>
+
+  <!-- ── CABEÇALHO ── -->
+  <div class="header">
+    <div class="header-top">
+      <div class="app-brand">SIMULADO<span>APP</span></div>
+      <div class="cartao-id">CARTÃO-RESPOSTA v2 · <span id="data-label"></span></div>
+    </div>
+    <div class="header-fields three-cols">
+      <div class="field-group">
+        <div class="field-label">Nome do Aluno</div>
+        <div class="field-line"></div>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Turma</div>
+        <div class="field-line"></div>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Número</div>
+        <div class="field-line"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TIPO DE PROVA ── -->
+  <div class="tipo-prova-row">
+    <div class="tipo-prova-label">VERSÃO DA PROVA →</div>
+    <div class="tipo-bubbles" id="tipo-bubbles">
+      <!-- Gerado por JS -->
+    </div>
+  </div>
+
+  <!-- ── INSTRUÇÃO ── -->
+  <div class="instructions">
+    ⚠️ <strong>Instruções:</strong> Preencha completamente cada bolha com caneta ou lápis. Use apenas uma alternativa por questão. Rasuras invalidam a questão.
+  </div>
+
+  <!-- ── ÁREA DE RESPOSTAS ── -->
+  <div class="answers-area" id="answers-area">
+    <!-- Gerado por JS -->
+  </div>
+
+  <!-- ── RODAPÉ ── -->
+  <div class="footer">
+    <div class="footer-text">SimuladoApp · Cartão-Resposta com reconhecimento óptico automático</div>
+    <div class="footer-url">simuladoapp.com.br</div>
+  </div>
+</div>
+
+<script>
+  // ── Configuração via URL params ─────────────────────────────────
+  const params = new URLSearchParams(window.location.search);
+  const NUM_QUESTOES = parseInt(params.get('q') || '24');
+  const NUM_ALTERNATIVAS = parseInt(params.get('a') || '5');
+  const NUM_TIPOS = parseInt(params.get('t') || '5');
+  const LETRAS = 'ABCDEFGHIJ'.slice(0, NUM_ALTERNATIVAS);
+
+  // Data no cabeçalho
+  document.getElementById('data-label').textContent =
+    new Date().toLocaleDateString('pt-BR');
+
+  // ── Tipos de prova ──────────────────────────────────────────────
+  const tipoBubbles = document.getElementById('tipo-bubbles');
+  for (let t = 1; t <= NUM_TIPOS; t++) {
+    const grp = document.createElement('div');
+    grp.className = 'tipo-bubble-group';
+    grp.innerHTML = `
+      <span>${t}</span>
+      <div class="tipo-bubble"></div>
+    `;
+    tipoBubbles.appendChild(grp);
+  }
+
+  // ── Calcular colunas ────────────────────────────────────────────
+  function calcColunas(q) {
+    if (q <= 23) return 1;
+    if (q <= 45) return 2;
+    return 3;
+  }
+
+  const numColunas = calcColunas(NUM_QUESTOES);
+  const questoesPorColuna = Math.ceil(NUM_QUESTOES / numColunas);
+  const answersArea = document.getElementById('answers-area');
+
+  // ── Gerar colunas e bolhas ──────────────────────────────────────
+  for (let col = 0; col < numColunas; col++) {
+    const colDiv = document.createElement('div');
+    colDiv.className = 'column';
+
+    const qStart = col * questoesPorColuna + 1;
+    const qEnd   = Math.min((col + 1) * questoesPorColuna, NUM_QUESTOES);
+    const colLabel = numColunas > 1
+      ? `QUESTÕES ${qStart}–${qEnd}`
+      : `QUESTÕES 1–${NUM_QUESTOES}`;
+
+    colDiv.innerHTML = `<div class="column-header">${colLabel}</div>`;
+
+    for (let q = qStart; q <= qEnd; q++) {
+      const row = document.createElement('div');
+      row.className = 'question-row';
+
+      let bubblesHTML = `<div class="q-number">${q}.</div><div class="q-bubbles">`;
+      for (let a = 0; a < NUM_ALTERNATIVAS; a++) {
+        bubblesHTML += `
+          <div class="bubble-group">
+            <span class="bubble-letter">${LETRAS[a]}</span>
+            <div class="bubble"></div>
+          </div>`;
+      }
+      bubblesHTML += '</div>';
+      row.innerHTML = bubblesHTML;
+      colDiv.appendChild(row);
+    }
+
+    answersArea.appendChild(colDiv);
+  }
+</script>
+</body>
+</html>

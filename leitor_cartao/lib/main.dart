@@ -7,6 +7,7 @@ import 'dart:convert' show utf8, latin1, jsonDecode, json, base64Decode;
 import 'package:logging/logging.dart' show Logger;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/cartao_resposta_preview_screen.dart';
+import 'screens/camera_capture_screen.dart';
 import 'screens/selection_screen.dart';
 import 'services/credit_manager.dart';
 import 'screens/loja_creditos_screen.dart';
@@ -342,19 +343,22 @@ class _TelaInicialState extends State<TelaInicial> {
     }
   }
 
+  /// Abre a tela de captura guiada com overlay de enquadramento
   Future<void> _capturarImagem() async {
     try {
-      final XFile? imagem = await _picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 100,
-        preferredCameraDevice: CameraDevice.rear,
-        maxWidth: 1600,
-        maxHeight: 1200,
+      final result = await Navigator.push<CaptureResult>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CameraCaptureScreen(
+            numQuestoes: _numeroQuestoes ?? 24,
+            tipoProva: _tipoProva,
+          ),
+        ),
       );
 
-      if (imagem != null) {
+      if (result != null) {
         setState(() {
-          _imagemSelecionada = File(imagem.path);
+          _imagemSelecionada = result.imageFile;
           _mensagemErro = null;
           _temImagensProcessadas = false;
         });
@@ -371,8 +375,8 @@ class _TelaInicialState extends State<TelaInicial> {
       final XFile? imagem = await _picker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 100,
-        maxWidth: 1600,
-        maxHeight: 1200,
+        maxWidth: 2048,
+        maxHeight: 2048,
       );
 
       if (imagem != null) {

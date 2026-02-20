@@ -49,7 +49,7 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
   static const Color bgLight = Color(0xFFF8FAFC);       // Cinza super claro (fundo - modo claro)
   static const Color bgSurfaceLight = Color(0xFFFFFFFF);// Cards modo claro
   static const Color borderColor = Color(0xFFDBE2E6);   // Cinza claro (bordas)
-  static const Color textDark = Color(0xFF003D5C);      // Texto escuro para modo claro
+
   static const Color textMuted = Color(0xFF94A3B8);     // Slate 400
   static const Color successColor = Color(0xFF16A34A);  // Verde
   static const Color dangerColor = Color(0xFFEF4444);   // Vermelho 500

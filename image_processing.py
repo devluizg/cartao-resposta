@@ -153,29 +153,39 @@ def melhorar_pre_processamento_adaptativo(image):
     l_clahe = clahe.apply(l_norm)
 
     # 4. Shadow removal com top-hat morphological
-    kernel_tophat = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+    # Aumentando o kernel para ser maior que uma bolha esperada (bolha ~6% da menor dimensão)
+    # Isso preserva as bolhas mas remove sombras e gradientes maiores
+    kernel_size = max(45, int(min(gray.shape) * 0.08))
+    if kernel_size % 2 == 0:
+        kernel_size += 1
+        
+    kernel_tophat = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
     tophat = cv2.morphologyEx(l_clahe, cv2.MORPH_TOPHAT, kernel_tophat)
-    l_corrected = cv2.add(l_clahe, tophat)
+    
+    # Subtrair background irregular e somar tophat ajuda a nivelar a luz
+    bg = cv2.morphologyEx(l_clahe, cv2.MORPH_OPEN, kernel_tophat)
+    l_corrected = cv2.subtract(l_clahe, bg)
+    l_corrected = cv2.normalize(l_corrected, None, 0, 255, cv2.NORM_MINMAX)
 
     # 5. Bilateral filter (preserva bordas enquanto suaviza)
     filtered = cv2.bilateralFilter(l_corrected.astype(np.uint8), 9, 75, 75)
 
-    # 6. Multi-threshold combinado
-    # Threshold adaptativo
-    binary_adaptive = cv2.adaptiveThreshold(
+    # 6. Threshold robusto a sombras
+    # Usando apenas Adaptive Threshold que lida bem com variações locais de luz.
+    # Excluímos Otsu/Triangle porque limiares globais "borram" sombras tornando-as falsos positivos.
+    
+    # O tamanho do bloco deve ser no mínimo maior que a bolha
+    block_size = kernel_size
+    
+    binary = cv2.adaptiveThreshold(
         filtered, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY_INV, 21, 10
+        cv2.THRESH_BINARY_INV, block_size, 10
     )
 
-    # Threshold Otsu
-    _, binary_otsu = cv2.threshold(filtered, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-
-    # Threshold Triangle (alternativa)
-    _, binary_triangle = cv2.threshold(filtered, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_TRIANGLE)
-
-    # Combinar com pesos
-    binary = cv2.addWeighted(binary_adaptive, 0.5, binary_otsu, 0.3, 0)
-    binary = cv2.bitwise_or(binary, (binary_triangle.astype(np.uint8) * 0.2).astype(np.uint8))
+    # Reduzindo o peso global (não usar limiar global em caso de sombras severas, mas
+    # uma pequena mistura com threshold simples de contraste muito alto pode ajudar a evitar ruído excessivo)
+    _, binary_simple = cv2.threshold(filtered, 50, 255, cv2.THRESH_BINARY_INV)
+    binary = cv2.bitwise_and(binary, binary_simple)
 
     # 7. Limpeza morfológica otimizada
     kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
@@ -264,6 +274,116 @@ def _validar_proporcoes_a4(rect, tolerance=0.2):
     # A4 ratio é 1.414 (±tolerance)
     return (1.414 * (1 - tolerance) < ratio < 1.414 * (1 + tolerance))
 
+def detectar_marcadores_de_canto(binary):
+    """
+    Detecta os 4 marcadores de canto sólidos (círculos pretos) do cartão v2.
+
+    O cartão-resposta v2 tem círculos sólidos pretos de ~14mm nos 4 cantos.
+    Essa função os localiza e retorna os 4 centros no formato:
+      [topo-esquerdo, topo-direito, baixo-direito, baixo-esquerdo]
+
+    Returns:
+        np.ndarray shape (4,2) float32 com os centros, ou None se não detectar.
+    """
+    h, w = binary.shape
+
+    # Inverter: marcadores são PRETOS → ficam brancos após inversão
+    inv = cv2.bitwise_not(binary)
+
+    # Blur leve para suavizar ruído
+    blurred = cv2.GaussianBlur(inv, (5, 5), 0)
+
+    # Limiar de tamanho: marcadores devem ter raio mínimo de 2% da menor dimensão
+    raio_min = int(min(h, w) * 0.02)
+    raio_max = int(min(h, w) * 0.12)
+
+    # Regiões de busca: cantos (25% de cada dimensão)
+    margin_x = w // 4
+    margin_y = h // 4
+
+    regioes = [
+        (0, 0, margin_x, margin_y,          'TL'),   # Topo-esquerdo
+        (w - margin_x, 0, w, margin_y,      'TR'),   # Topo-direito
+        (w - margin_x, h - margin_y, w, h, 'BR'),   # Baixo-direito
+        (0, h - margin_y, margin_x, h,      'BL'),   # Baixo-esquerdo
+    ]
+
+    centros = {}
+
+    for (x1, y1, x2, y2, label) in regioes:
+        roi = blurred[y1:y2, x1:x2]
+        if roi.size == 0:
+            continue
+
+        # Tentar detectar blobs circulares sólidos via contornos
+        _, thresh_roi = cv2.threshold(roi, 60, 255, cv2.THRESH_BINARY)
+        contornos, _ = cv2.findContours(thresh_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        melhor = None
+        melhor_score = 0
+
+        for cnt in contornos:
+            area = cv2.contourArea(cnt)
+            if area < (raio_min ** 2 * 3.14) or area > (raio_max ** 2 * 3.14):
+                continue
+
+            # Calcular circularidade: 4π·A / P²
+            perimeter = cv2.arcLength(cnt, True)
+            if perimeter == 0:
+                continue
+            circularidade = 4 * np.pi * area / (perimeter ** 2)
+            if circularidade < 0.55:  # ≥ 55% circularidade
+                continue
+
+            # Calcular score: maior área + melhor circularidade
+            score = area * circularidade
+            if score > melhor_score:
+                melhor_score = score
+                M = cv2.moments(cnt)
+                if M['m00'] > 0:
+                    cx = int(M['m10'] / M['m00']) + x1
+                    cy = int(M['m01'] / M['m00']) + y1
+                    melhor = (cx, cy)
+
+        if melhor is not None:
+            centros[label] = melhor
+        else:
+            # Fallback: HoughCircles na ROI
+            circles = cv2.HoughCircles(
+                roi,
+                cv2.HOUGH_GRADIENT,
+                dp=1.2,
+                minDist=raio_min * 2,
+                param1=50,
+                param2=20,
+                minRadius=raio_min,
+                maxRadius=raio_max,
+            )
+            if circles is not None:
+                # Pegar o maior círculo detectado na ROI
+                circles = np.round(circles[0]).astype(int)
+                # Escolher o de maior raio
+                maior = max(circles, key=lambda c: c[2])
+                centros[label] = (int(maior[0]) + x1, int(maior[1]) + y1)
+
+    if len(centros) < 4:
+        print(f"Marcadores de canto: detectados {len(centros)}/4 — fallback para contorno")
+        return None
+
+    # Ordenar: TL, TR, BR, BL
+    tl = centros.get('TL')
+    tr = centros.get('TR')
+    br = centros.get('BR')
+    bl = centros.get('BL')
+
+    if None in (tl, tr, br, bl):
+        return None
+
+    pts = np.array([tl, tr, br, bl], dtype=np.float32)
+    print(f"✅ Marcadores de canto detectados: TL={tl} TR={tr} BR={br} BL={bl}")
+    return pts
+
+
 def corrigir_perspectiva(image, binary):
     """
     Detecta e corrige a perspectiva do cartão de respostas com fallback robusto.
@@ -279,36 +399,47 @@ def corrigir_perspectiva(image, binary):
     """
     h, w = binary.shape
 
-    # Método 1: Detectar por contornos
-    rect = _detectar_retangulo_por_contorno(binary)
+    # ── Método 0 (PRIORITÁRIO): Marcadores de canto sólidos do cartão v2 ──
+    # Se existirem os 4 círculos sólidos pretos nos cantos, usar diretamente.
+    # Mais preciso que qualquer método de contorno genérico.
+    ordered_rect = None
+    pts_marcadores = detectar_marcadores_de_canto(binary)
+    if pts_marcadores is not None:
+        # pts_marcadores ordem: TL, TR, BR, BL → mapear para ordered_rect: TL,TR,BR,BL
+        ordered_rect = pts_marcadores
+        print("✅ Usando marcadores de canto para correção de perspectiva")
 
-    # Método 2: Fallback para Hough Lines + RANSAC
-    if rect is None:
-        rect = _detectar_retangulo_por_ransac(binary)
+    if ordered_rect is None:
+        # ── Método 1: Detectar por contornos ──────────────────────────────
+        rect = _detectar_retangulo_por_contorno(binary)
 
-    # Método 3: Fallback para bounding box
-    if rect is None:
-        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if not contours:
+        # ── Método 2: Fallback para Hough Lines + RANSAC ──────────────────
+        if rect is None:
+            rect = _detectar_retangulo_por_ransac(binary)
+
+        # ── Método 3: Fallback para bounding box ──────────────────────────
+        if rect is None:
+            contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if not contours:
+                return image, binary, False
+
+            largest = max(contours, key=cv2.contourArea)
+            x, y, w_rect, h_rect = cv2.boundingRect(largest)
+            rect = np.array([[x, y], [x + w_rect, y], [x + w_rect, y + h_rect], [x, y + h_rect]], dtype=np.float32)
+
+        if rect is None:
             return image, binary, False
 
-        largest = max(contours, key=cv2.contourArea)
-        x, y, w_rect, h_rect = cv2.boundingRect(largest)
-        rect = np.array([[x, y], [x + w_rect, y], [x + w_rect, y + h_rect], [x, y + h_rect]], dtype=np.float32)
+        # Ordenar pontos: TL, TR, BR, BL
+        rect = rect.reshape(4, 2).astype(np.float32)
+        sum_coords = rect.sum(axis=1)
+        diff_coords = np.diff(rect, axis=1)
 
-    if rect is None:
-        return image, binary, False
-
-    # Ordenar pontos do retângulo
-    rect = rect.reshape(4, 2).astype(np.float32)
-    sum_coords = rect.sum(axis=1)
-    diff_coords = np.diff(rect, axis=1)
-
-    ordered_rect = np.zeros((4, 2), dtype=np.float32)
-    ordered_rect[0] = rect[np.argmin(sum_coords)]      # Top-left
-    ordered_rect[2] = rect[np.argmax(sum_coords)]      # Bottom-right
-    ordered_rect[1] = rect[np.argmin(diff_coords)]     # Top-right
-    ordered_rect[3] = rect[np.argmax(diff_coords)]     # Bottom-left
+        ordered_rect = np.zeros((4, 2), dtype=np.float32)
+        ordered_rect[0] = rect[np.argmin(sum_coords)]      # Top-left
+        ordered_rect[1] = rect[np.argmin(diff_coords)]     # Top-right
+        ordered_rect[2] = rect[np.argmax(sum_coords)]      # Bottom-right
+        ordered_rect[3] = rect[np.argmax(diff_coords)]     # Bottom-left
 
     # Validar proporções A4
     if not _validar_proporcoes_a4(ordered_rect):
