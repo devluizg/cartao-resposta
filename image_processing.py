@@ -66,57 +66,84 @@ def limpar_cache_templates():
 def aplicar_flash_virtual(gray):
     """
     Simula o efeito de um flash de celular na imagem.
-    
+
     O flash faz 3 coisas que replicamos digitalmente:
     1. Estima a iluminação ambiente (blur gaussiano grande)
     2. Divide cada pixel pela iluminação local (remove sombras)
     3. Estica o contraste para que branco=255 e preto=0
-    
+
     Resultado: imagem como se tivesse sido tirada com flash.
     Se a imagem já tinha boa iluminação, quase não muda (idempotente).
-    
+
+    **Melhorias V8:**
+    - Detecta sombras extremas e aumenta agressividade
+    - Ajusta kernel size dinamicamente
+    - Mais agressivo no stretch de contraste para sombras
+
     Args:
         gray: Imagem em escala de cinza (uint8)
-    
+
     Returns:
         flash_image: Imagem com "flash virtual" aplicado (uint8)
     """
     h, w = gray.shape
     gray_float = gray.astype(np.float64)
-    
+
+    # Detectar severidade das sombras
+    # Usar distribuição de pixels para estimar se há sombras extremas
+    percentil_5 = np.percentile(gray, 5)
+    percentil_95 = np.percentile(gray, 95)
+    range_dinamico = percentil_95 - percentil_5
+
+    # Se range dinâmico é MUITO pequeno (< 60), há sombras EXTREMAS
+    # Threshold mais conservador para não afetar imagens normais
+    tem_sombra_extrema = range_dinamico < 60
+
     # PASSO 1: Estimar a iluminação ambiente
     # Usar blur gaussiano muito grande - captura apenas variações de luz
-    # (sombras, gradientes) mas não as bolhas/texto (alta frequência)
     # Tamanho = ~20% da menor dimensão, garante cobertura de sombras grandes
     ksize = int(min(h, w) * 0.2)
     if ksize % 2 == 0:
         ksize += 1
     ksize = max(ksize, 51)
-    
+
+    # Se há sombra extrema, aumentar kernel size para cobrir sombras maiores
+    if tem_sombra_extrema:
+        ksize = int(ksize * 1.5)
+        if ksize % 2 == 0:
+            ksize += 1
+
     iluminacao = cv2.GaussianBlur(gray_float, (ksize, ksize), ksize // 3)
-    
+
     # Evitar divisão por zero
     iluminacao = np.maximum(iluminacao, 1.0)
-    
-    # PASSO 2: Normalizar pela iluminação (como se toda a folha 
-    # recebesse a mesma quantidade de luz)
-    # Isso é equivalente ao que o flash faz fisicamente
+
+    # PASSO 2: Normalizar pela iluminação
     flash = (gray_float * 255.0) / iluminacao
-    
+
     # PASSO 3: Clip e converter
     flash = np.clip(flash, 0, 255).astype(np.uint8)
-    
+
     # PASSO 4: Esticar contraste para usar o range completo 0-255
-    # Isso simula a saturação que o flash causa (branco=255, preto=0)
-    # Usar percentis para ignorar outliers
-    p_low = np.percentile(flash, 2)
-    p_high = np.percentile(flash, 98)
-    
+    # Para sombras extremas, usar percentis mais agressivos
+    if tem_sombra_extrema:
+        # Mais agressivo: 1% e 99% em vez de 2% e 98%
+        p_low = np.percentile(flash, 1)
+        p_high = np.percentile(flash, 99)
+    else:
+        p_low = np.percentile(flash, 2)
+        p_high = np.percentile(flash, 98)
+
     if p_high > p_low:
         flash = np.clip((flash.astype(np.float64) - p_low) * 255.0 / (p_high - p_low), 0, 255).astype(np.uint8)
     else:
         flash = cv2.normalize(flash, None, 0, 255, cv2.NORM_MINMAX)
-    
+
+    # PASSO 5: Para sombras extremas, aplicar suavização adicional pós-flash
+    # Isso ajuda a "limpar" artefatos do processamento agressivo
+    if tem_sombra_extrema:
+        flash = cv2.GaussianBlur(flash, (3, 3), 0)
+
     return flash
 
 
