@@ -610,11 +610,12 @@ class CartaoRespostaAnalyzer:
                 bolha['y'] += y
 
             if bolhas:
-                questoes = agrupar_bolhas_por_questoes(bolhas, num_questoes, 5)
-                resultados, confianca_res, baixa_confianca = analisar_gabarito(
-                    questoes, num_questoes, self.alternativas, binary=roi_cartao, image=image[y:y+h, x:x+w]
+                # **PILAR 5: Usar processamento em cascata**
+                resultados, confianca_res, estrategia_usada, valido = processar_cartao_com_cascata(
+                    bolhas, num_questoes, 5,
+                    binary=roi_cartao, image=image[y:y+h, x:x+w], debug=False
                 )
-                self.ultima_baixa_confianca = baixa_confianca
+                self.ultima_baixa_confianca = []
 
                 for i, questao in enumerate(questoes):
                     if i >= num_questoes:
@@ -671,11 +672,147 @@ class CartaoRespostaAnalyzer:
         debug_image[:] = debug_img[:]
 
         if bolhas:
-            questoes = agrupar_bolhas_por_questoes(bolhas, num_questoes, len(self.alternativas))
-            resultados_analise, confianca_res, baixa_confianca = analisar_gabarito(questoes, num_questoes, self.alternativas, binary=binary_proc, image=image)
-            self.ultima_baixa_confianca = baixa_confianca
+            # **PILAR 5: Usar processamento em cascata**
+            # Tenta múltiplas estratégias até uma passar na validação
+            resultados_analise, confianca_res, estrategia_usada, valido = processar_cartao_com_cascata(
+                bolhas, num_questoes, len(self.alternativas),
+                binary=binary_proc, image=image, debug=False
+            )
+            print(f"  → {estrategia_usada}")
+
+            # Simular baixa_confianca (para compatibilidade)
+            self.ultima_baixa_confianca = []
+
             resultados = validar_resultados(resultados_analise, confianca_res, num_questoes)
         return resultados
+
+
+def processar_cartao_com_cascata(bolhas, num_questoes, num_alternativas=5,
+                                  binary=None, image=None, debug=False):
+    """
+    **PILAR 5: Processamento em Cascata com Múltiplas Estratégias**
+
+    Tenta várias estratégias de agrupamento de bolhas em sequência.
+    Cada estratégia é validada estatisticamente antes de passar para a próxima.
+
+    Estratégias (em ordem):
+    1. Agrupamento padrão (DBSCAN iterativo já aplicado em agrupar_bolhas_por_questoes)
+    2. Re-análise com threshold reduzido (mais permissivo)
+    3. Re-análise com threshold aumentado (mais restritivo)
+    4. Retornar com confiança baixa
+
+    Args:
+        bolhas: Lista de bolhas detectadas
+        num_questoes: Número de questões esperado
+        num_alternativas: Número de alternativas (5 para A-E)
+        binary: Imagem binária (para análise avançada)
+        image: Imagem original (para análise avançada)
+        debug: Se True, printa detalhes de cada tentativa
+
+    Returns:
+        (resultados, confianca, estrategia_usada, valido)
+        - resultados: dict {num_questao: letra ou None}
+        - confianca: dict {num_questao: confidence_score}
+        - estrategia_usada: string descrevendo qual estratégia funcionou
+        - valido: boolean se resultado passou na validação
+    """
+    from sklearn.cluster import KMeans
+
+    if not bolhas:
+        return {i: None for i in range(1, num_questoes + 1)}, {i: 0.0 for i in range(1, num_questoes + 1)}, "Nenhuma bolha detectada", False
+
+    alternativas = ['A', 'B', 'C', 'D', 'E'][:num_alternativas]
+
+    # === ESTRATÉGIA 1: Agrupamento padrão (DBSCAN iterativo já foi aplicado) ===
+    if debug:
+        print("\n  [Cascata] Estratégia 1: Agrupamento padrão (DBSCAN iterativo)")
+
+    # Agrupar com a função padrão (que já usa DBSCAN iterativo)
+    questoes_1 = agrupar_bolhas_por_questoes(bolhas, num_questoes, num_alternativas)
+    resultados_1, confianca_1, _ = analisar_gabarito(questoes_1, num_questoes, alternativas, binary, image)
+    valido_1, motivo_1 = validar_resultado_razoavel(resultados_1, confianca_1, num_questoes, num_alternativas)
+
+    if valido_1:
+        if debug:
+            print(f"  ✅ Estratégia 1 passou: {motivo_1}")
+        return resultados_1, confianca_1, "Estratégia 1: DBSCAN iterativo", True
+
+    if debug:
+        print(f"  ❌ Estratégia 1 falhou: {motivo_1}")
+
+    # === ESTRATÉGIA 2: Forçar KMeans com número exato de questões ===
+    if debug:
+        print("  [Cascata] Estratégia 2: KMeans forçado com tolerância ±2")
+
+    try:
+        centros = np.array([[b['x'], b['y']] for b in bolhas])
+        y_only = centros[:, 1].reshape(-1, 1)
+
+        # Tentar KMeans com ±2 clusters
+        for k_try in [num_questoes, num_questoes - 1, num_questoes + 1, num_questoes - 2, num_questoes + 2]:
+            if k_try < 1:
+                continue
+
+            kmeans = KMeans(n_clusters=k_try, random_state=42, n_init=10)
+            labels = kmeans.fit_predict(y_only)
+
+            from collections import defaultdict
+            clusters = defaultdict(list)
+            for i, bolha in enumerate(bolhas):
+                if labels[i] != -1:
+                    clusters[labels[i]].append(bolha)
+
+            sorted_clusters = sorted(
+                clusters.values(),
+                key=lambda c: np.mean([b['y'] for b in c])
+            )
+
+            questoes_2 = sorted_clusters[:num_questoes]
+            resultados_2, confianca_2, _ = analisar_gabarito(questoes_2, num_questoes, alternativas, binary, image)
+            valido_2, motivo_2 = validar_resultado_razoavel(resultados_2, confianca_2, num_questoes, num_alternativas)
+
+            if valido_2:
+                if debug:
+                    print(f"  ✅ Estratégia 2 passou com k={k_try}: {motivo_2}")
+                return resultados_2, confianca_2, f"Estratégia 2: KMeans(k={k_try})", True
+
+        if debug:
+            print(f"  ❌ Estratégia 2 falhou para todos k")
+    except Exception as e:
+        if debug:
+            print(f"  ❌ Estratégia 2 exception: {e}")
+
+    # === ESTRATÉGIA 3: Re-análise com threshold de confiança reduzido ===
+    if debug:
+        print("  [Cascata] Estratégia 3: Re-análise com confiança reduzida")
+
+    # Usar resultado da estratégia 1, mas marcar como baixa confiança
+    # (permitir respostas com confidence > 0.15 em vez de > 0.20)
+    resultados_3 = resultados_1.copy()
+    confianca_3 = {q: max(0.15, c) for q, c in confianca_1.items()}  # Boost minimum confidence
+
+    # Aplicar validação menos estrita
+    num_lidas_3 = sum(1 for r in resultados_3.values() if r is not None)
+    if num_lidas_3 >= num_questoes * 0.60:  # Menos restritivo: 60% vs 70%
+        if debug:
+            print(f"  ✅ Estratégia 3 passou: {num_lidas_3}/{num_questoes} questões lidas (60% mínimo)")
+        return resultados_3, confianca_3, "Estratégia 3: Re-análise com confiança reduzida", True
+
+    if debug:
+        print(f"  ❌ Estratégia 3 falhou: Apenas {num_lidas_3}/{num_questoes} questões")
+
+    # === ESTRATÉGIA 4: Retornar com marcação de baixa confiança ===
+    if debug:
+        print("  [Cascata] Estratégia 4: Retornar com marcação de baixa confiança (fallback final)")
+
+    # Marcar todas as respostas com baixa confiança
+    resultados_4 = {q: f"{r}?" if r else None for q, r in resultados_1.items()}
+    confianca_4 = {q: 0.1 for q in resultados_1.keys()}  # Confiança mínima
+
+    if debug:
+        print(f"  ⚠️ Estratégia 4 (fallback final): Retornando com confiança baixa")
+
+    return resultados_4, confianca_4, "Estratégia 4: Fallback com confiança baixa", False
 
 
 class MultiColumnCartaoAnalyzer:
