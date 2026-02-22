@@ -234,9 +234,16 @@ def melhorar_pre_processamento_adaptativo(image):
     if has_shadow:
         print(f"  ⚡ Flash virtual aplicado (sombra detectada: quad={quad_range:.0f}, grid={grid_range:.0f})")
     
-    # 3. CLAHE leve — apenas para melhorar contraste local
-    # Não precisa ser agressivo porque o flash já normalizou
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    # 3. CLAHE — Adaptativo para contraste baixo
+    # ✅ FIX B1+B2: Se contraste < 45 (imagem "lavada"), usar CLAHE agressivo
+    # Contraste < 40 era muito restritivo (imagem 19.33.45 tinha contrast=39 mas era detectada como "normal")
+    if contrast < 45:
+        clahe_limit, clahe_grid = 3.5, (10, 10)  # Mais agressivo
+        print(f"  🔧 CLAHE AGRESSIVO (contraste={contrast:.0f}): clip={clahe_limit}, grid={clahe_grid}")
+    else:
+        clahe_limit, clahe_grid = 2.0, (8, 8)
+
+    clahe = cv2.createCLAHE(clipLimit=clahe_limit, tileGridSize=clahe_grid)
     enhanced = clahe.apply(flash)
     
     # 4. Suavização leve
@@ -1437,18 +1444,28 @@ def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 
     
     for i, questao in enumerate(questoes):
         num_questao = i + 1
-        
+
         if num_questao > num_questoes:
             break
-            
+
         if not questao:
             continue
-            
+
+        # ✅ FIX C1: Validar ordem de bolhas por X (esquerda→direita = A→E)
+        # Se bolhas não estão em ordem X, reordenar antes de mapear para alternativas
+        xs_original = [b.get('x', 0) for b in questao]
+        questao_ordenada = sorted(questao, key=lambda b: b.get('x', 0))
+        xs_ordenada = [b.get('x', 0) for b in questao_ordenada]
+
+        if xs_original != xs_ordenada:
+            print(f"  🔄 [FIX C1] Q{num_questao}: Bolhas reordenadas por X")
+            questao = questao_ordenada  # Usar versão ordenada
+
         max_preenchimento = 0.0
         alt_index = -1
         second_max = 0.0
         preenchimentos = []
-        
+
         for j, bolha in enumerate(questao):
             if j >= len(alternativas):
                 break
