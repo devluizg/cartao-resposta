@@ -228,49 +228,97 @@ def melhorar_pre_processamento_adaptativo(image):
         )
     }
 
-    # 2. FLASH VIRTUAL — aplicado SEMPRE (idempotente)
+    # 2. Correção de gamma para baixa luminosidade (antes do flash virtual)
+    gamma = 1.0
+    if brightness < 110:
+        # Quanto mais escuro, maior a correção (clareia a imagem)
+        # 70 -> ~1.8, 100 -> ~1.2
+        gamma = float(np.clip(2.2 - (brightness / 100.0), 1.2, 2.2))
+    if gamma != 1.0:
+        inv_gamma = 1.0 / gamma
+        table = (np.array([((i / 255.0) ** inv_gamma) * 255 for i in range(256)])
+                 .astype("uint8"))
+        l_norm = cv2.LUT(l_norm, table)
+        metadata['gamma'] = gamma
+    else:
+        metadata['gamma'] = 1.0
+
+    # 3. FLASH VIRTUAL — aplicado SEMPRE (idempotente)
     flash = aplicar_flash_virtual(l_norm)
     
     if has_shadow:
         print(f"  ⚡ Flash virtual aplicado (sombra detectada: quad={quad_range:.0f}, grid={grid_range:.0f})")
     
-    # 3. CLAHE leve — apenas para melhorar contraste local
-    # Não precisa ser agressivo porque o flash já normalizou
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    # 4. CLAHE — Adaptativo baseado em contraste
+    # ✅ FIX B1: Reduzir threshold de contraste de 40 para 45
+    # ✅ FIX B2: Aumentar agressividade para contraste < 45
+    # Filosofia: Se contraste < 45, a imagem é "lavada" e precisa de reforço maior
+    if brightness < 110:
+        clahe_limit, clahe_grid = 3.0, (12, 12)
+    elif contrast < 45:  # ← CHANGED: 40 → 45 (detecção mais sensível)
+        clahe_limit, clahe_grid = 4.0, (10, 10)  # ← CHANGED: 3.5 → 4.0, (12,12) → (10,10) mais agressivo
+        print(f"  🔧 CLAHE AGRESSIVO para baixo contraste ({contrast:.0f}): clip={clahe_limit}, grid={clahe_grid}")
+    else:
+        clahe_limit, clahe_grid = 2.0, (8, 8)
+    clahe = cv2.createCLAHE(clipLimit=clahe_limit, tileGridSize=clahe_grid)
     enhanced = clahe.apply(flash)
     
-    # 4. Suavização leve
+    # 5. Suavização leve
     filtered = cv2.GaussianBlur(enhanced, (3, 3), 0)
     
-    # 5. Binarização — Otsu funciona perfeitamente com flash virtual
+    # 6. Binarização — Otsu funciona perfeitamente com flash virtual
     # porque a distribuição bimodal (papel branco vs tinta preta) fica clara
     _, binary_otsu = cv2.threshold(filtered, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     
-    # 6. Threshold adaptativo como complemento (captura detalhes finos)
+    # 7. Threshold adaptativo como complemento (captura detalhes finos)
+    # Em baixa luz, usar janela maior e C menor para manter bolhas
+    if brightness < 110 or contrast < 40:
+        block_size = 31
+        c_value = 6
+    else:
+        block_size = 21
+        c_value = 8
     binary_adaptive = cv2.adaptiveThreshold(
         filtered, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY_INV, 21, 8
+        cv2.THRESH_BINARY_INV, block_size, c_value
     )
     
-    # 7. Combinar: OR para não perder nenhuma bolha
+    # 8. Combinar: OR para não perder nenhuma bolha
     binary = cv2.bitwise_or(binary_otsu, binary_adaptive)
     
-    # 8. Filtro de ruído: só manter pixels em regiões escuras
-    _, mask_dark = cv2.threshold(filtered, 200, 255, cv2.THRESH_BINARY)
+    # 9. Filtro de ruído: só manter pixels em regiões escuras
+    # dark_thresh: pixels mais claros que isso no `filtered` são mascarados (descartados).
+    # Para imagens lavadas/baixo contraste, reduzir threshold para não mascarar bolhas fracas.
+    if brightness < 110:
+        dark_thresh = int(np.clip(140 + (contrast * 0.5), 120, 170))
+    elif contrast < 40:
+        dark_thresh = int(np.clip(170 + (contrast * 0.5), 170, 195))  # lavada: mais permissivo
+    else:
+        dark_thresh = 200
+    _, mask_dark = cv2.threshold(filtered, dark_thresh, 255, cv2.THRESH_BINARY)
     mask_dark = cv2.bitwise_not(mask_dark)
     kernel_dilate = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
     mask_dark = cv2.dilate(mask_dark, kernel_dilate)
     binary = cv2.bitwise_and(binary, mask_dark)
     
-    # 9. Limpeza morfológica
-    kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-    kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    # 10. Limpeza morfológica
+    kernel_open = cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE, (3, 3) if brightness >= 110 else (5, 5)
+    )
+    kernel_close = cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE, (5, 5) if brightness >= 110 else (7, 7)
+    )
     binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel_open)
     binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel_close)
 
+    # Métrica simples de densidade de pixels pretos para diagnóstico
+    black_ratio = float(np.mean(binary > 0))
+    metadata['black_ratio'] = black_ratio
+
     print(f"Pré-processamento: brightness={brightness:.0f}, contrast={contrast:.0f}, "
           f"shadow={'YES' if has_shadow else 'NO'} (quad={quad_range:.0f}, grid={grid_range:.0f}), "
-          f"profile={metadata['illumination_profile']}")
+          f"profile={metadata['illumination_profile']}, gamma={metadata['gamma']:.2f}, "
+          f"black_ratio={black_ratio:.3f}")
 
     return binary, metadata
 
@@ -436,8 +484,10 @@ def detectar_marcadores_de_canto(binary):
     """
     h, w = binary.shape
 
-    inv = cv2.bitwise_not(binary)
-    blurred = cv2.GaussianBlur(inv, (5, 5), 0)
+    # CORREÇÃO: usar binary diretamente (marcadores=branco em fundo preto).
+    # Antes usava bitwise_not(binary) que invertia a polaridade e quebrava
+    # o findContours (que detecta objetos BRANCOS em fundo PRETO).
+    blurred = cv2.GaussianBlur(binary, (5, 5), 0)
 
     raio_min = int(min(h, w) * 0.02)
     raio_max = int(min(h, w) * 0.12)
@@ -475,15 +525,15 @@ def detectar_marcadores_de_canto(binary):
             if perimeter == 0:
                 continue
             circularidade = 4 * np.pi * area / (perimeter ** 2)
-            # MUDANÇA: Relaxar circularidade de 0.55 para 0.45
-            if circularidade < 0.45:
+            # Relaxar circularidade para 0.35 (lidar com distorção leve de perspectiva)
+            if circularidade < 0.35:
                 continue
 
-            # NOVO: Verificar solidez
+            # Verificar solidez (relaxado para 0.6 para tolerar bordas imperfeitas)
             hull = cv2.convexHull(cnt)
             hull_area = cv2.contourArea(hull)
             solidity = area / hull_area if hull_area > 0 else 0
-            if solidity < 0.7:
+            if solidity < 0.6:
                 continue
 
             score = area * circularidade * solidity
@@ -543,8 +593,9 @@ def corrigir_perspectiva(image, binary):
     # Flash virtual para normalizar iluminação
     flash = aplicar_flash_virtual(gray)
     
-    # CLAHE leve
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    # CLAHE mais agressivo para detectar marcadores de canto em imagens com sombra.
+    # tileGridSize=(4,4) com clipLimit=4.0 melhora regiões de canto com iluminação irregular.
+    clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(4, 4))
     enhanced = clahe.apply(flash)
     
     # Suavização
@@ -651,10 +702,42 @@ def _estimar_escala_imagem(binary):
     """
     Estima a escala da imagem (pixels por mm) baseado na análise
     da estrutura do cartão resposta.
+
+    ✅ VERSÃO V6 - CÁLCULO MATEMÁTICO (não empírico)
+
+    Referência de design (PDF atual):
+    - Largura real da caixa de bolhas: 43mm (5 bolhas × 7mm + margens)
+    - Raio real da bolha: 2.5mm
+    - Imagem completa (A4): ~210mm de largura
+
+    LÓGICA:
+    Se a imagem ROI tem width_px pixels
+    E a caixa real tem 43mm de largura
+    Então: 1mm na imagem = width_px / 43 pixels
+    Logo: raio_px = 2.5mm * (width_px / 43)
+
+    MATEMÁTICO:
+    - ROI 384px → 384/43 = 8.93 px/mm → raio = 2.5 * 8.93 = 22.3px ✓
+    - ROI 244px → 244/43 = 5.67 px/mm → raio = 2.5 * 5.67 = 14.2px (antes era 9.4px com divisor=70)
+    - ROI 175px → 175/43 = 4.07 px/mm → raio = 2.5 * 4.07 = 10.2px (antes era 2.5px com divisor=70)
     """
     h, w = binary.shape
-    pixels_por_mm = min(w, h) / 100.0
-    return max(pixels_por_mm, 1.0)
+    min_dim = min(w, h)
+
+    # Cálculo matemático
+    CAIXA_BOLHAS_MM = 43.0  # Largura real da caixa de bolhas em mm
+    RAIO_BOLHA_MM = 2.5     # Raio real da bolha em mm
+
+    # Pixels por milímetro
+    px_per_mm = min_dim / CAIXA_BOLHAS_MM
+
+    # Raio da bolha em pixels
+    raio_px = RAIO_BOLHA_MM * px_per_mm
+
+    # Log de debug
+    print(f"  📐 Escala matemática: {min_dim}px / {CAIXA_BOLHAS_MM}mm = {px_per_mm:.2f} px/mm → raio={raio_px:.1f}px")
+
+    return max(px_per_mm, 1.0)
 
 
 def _criar_template_bolha(raio_px):
@@ -662,7 +745,7 @@ def _criar_template_bolha(raio_px):
     return _criar_template_bolha_cached(raio_px)
 
 
-def _detectar_hough_adaptativo(binary, min_radius, max_radius):
+def _detectar_hough_adaptativo(binary, min_radius, max_radius, param2=12):
     """Detecta círculos usando HoughCircles com parâmetros adaptativos."""
     img_for_circles = 255 - binary.copy()
     img_for_circles = cv2.GaussianBlur(img_for_circles, (5, 5), 0)
@@ -673,7 +756,7 @@ def _detectar_hough_adaptativo(binary, min_radius, max_radius):
         dp=1.2,
         minDist=max(min_radius * 1.0, 10),
         param1=40,
-        param2=18,
+        param2=param2,
         minRadius=int(min_radius * 0.7),
         maxRadius=int(max_radius * 1.3)
     )
@@ -683,7 +766,7 @@ def _detectar_hough_adaptativo(binary, min_radius, max_radius):
     return np.array([])
 
 
-def _detectar_template_matching(binary, raio_px):
+def _detectar_template_matching(binary, raio_px, threshold_template=0.45):
     """Detecta círculos usando template matching com NMS."""
     template = _criar_template_bolha(raio_px)
 
@@ -691,8 +774,6 @@ def _detectar_template_matching(binary, raio_px):
         return np.array([])
 
     result = cv2.matchTemplate(binary, template, cv2.TM_CCOEFF_NORMED)
-    threshold_template = 0.45
-
     mask = (result >= threshold_template).astype(np.uint8)
 
     if not mask.any():
@@ -748,7 +829,7 @@ def _detectar_mser(binary, min_radius, max_radius):
         return np.array([])
 
 
-def _detectar_contornos_com_features(binary, min_radius, max_radius):
+def _detectar_contornos_com_features(binary, min_radius, max_radius, circularity_min=0.70):
     """Detecta círculos por contornos com filtro de circularidade."""
     contours, _ = cv2.findContours(binary, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -766,7 +847,7 @@ def _detectar_contornos_com_features(binary, min_radius, max_radius):
             continue
 
         circularity = 4 * np.pi * area / (perimeter * perimeter)
-        if circularity < 0.70:
+        if circularity < circularity_min:
             continue
 
         M = cv2.moments(cnt)
@@ -781,7 +862,7 @@ def _detectar_contornos_com_features(binary, min_radius, max_radius):
     return np.array(circles)
 
 
-def _aplicar_voting_system(circle_lists, threshold_distancia):
+def _aplicar_voting_system(circle_lists, threshold_distancia, min_expected_bolhas=60):
     """
     v2: Voting adaptativo - 2 métodos quando há muitas detecções,
     1 método quando há poucas (região difícil).
@@ -831,9 +912,9 @@ def _aplicar_voting_system(circle_lists, threshold_distancia):
 
     # FALLBACK ADAPTATIVO: Se votação rigorosa encontrou poucas bolhas
     # e há detecções disponíveis, relaxar para 1 método
-    if len(bolhas_finais) < 10 and total_detections > len(bolhas_finais) * 2:
+    if len(bolhas_finais) < min_expected_bolhas and total_detections > len(bolhas_finais):
         print(f"  ⚠️ Voting encontrou apenas {len(bolhas_finais)} bolhas de {total_detections} detecções, relaxando...")
-        
+
         # Priorizar Template Matching (índice 1 no circle_lists)
         for method_idx, circles in enumerate(circle_lists):
             # No relaxamento, se detectou pelo menos pelo template matching,
@@ -843,7 +924,7 @@ def _aplicar_voting_system(circle_lists, threshold_distancia):
 
             for c in circles:
                 cx, cy, r = int(c[0]), int(c[1]), int(c[2])
-                
+
                 # Verificar se já existe bolha próxima nas finais
                 conflito = False
                 for bf in bolhas_finais:
@@ -851,14 +932,34 @@ def _aplicar_voting_system(circle_lists, threshold_distancia):
                     if dist < threshold_distancia:
                         conflito = True
                         break
-                
+
                 if not conflito:
                     bolhas_finais.append([cx, cy, r])
+
+    # PASSE ADICIONAL: Sempre incluir detecções do Template Matching (índice 1)
+    # que NÃO foram aceitas pelo voting. O template é um disco sólido branco,
+    # então template matches = bolhas MARCADAS/PREENCHIDAS — exatamente o que queremos.
+    # Bolhas vazias (anéis) raramente correspondem ao template sólido.
+    if len(circle_lists) > 1 and len(circle_lists[1]) > 0:
+        template_adicionados = 0
+        for c in circle_lists[1]:
+            cx, cy, r = int(c[0]), int(c[1]), int(c[2])
+            conflito = False
+            for bf in bolhas_finais:
+                dist = np.sqrt((cx - bf[0])**2 + (cy - bf[1])**2)
+                if dist < threshold_distancia:
+                    conflito = True
+                    break
+            if not conflito:
+                bolhas_finais.append([cx, cy, r])
+                template_adicionados += 1
+        if template_adicionados > 0:
+            print(f"  ℹ️ Template Matching adicionou {template_adicionados} bolha(s) preenchida(s) ao voting")
 
     return np.array(bolhas_finais) if bolhas_finais else np.array([])
 
 
-def detectar_bolhas_avancado(binary, debug_image=None, threshold=100, sensitivity=0.5):
+def detectar_bolhas_avancado(binary, debug_image=None, threshold=100, sensitivity=0.5, quality_meta=None):
     """
     Detecta bolhas em um cartão resposta com método híbrido (4 detectores + voting system).
 
@@ -881,26 +982,105 @@ def detectar_bolhas_avancado(binary, debug_image=None, threshold=100, sensitivit
 
     escala = _estimar_escala_imagem(binary)
 
-    raio_esperado_mm = 3
+    # Raio calibrado para o novo cartão resposta: bolhas Ø 5 mm (raio 2.5 mm)
+    raio_esperado_mm = 2.5
     raio_px = int(raio_esperado_mm * escala)
     min_radius = max(int(raio_px * 0.6), 4)
     max_radius = int(raio_px * 1.4)
 
+    # Ajustes para baixa luminosidade/baixo contraste
+    brightness = None
+    contrast = None
+    black_ratio = None
+    if isinstance(quality_meta, dict):
+        brightness = quality_meta.get('brightness')
+        contrast = quality_meta.get('contrast')
+        black_ratio = quality_meta.get('black_ratio')
+
+    low_light = False
+    if brightness is not None and contrast is not None:
+        low_light = brightness < 110 or contrast < 40
+
+    if low_light or (black_ratio is not None and black_ratio < 0.01):
+        # Relaxar limites de raio e circularidade em baixa luz
+        min_radius = max(int(raio_px * 0.5), 3)
+        max_radius = int(raio_px * 1.6)
+
     # Método 1: HoughCircles Adaptativo
-    circles_hough = _detectar_hough_adaptativo(binary, min_radius, max_radius)
+    # param2 baixo (12) detecta discos sólidos (bolhas marcadas, apenas 1 borda de gradiente)
+    # sem deixar de detectar anéis vazios (que têm 2 bordas = acumulação Hough mais forte)
+    hough_param2 = 12 if not low_light else 9
+    circles_hough = _detectar_hough_adaptativo(binary, min_radius, max_radius, param2=hough_param2)
 
     # Método 2: Template Matching
-    circles_template = _detectar_template_matching(binary, raio_px)
+    template_thresh = 0.45 if not low_light else 0.35
+    circles_template = _detectar_template_matching(binary, raio_px, threshold_template=template_thresh)
 
     # Método 3: MSER + Circularidade
     circles_mser = _detectar_mser(binary, min_radius, max_radius)
 
     # Método 4: Contornos com features
-    circles_contour = _detectar_contornos_com_features(binary, min_radius, max_radius)
+    circularity_min = 0.70 if not low_light else 0.60
+    circles_contour = _detectar_contornos_com_features(
+        binary, min_radius, max_radius, circularity_min=circularity_min
+    )
 
     # Voting System com concordância de 2+ métodos
     circle_lists = [circles_hough, circles_template, circles_mser, circles_contour]
-    bolhas_votadas = _aplicar_voting_system(circle_lists, raio_px * 1.0)
+    min_expected = 50
+    if low_light or (black_ratio is not None and black_ratio < 0.01):
+        min_expected = 30
+    bolhas_votadas = _aplicar_voting_system(circle_lists, raio_px * 1.0, min_expected_bolhas=min_expected)
+
+    # ── EXCLUSÃO DE ZONA DE CABEÇALHO ────────────────────────────────────────
+    # Dois modos dependendo se estamos processando a imagem completa ou ROI de coluna:
+    #
+    # IMAGEM COMPLETA (h > 1200px): exclui 20% do topo.
+    #   → Cobre QR code + título (grade começa em ~23-33% do topo).
+    #
+    # ROI DE COLUNA (h <= 1200px): exclui 9% do topo.
+    #   → A-E header fica a ~13mm do topo da caixa de coluna ≈ 7% da altura do ROI.
+    #   → 9% garante margem para imagens com zoom maior (ROI mais alto).
+    #   → Primeira bolha está a ~18.5mm ≈ 10% do topo → bolhas preservadas.
+    #   → 8% é seguro: primeira bolha está a ~9.25mm do topo da caixa (~10% do ROI).
+    #   → 9% cortava a primeira bolha para ROIs grandes (h=1013, primeira bolha em y=88px).
+    if h > 1200:
+        zona_cabecalho = int(h * 0.20)   # imagem completa: cobre QR + título
+    else:
+        zona_cabecalho = int(h * 0.08)   # ROI de coluna: cobre A-E header (8%)
+
+    bolhas_antes = len(bolhas_votadas)
+    bolhas_votadas = [c for c in bolhas_votadas if int(c[1]) > zona_cabecalho]
+    if len(bolhas_votadas) < bolhas_antes:
+        modo = "imagem completa" if h > 1200 else "ROI coluna"
+        print(f"  🔳 Cabeçalho ({modo}): {bolhas_antes - len(bolhas_votadas)} detecção(ões) "
+              f"removida(s) acima de y={zona_cabecalho}px")
+
+    # Decidir polaridade do preenchimento (branco vs preto) com base nas bolhas detectadas
+    use_dark_fill = False
+    if len(bolhas_votadas) > 0:
+        sample_rates = []
+        for circulo in bolhas_votadas:
+            x, y, r = int(circulo[0]), int(circulo[1]), int(circulo[2])
+            if x - r < 0 or y - r < 0 or x + r >= w or y + r >= h:
+                continue
+            inner_mask = np.zeros_like(binary)
+            inner_r = int(r * 0.75)
+            cv2.circle(inner_mask, (x, y), inner_r, 255, -1)
+            roi = cv2.bitwise_and(binary, inner_mask)
+            inner_area = np.pi * inner_r * inner_r
+            if inner_area <= 0:
+                continue
+            white_rate = cv2.countNonZero(roi) / inner_area
+            dark_rate = 1.0 - white_rate
+            sample_rates.append((white_rate, dark_rate))
+
+        if sample_rates:
+            avg_white = float(np.mean([r[0] for r in sample_rates]))
+            avg_dark = float(np.mean([r[1] for r in sample_rates]))
+            # Se a maioria das bolhas tem interior mais escuro, usar preenchimento escuro
+            if avg_dark > avg_white * 1.2:
+                use_dark_fill = True
 
     # Converter para formato de bolhas
     bolhas = []
@@ -921,9 +1101,14 @@ def detectar_bolhas_avancado(binary, debug_image=None, threshold=100, sensitivit
         roi = cv2.bitwise_and(binary, inner_mask)
         inner_area = np.pi * inner_r * inner_r
         filled_pixels = cv2.countNonZero(roi)
-        fill_rate = filled_pixels / inner_area if inner_area > 0 else 0
+        white_rate = filled_pixels / inner_area if inner_area > 0 else 0
+        fill_rate = (1.0 - white_rate) if use_dark_fill else white_rate
 
-        is_filled = fill_rate > sensitivity
+        # Em baixa luz, reduzir a sensibilidade para não perder preenchimentos
+        effective_sens = sensitivity
+        if low_light:
+            effective_sens = max(0.35, sensitivity * 0.8)
+        is_filled = fill_rate > effective_sens
 
         bolhas.append({
             'x': x,
@@ -976,7 +1161,20 @@ def agrupar_bolhas_por_questoes(bolhas, num_questoes=10, num_alternativas=5):
     y_only = y_coords.reshape(-1, 1)
 
     raio_medio_bolhas = float(np.median([b.get('radius', 10) for b in bolhas]))
-    eps_linha = max(raio_medio_bolhas * 1.5, 8.0)
+
+    # Eps adaptativo: usa espaçamento estimado entre linhas para evitar
+    # que DBSCAN fragmente linhas levemente inclinadas OU mescle linhas adjacentes.
+    y_range = float(np.max(y_coords) - np.min(y_coords)) if len(y_coords) > 1 else 100.0
+    if num_questoes > 1 and y_range > 0:
+        estimated_spacing = y_range / (num_questoes - 1)
+        # Até 40% do espaçamento entre linhas: absorve inclinação sem cruzar para a próxima fila
+        eps_from_spacing = estimated_spacing * 0.40
+    else:
+        eps_from_spacing = raio_medio_bolhas * 2.0
+    # Garante um mínimo tolerante (para bolhas com raio grande) mas nunca maior que o spacing
+    eps_linha = max(min(eps_from_spacing, raio_medio_bolhas * 2.5), 8.0)
+    print(f"  DBSCAN eps adaptativo: {eps_linha:.1f}px "
+          f"(spacing_est={y_range/(max(num_questoes-1,1)):.1f}px, raio={raio_medio_bolhas:.1f}px)")
 
     db_linhas = DBSCAN(eps=eps_linha, min_samples=1).fit(y_only)
     linhas_labels = db_linhas.labels_
@@ -1239,9 +1437,9 @@ def _encontrar_retangulos_em_binary(binary, h_img, w_img, num_colunas):
     for i, cnt in enumerate(contours):
         area = cv2.contourArea(cnt)
         
-        # Retângulo de coluna deve ter área entre 3% e 50% da imagem
+        # Retângulo de coluna deve ter área entre 1% e 50% da imagem
         area_ratio = area / (h_img * w_img)
-        if area_ratio < 0.03 or area_ratio > 0.50:
+        if area_ratio < 0.01 or area_ratio > 0.50:
             continue
         
         # Aproximar polígono
@@ -1251,22 +1449,24 @@ def _encontrar_retangulos_em_binary(binary, h_img, w_img, num_colunas):
         approx = cv2.approxPolyDP(cnt, 0.02 * peri, True)
         
         # Deve ter 4 vértices (retângulo) ou próximo
-        if len(approx) < 4 or len(approx) > 8:
+        if len(approx) < 4 or len(approx) > 12:
             continue
         
         x, y, rw, rh = cv2.boundingRect(cnt)
         
-        # Retângulo de coluna é robusto em altura
-        if rh < h_img * 0.35:
+        # Retângulo de coluna é robusto em altura e não pode ser muito largo
+        if rh < h_img * 0.25 or rw > w_img * 0.60:
             continue
         
         aspect = rh / rw if rw > 0 else 0
+        if aspect < 1.2:  # Colunas devem ser mais altas que largas
+            continue
         
         # Verificar retangularidade (quanto da bounding box é preenchida)
         rect_area = rw * rh
         rectangularity = area / rect_area if rect_area > 0 else 0
         
-        if rectangularity < 0.15:  # Muito pouco preenchimento = não é retângulo
+        if rectangularity < 0.05:  # Muito pouco preenchimento = não é retângulo
             continue
         
         candidatos.append({
@@ -1280,23 +1480,22 @@ def _encontrar_retangulos_em_binary(binary, h_img, w_img, num_colunas):
     if not candidatos:
         return None
     
-    # Ordenar por área (maiores primeiro)
-    candidatos.sort(key=lambda c: c['area'], reverse=True)
+    candidatos.sort(key=lambda c: c['area'] * c['rectangularity'], reverse=True)
     
     # Filtrar candidatos que se sobrepõem
     selecionados = []
     for cand in candidatos:
         x1, y1, w1, h1 = cand['bbox']
-        cx1 = x1 + w1 // 2
         
         sobrepoe = False
         for sel in selecionados:
             x2, y2, w2, h2 = sel['bbox']
-            cx2 = x2 + w2 // 2
             
-            # Verificar sobreposição horizontal
+            # Verificar sobreposição horizontal e vertical
             overlap_x = max(0, min(x1+w1, x2+w2) - max(x1, x2))
-            if overlap_x > min(w1, w2) * 0.3:
+            overlap_y = max(0, min(y1+h1, y2+h2) - max(y1, y2))
+            
+            if overlap_x > min(w1, w2) * 0.3 and overlap_y > min(h1, h2) * 0.3:
                 sobrepoe = True
                 break
         
@@ -1390,6 +1589,125 @@ def validar_geometria_questao(bolhas, num_alternativas=5):
     quality_score = max(0.0, 1.0 - (penalty_alignment + penalty_spacing + penalty_deviation) / 3)
 
     return True, quality_score, "OK"
+
+
+def calcular_resposta_por_intensidade_relativa(bolhas_da_linha, binary=None, alternativas=None):
+    """
+    Decide qual bolha está marcada por comparação relativa de intensidade intra-linha.
+
+    Filosofia: em vez de comparar cada bolha com um threshold absoluto global,
+    normaliza as intensidades das 5 bolhas pelo máximo local da própria linha.
+    Isso elimina o efeito de sombras ou iluminação desuniforme que afeta todas
+    as bolhas da questão igualmente — a bolha mais escura/preenchida relativa
+    às outras é a marcada, independente do valor absoluto.
+
+    ✅ FIX C1 - VALIDAÇÃO DE ORDEM:
+    As bolhas podem não estar em ordem (A,B,C,D,E) após detecção.
+    Reordenar por coordenada X antes de mapear para índices.
+
+    Pipeline:
+    1. [FIX C1] Ordenar bolhas por X (esquerda→direita = A→E)
+    2. Para cada bolha, obter intensidade (da binary ou do fill_rate já calculado)
+    3. Normalizar pelo máximo local: intensity / max_of_row
+    4. A bolha com maior valor normalizado é a marcada
+    5. Score de separação = (max_norm - second_max_norm)
+       Como max_norm == 1.0 após normalização: score = 1.0 - second_max_norm
+       = (max_fill - second_max_fill) / max_fill  ∈ [0, 1]
+    6. Score < 0.15 → candidatos muito próximos → sinalizar baixa confiança
+
+    Args:
+        bolhas_da_linha: Lista de dicts de bolhas de uma questão (máx 5)
+        binary:          Imagem binária para re-extrair intensidade (opcional).
+                         Se None, usa 'fill_rate' já armazenado em cada bolha.
+        alternativas:    Lista de letras ['A','B','C','D','E']
+
+    Returns:
+        (letra_marcada, score_separacao)
+        - letra_marcada:   str ('A'-'E') ou None se lista vazia / todas zero
+        - score_separacao: float em [0, 1]; baixo (<0.15) = alta ambiguidade
+    """
+    if alternativas is None:
+        alternativas = ['A', 'B', 'C', 'D', 'E']
+
+    if not bolhas_da_linha:
+        return None, 0.0
+
+    # ✅ FIX C1: Reordenar bolhas por coordenada X (esquerda→direita)
+    # Isso garante que índice 0→A, 1→B, 2→C, 3→D, 4→E
+    bolhas_ordenadas = sorted(bolhas_da_linha, key=lambda b: b.get('x', 0))
+
+    # Verificar se estava desordenada (diagnóstico)
+    xs_original = [b.get('x', 0) for b in bolhas_da_linha]
+    xs_ordenadas = [b.get('x', 0) for b in bolhas_ordenadas]
+    if xs_original != xs_ordenadas:
+        print(f"  🔄 [FIX C1] Bolhas reordenadas por X: {xs_original} → {xs_ordenadas}")
+
+    intensidades = []
+    for bolha in bolhas_ordenadas:
+        # Bolhas sintéticas (completadas artificialmente) não contribuem
+        if bolha.get('sintetica', False):
+            intensidades.append(0.0)
+            continue
+
+        if binary is not None:
+            # Re-extrair intensidade diretamente da imagem binária: mais preciso
+            # pois evita re-uso do fill_rate calculado com outro threshold
+            cx = bolha.get('x', 0)
+            cy = bolha.get('y', 0)
+            if 'centro' in bolha:
+                cx, cy = bolha['centro']
+            r = bolha.get('radius', 10)
+            inner_r = max(1, int(r * 0.75))
+
+            h_img, w_img = binary.shape
+            if cx - inner_r < 0 or cy - inner_r < 0 or cx + inner_r >= w_img or cy + inner_r >= h_img:
+                # Fora dos limites: usar fill_rate como fallback
+                intensidades.append(float(bolha.get('fill_rate', 0.0)))
+                continue
+
+            mask = np.zeros_like(binary)
+            cv2.circle(mask, (int(cx), int(cy)), inner_r, 255, -1)
+            roi = cv2.bitwise_and(binary, mask)
+            inner_area = np.pi * inner_r * inner_r
+            filled_pixels = cv2.countNonZero(roi)
+            intensidade = filled_pixels / inner_area if inner_area > 0 else 0.0
+        else:
+            # Usar fill_rate pré-calculado por detectar_bolhas_avancado
+            intensidade = float(bolha.get('fill_rate', 0.0))
+
+        intensidades.append(intensidade)
+
+    if not intensidades:
+        return None, 0.0
+
+    intensidades = np.array(intensidades, dtype=np.float64)
+
+    # Normalização local: dividir pelo máximo da linha
+    # Transforma o problema de threshold absoluto em comparação relativa:
+    # sombra que escurece todas as bolhas igualmente → cancelada pela divisão
+    max_intensidade = float(np.max(intensidades))
+
+    if max_intensidade < 1e-6:
+        # Todas as bolhas têm intensidade ~0: cartão em branco ou falha de leitura
+        # Retornar None indicando que não há resposta detectável
+        return None, 0.0
+
+    intensidades_norm = intensidades / max_intensidade  # max vira 1.0
+
+    # Índice da bolha com maior intensidade relativa
+    idx_max = int(np.argmax(intensidades_norm))
+
+    # Score de separação: quão clara é a dominância do máximo sobre o segundo
+    # sorted descrescente → [1.0, second, ...]
+    sorted_norm = np.sort(intensidades_norm)[::-1]
+    second_norm = sorted_norm[1] if len(sorted_norm) > 1 else 0.0
+
+    # score = max_norm - second_norm = 1.0 - second_norm (pois max_norm == 1.0)
+    # Equivale a (max_fill - second_max_fill) / max_fill
+    score_separacao = float(1.0 - second_norm)
+
+    letra = alternativas[idx_max] if idx_max < len(alternativas) else None
+    return letra, score_separacao
 
 
 def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 'E'], binary=None, image=None):
@@ -1522,8 +1840,9 @@ def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 
                     print(f"   Preenchimentos: {taxa_formatada}")
             else:
                 print(f"Q{num_questao}: Nenhuma alternativa atinge o threshold ({threshold:.2f}). Maior: {max_preenchimento:.2f}")
-    
-    return resultados, confianca
+
+    # Terceiro retorno vazio para compatibilidade com a versão de analysis.py
+    return resultados, confianca, []
 
 
 def validar_resultados(resultados, confianca, num_questoes, num_alternativas=5):
@@ -1610,7 +1929,7 @@ def processar_imagem_completa(imagem_path, num_questoes=10, num_alternativas=5, 
     questoes = agrupar_bolhas_por_questoes(bolhas, num_questoes, num_alternativas)
     
     alternativas = ['A', 'B', 'C', 'D', 'E'][:num_alternativas]
-    resultados, confianca = analisar_gabarito(questoes, num_questoes, alternativas)
+    resultados, confianca, _ = analisar_gabarito(questoes, num_questoes, alternativas)
     
     resultados_validados = validar_resultados(resultados, confianca, num_questoes, num_alternativas)
     
@@ -1644,8 +1963,8 @@ def analisar_cartao_melhorado(image, binary, debug_image, num_questoes, num_colu
             inicio = col * questoes_por_coluna
             fim = min((col + 1) * questoes_por_coluna, len(questoes))
             
-            resultados_coluna, confianca = analisar_gabarito(
-                questoes[inicio:fim], 
+            resultados_coluna, confianca, _ = analisar_gabarito(
+                questoes[inicio:fim],
                 questoes_por_coluna,
                 ['A', 'B', 'C', 'D', 'E']
             )
