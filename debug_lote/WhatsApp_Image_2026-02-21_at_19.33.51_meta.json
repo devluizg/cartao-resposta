@@ -1,7 +1,5 @@
 {
   "brightness": 136.41720885416666,
   "contrast": 70.82448755404334,
-  "illumination_profile": "shadow_detected",
-  "gamma": 1.0,
-  "black_ratio": 0.2689901041666667
+  "illumination_profile": "shadow_detected"
 }

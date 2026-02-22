@@ -323,6 +323,54 @@ def validar_resultados(resultados, confianca, num_questoes, num_alternativas=5):
     return resultados_corrigidos
 
 
+def validar_resultado_razoavel(resultados, confianca, num_questoes, num_alternativas=5):
+    """
+    **PILAR 4: Validação de Razoabilidade Estatística**
+
+    Verifica se o resultado faz sentido do ponto de vista estatístico.
+    Se alguma validação falhar, o resultado é marcado como "suspeito"
+    e pode ser rejeitado em favor de uma estratégia alternativa.
+
+    Args:
+        resultados: dict {num_questao: letra ou None}
+        confianca: dict {num_questao: confidence_score}
+        num_questoes: número esperado de questões
+        num_alternativas: 5 (A-E)
+
+    Returns:
+        (valido: bool, motivo: str)
+        Exemplo: (True, "OK") ou (False, "Alternativa C muito frequente")
+    """
+    from collections import Counter
+
+    # CHECK 1: Nenhuma alternativa aparece muito mais que o esperado
+    respostas_lidas = [r for r in resultados.values() if r is not None and not str(r).endswith('?')]
+    alternativas_esperadas_por_alt = len(respostas_lidas) / num_alternativas if len(respostas_lidas) > 0 else 0
+
+    if len(respostas_lidas) > 0:
+        contagem = Counter(respostas_lidas)
+        for alt, count in contagem.items():
+            # Marcar como suspeito se alternativa aparece > 2.5x do esperado
+            if count > alternativas_esperadas_por_alt * 2.5 and count > 2:
+                return False, f"Alternativa {alt} aparece {count}x (esperado ~{alternativas_esperadas_por_alt:.1f})"
+
+    # CHECK 2: Confiança média não está muito baixa
+    valores_confianca = [v for v in confianca.values() if v is not None and v > 0]
+    if len(valores_confianca) > 0:
+        conf_media = float(np.mean(valores_confianca))
+        if conf_media < 0.30:  # Confidence < 0.30 é MUITO baixa
+            return False, f"Confiança média muito baixa: {conf_media:.2f}"
+
+    # CHECK 3: Mínimo de questões lidas
+    # Espera-se ler pelo menos 70% das questões
+    num_questoes_lidas = sum(1 for r in resultados.values() if r is not None)
+    if num_questoes_lidas < num_questoes * 0.70:
+        return False, f"Apenas {num_questoes_lidas}/{num_questoes} questões lidas ({num_questoes_lidas/num_questoes*100:.0f}%)"
+
+    # Se passou em todas as checagens, resultado é razoável
+    return True, "OK"
+
+
 def detectar_colunas(binary_image):
     """Detecta automaticamente o número de colunas no cartão resposta."""
     projection = np.sum(binary_image, axis=0)

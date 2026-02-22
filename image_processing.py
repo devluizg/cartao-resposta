@@ -234,9 +234,8 @@ def melhorar_pre_processamento_adaptativo(image):
     if has_shadow:
         print(f"  ⚡ Flash virtual aplicado (sombra detectada: quad={quad_range:.0f}, grid={grid_range:.0f})")
     
-    # 3. CLAHE — Adaptativo para contraste baixo
-    # ✅ FIX B1+B2: Se contraste < 45 (imagem "lavada"), usar CLAHE agressivo
-    # Contraste < 40 era muito restritivo (imagem 19.33.45 tinha contrast=39 mas era detectada como "normal")
+    # 3. CLAHE — Adaptativo para contraste baixo (baseline estável)
+    # FIX B1+B2: Se contraste < 45 (imagem "lavada"), usar CLAHE agressivo
     if contrast < 45:
         clahe_limit, clahe_grid = 3.5, (10, 10)  # Mais agressivo
         print(f"  🔧 CLAHE AGRESSIVO (contraste={contrast:.0f}): clip={clahe_limit}, grid={clahe_grid}")
@@ -984,25 +983,36 @@ def agrupar_bolhas_por_questoes(bolhas, num_questoes=10, num_alternativas=5):
     y_only = y_coords.reshape(-1, 1)
 
     raio_medio_bolhas = float(np.median([b.get('radius', 10) for b in bolhas]))
-    eps_linha = max(raio_medio_bolhas * 1.5, 8.0)
+    eps_base = max(raio_medio_bolhas * 1.5, 8.0)
 
-    db_linhas = DBSCAN(eps=eps_linha, min_samples=1).fit(y_only)
-    linhas_labels = db_linhas.labels_
-    linhas_naturais = len(set(linhas_labels[linhas_labels != -1]))
+    # **PILAR 3: DBSCAN ITERATIVO** — Tenta múltiplos eps até encontrar esperado
+    labels = None
+    eps_used = None
 
-    if num_questoes <= linhas_naturais <= int(num_questoes * 1.5):
-        labels = linhas_labels
-        print(f"DBSCAN: {linhas_naturais} linhas físicas detectadas (esperado {num_questoes}). Usando DBSCAN.")
-    else:
-        effective_clusters = linhas_naturais if (0 < linhas_naturais < num_questoes) else num_questoes
-        if 0 < linhas_naturais < num_questoes:
-            print(f"Aviso: DBSCAN detectou apenas {linhas_naturais} linhas (esperado {num_questoes}). "
-                  f"Usando KMeans({effective_clusters}).")
+    for eps_factor in [0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.80, 0.90, 1.0]:
+        eps_teste = eps_base * eps_factor
+        db_teste = DBSCAN(eps=eps_teste, min_samples=1).fit(y_only)
+        linhas_teste = len(set(db_teste.labels_[db_teste.labels_ != -1]))
+
+        # Sucesso se encontra número esperado (com tolerância de ±1)
+        if abs(linhas_teste - num_questoes) <= 1:
+            labels = db_teste.labels_
+            eps_used = eps_teste
+            print(f"DBSCAN: {linhas_teste} linhas detectadas (esperado {num_questoes}). "
+                  f"Usando DBSCAN com eps_factor={eps_factor:.2f}.")
+            break
+
+    # Se DBSCAN não convergiu, usar KMeans como último recurso
+    if labels is None:
+        db_linhas = DBSCAN(eps=eps_base, min_samples=1).fit(y_only)
+        linhas_naturais = len(set(db_linhas.labels_[db_linhas.labels_ != -1]))
+        print(f"Aviso: DBSCAN não convergiu mesmo com eps iterativo. "
+              f"Detectadas {linhas_naturais} linhas, usando KMeans({num_questoes}).")
         try:
-            kmeans = KMeans(n_clusters=effective_clusters, random_state=42, n_init=10)
+            kmeans = KMeans(n_clusters=num_questoes, random_state=42, n_init=10)
             labels = kmeans.fit_predict(y_only)
         except Exception:
-            labels = linhas_labels
+            labels = db_linhas.labels_
     
     clusters = defaultdict(list)
     for i, bolha in enumerate(bolhas):
