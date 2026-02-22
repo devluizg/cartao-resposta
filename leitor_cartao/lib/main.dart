@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert' show utf8, latin1, jsonDecode, json, base64Decode;
 import 'package:logging/logging.dart' show Logger;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'screens/cartao_resposta_preview_screen.dart';
 import 'screens/camera_capture_screen.dart';
 import 'screens/selection_screen.dart';
@@ -35,6 +35,187 @@ class AppColors {
   static const Color successColor = Color(0xFF16A34A);  // Verde
   static const Color dangerColor = Color(0xFFEF4444);   // Vermelho
   static const Color warningColor = Color(0xFFF2A93B);  // Aviso
+}
+
+int? _parseTipoProvaFromQr(String? data) {
+  if (data == null || data.trim().isEmpty) return null;
+  final raw = data.trim();
+
+  final matchTipo = RegExp(r'T\s*[:=]\s*(\d+)', caseSensitive: false)
+      .firstMatch(raw);
+  if (matchTipo != null) {
+    return int.tryParse(matchTipo.group(1)!);
+  }
+
+  final matchLabel =
+      RegExp(r'\bTIPO\s*(\d+)\b', caseSensitive: false).firstMatch(raw);
+  if (matchLabel != null) {
+    return int.tryParse(matchLabel.group(1)!);
+  }
+
+  if (RegExp(r'^\d+$').hasMatch(raw)) {
+    return int.tryParse(raw);
+  }
+
+  return null;
+}
+
+class QrScanScreen extends StatefulWidget {
+  const QrScanScreen({super.key});
+
+  @override
+  State<QrScanScreen> createState() => _QrScanScreenState();
+}
+
+class _QrScanScreenState extends State<QrScanScreen> {
+  final GlobalKey _qrKey = GlobalKey(debugLabel: 'QR');
+  QRViewController? _controller;
+  bool _found = false;
+  String? _lastCode;
+  String? _errorMessage;
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    if (Platform.isAndroid) {
+      _controller?.pauseCamera();
+    }
+    _controller?.resumeCamera();
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  void _onQRViewCreated(QRViewController controller) {
+    _controller = controller;
+    controller.scannedDataStream.listen((scanData) {
+      if (_found) return;
+      final code = scanData.code;
+      final tipo = _parseTipoProvaFromQr(code);
+      if (tipo != null && tipo >= 1 && tipo <= 5) {
+        _found = true;
+        _controller?.pauseCamera();
+        Navigator.pop(context, tipo);
+      } else {
+        setState(() {
+          _lastCode = code;
+          _errorMessage = 'QR lido, mas não contém o tipo da prova.';
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              color: Colors.black,
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, color: Colors.white),
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Ler QR do Cartão-Resposta',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      'Pular',
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Stack(
+                children: [
+                  QRView(
+                    key: _qrKey,
+                    onQRViewCreated: _onQRViewCreated,
+                    overlay: QrScannerOverlayShape(
+                      borderColor: AppColors.primaryColor,
+                      borderRadius: 8,
+                      borderLength: 24,
+                      borderWidth: 4,
+                      cutOutSize: 240,
+                    ),
+                  ),
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: 16,
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Aponte para o QR Code no topo do cartão.',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
+                          if (_errorMessage != null) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              _errorMessage!,
+                              style: const TextStyle(
+                                color: AppColors.warningColor,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                          if (_lastCode != null) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              'Lido: $_lastCode',
+                              style: const TextStyle(
+                                color: AppColors.textMuted,
+                                fontSize: 11,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 void main() {
@@ -162,7 +343,6 @@ class TelaInicial extends StatefulWidget {
 
 class _TelaInicialState extends State<TelaInicial> {
   File? _imagemSelecionada;
-  final ImagePicker _picker = ImagePicker();
   bool _enviando = false;
   String? _mensagemErro;
 
@@ -182,6 +362,26 @@ class _TelaInicialState extends State<TelaInicial> {
 
   // ✅ ADICIONAR ESTA LINHA
   final CreditManager _creditManager = CreditManager();
+
+  Future<int?> _lerTipoProvaViaQr() async {
+    final tipoDetectado = await Navigator.push<int>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const QrScanScreen(),
+      ),
+    );
+
+    if (tipoDetectado != null &&
+        tipoDetectado >= 1 &&
+        tipoDetectado <= 5 &&
+        mounted) {
+      setState(() {
+        _tipoProva = tipoDetectado;
+      });
+    }
+
+    return tipoDetectado;
+  }
 
   String _decodificarTexto(String? texto) {
     if (texto == null || texto.isEmpty) return '';
@@ -344,14 +544,49 @@ class _TelaInicialState extends State<TelaInicial> {
   }
 
   /// Abre a tela de captura guiada com overlay de enquadramento
-  Future<void> _capturarImagem() async {
+  Future<void> _iniciarFluxoLeitura() async {
     try {
+      // ✅ Verificar créditos antes de iniciar o fluxo
+      final availableCredits = await _creditManager.getAvailableCredits();
+      if (availableCredits <= 0) {
+        await CreditManager.showInsufficientCreditsDialog(
+          // ignore: use_build_context_synchronously
+          context,
+          currentCredits: availableCredits,
+          onBuyCredits: () {
+            Navigator.pushNamed(context, '/loja-creditos');
+          },
+        );
+        return;
+      }
+
+      if (_numeroQuestoes == null) {
+        setState(() {
+          _mensagemErro =
+              "Número de questões não definido. Tente recarregar o simulado.";
+        });
+        return;
+      }
+
+      setState(() {
+        _mensagemErro = null;
+      });
+
+      // ✅ Primeiro lê o QR Code do cartão para definir o tipo de prova
+      final tipoLido = await _lerTipoProvaViaQr();
+      if (tipoLido == null) {
+        setState(() {
+          _mensagemErro = "Leitura do QR cancelada ou inválida.";
+        });
+        return;
+      }
+
       final result = await Navigator.push<CaptureResult>(
         context,
         MaterialPageRoute(
           builder: (context) => CameraCaptureScreen(
             numQuestoes: _numeroQuestoes ?? 24,
-            tipoProva: _tipoProva,
+            tipoProva: tipoLido,
           ),
         ),
       );
@@ -361,34 +596,17 @@ class _TelaInicialState extends State<TelaInicial> {
           _imagemSelecionada = result.imageFile;
           _mensagemErro = null;
           _temImagensProcessadas = false;
+          _tipoProva = tipoLido;
         });
-      }
-    } catch (e) {
-      setState(() {
-        _mensagemErro = "Erro ao capturar imagem: $e";
-      });
-    }
-  }
-
-  Future<void> _selecionarDaGaleria() async {
-    try {
-      final XFile? imagem = await _picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 100,
-        maxWidth: 2048,
-        maxHeight: 2048,
-      );
-
-      if (imagem != null) {
+        await _enviarImagem();
+      } else {
         setState(() {
-          _imagemSelecionada = File(imagem.path);
-          _mensagemErro = null;
-          _temImagensProcessadas = false;
+          _mensagemErro = "Captura cancelada.";
         });
       }
     } catch (e) {
       setState(() {
-        _mensagemErro = "Erro ao selecionar imagem: $e";
+        _mensagemErro = "Erro no fluxo de leitura: $e";
       });
     }
   }
@@ -1055,7 +1273,7 @@ class _TelaInicialState extends State<TelaInicial> {
 
                 const SizedBox(height: 12),
 
-                // Card de configuração do tipo de prova
+                // Card de fluxo rápido (QR + captura + processamento)
                 Card(
                   elevation: 3,
                   shape: RoundedRectangleBorder(
@@ -1083,14 +1301,14 @@ class _TelaInicialState extends State<TelaInicial> {
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: const Icon(
-                                Icons.quiz_outlined,
+                                Icons.qr_code_scanner,
                                 color: Colors.white,
                                 size: 20,
                               ),
                             ),
                             const SizedBox(width: 12),
                             const Text(
-                              'Tipo de Prova',
+                              'Leitura Rápida',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -1099,63 +1317,85 @@ class _TelaInicialState extends State<TelaInicial> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          '1. Leia o QR do cartão\n2. Fotografe o cartão\n3. Correção automática',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                            height: 1.4,
+                          ),
+                        ),
                         const SizedBox(height: 16),
-                        Row(
-                          children: List.generate(5, (index) {
-                            final tipo = index + 1;
-                            return Expanded(
-                              child: Padding(
-                                padding: EdgeInsets.only(
-                                  left: index == 0 ? 0 : 4,
-                                  right: index == 4 ? 0 : 4,
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: _enviando ? null : _iniciarFluxoLeitura,
+                              borderRadius: BorderRadius.circular(4),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: _enviando
+                                      ? null
+                                      : const LinearGradient(
+                                          colors: [
+                                            AppColors.primaryColor,
+                                            AppColors.secondaryColor
+                                          ],
+                                          begin: Alignment.centerLeft,
+                                          end: Alignment.centerRight,
+                                        ),
+                                  color: _enviando
+                                      ? AppColors.borderColor
+                                      : null,
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(4),
-                                    boxShadow: _tipoProva == tipo
-                                        ? [
-                                            BoxShadow(
-                                              color: AppColors.primaryColor
-                                                  .withOpacity(0.3),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 4),
+                                alignment: Alignment.center,
+                                child: _enviando
+                                    ? const Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
                                             ),
-                                          ]
-                                        : null,
-                                  ),
-                                  child: ChoiceChip(
-                                    label: Text(
-                                      '$tipo',
-                                      style: TextStyle(
-                                        color: _tipoProva == tipo
-                                            ? Colors.white
-                                            : AppColors.secondaryColor,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14, // Diminuído de 16 para 14
+                                          ),
+                                          SizedBox(width: 12),
+                                          Text(
+                                            'Processando...',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    : const Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.camera_alt,
+                                              size: 20, color: Colors.white),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'Ler QR e Fotografar',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ),
-                                    selected: _tipoProva == tipo,
-                                    onSelected: (selected) {
-                                      if (selected) {
-                                        setState(() {
-                                          _tipoProva = tipo;
-                                        });
-                                      }
-                                    },
-                                    backgroundColor: Colors.white,
-                                    selectedColor: AppColors.primaryColor,
-                                    elevation: 2,
-                                    pressElevation: 4,
-                                    side: BorderSide(
-                                      color: _tipoProva == tipo
-                                          ? AppColors.primaryColor
-                                          : AppColors.borderColor,
-                                    ),
-                                  ),
-                                ),
                               ),
-                            );
-                          }),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -1164,7 +1404,7 @@ class _TelaInicialState extends State<TelaInicial> {
 
                 const SizedBox(height: 12),
 
-                // Área da imagem
+                // Área da última imagem
                 Card(
                   color: Colors.white,
                   shape: RoundedRectangleBorder(
@@ -1190,13 +1430,13 @@ class _TelaInicialState extends State<TelaInicial> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
-                                    Icons.camera_alt_outlined,
+                                    Icons.document_scanner_outlined,
                                     size: 48,
                                     color: AppColors.textMuted,
                                   ),
                                   SizedBox(height: 8),
                                   Text(
-                                    'Nenhuma imagem selecionada',
+                                    'Nenhuma captura ainda',
                                     style:
                                         TextStyle(color: AppColors.textMuted),
                                   ),
@@ -1207,160 +1447,25 @@ class _TelaInicialState extends State<TelaInicial> {
                   ),
                 ),
 
-                const SizedBox(height: 12),
-
-                // Botões de captura
-                Row(
-                  children: [
-                    Expanded(
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: _capturarImagem,
-                          borderRadius: BorderRadius.circular(4),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [
-                                  AppColors.primaryColor,
-                                  AppColors.secondaryColor
-                                ],
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                              ),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.camera_alt,
-                                    size: 20, color: Colors.white),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Câmera',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
+                if (_imagemSelecionada != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.verified,
+                            size: 16, color: AppColors.successColor),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Tipo detectado: $_tipoProva',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.successColor,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: _selecionarDaGaleria,
-                          borderRadius: BorderRadius.circular(4),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                  color: AppColors.borderColor, width: 2),
-                            ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.photo_library,
-                                    size: 20, color: AppColors.secondaryColor),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Galeria',
-                                  style: TextStyle(
-                                    color: AppColors.secondaryColor,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                // Botão de processar
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: _imagemSelecionada == null || _enviando
-                          ? null
-                          : _enviarImagem,
-                      borderRadius: BorderRadius.circular(4),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: _imagemSelecionada == null || _enviando
-                              ? null
-                              : const LinearGradient(
-                                  colors: [
-                                    AppColors.primaryColor,
-                                    AppColors.secondaryColor
-                                  ],
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                ),
-                          color: _imagemSelecionada == null || _enviando
-                              ? AppColors.borderColor
-                              : null,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        alignment: Alignment.center,
-                        child: _enviando
-                            ? const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  SizedBox(width: 12),
-                                  Text(
-                                    'Processando...',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.play_arrow,
-                                      size: 24, color: Colors.white),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Processar Cartão Resposta',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                      ),
+                      ],
                     ),
                   ),
-                ),
 
                 const SizedBox(height: 12),
 

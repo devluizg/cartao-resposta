@@ -436,7 +436,7 @@ class _SelectionScreenState extends State<SelectionScreen> {
       ),
 
       body: _isLoading
-          ? Center(
+          ? const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -445,12 +445,12 @@ class _SelectionScreenState extends State<SelectionScreen> {
                     height: 48,
                     child: CircularProgressIndicator(
                       strokeWidth: 3,
-                      valueColor: const AlwaysStoppedAnimation<Color>(primary),
+                      valueColor: AlwaysStoppedAnimation<Color>(primary),
                       backgroundColor: borderLight,
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  const Text(
+                  SizedBox(height: 24),
+                  Text(
                     'Carregando dados...',
                     style: TextStyle(
                       fontSize: 16,
@@ -483,11 +483,11 @@ class _SelectionScreenState extends State<SelectionScreen> {
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
+                          boxShadow: const [
                             BoxShadow(
                               color: primaryDark,
                               blurRadius: 20,
-                              offset: const Offset(0, 8),
+                              offset: Offset(0, 8),
                             ),
                           ],
                         ),
@@ -701,11 +701,11 @@ class _SelectionScreenState extends State<SelectionScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
+                              const Row(
                                 children: [
                                   Icon(Icons.error_outline_rounded,
                                       color: errorColor, size: 18),
-                                  const SizedBox(width: 8),
+                                  SizedBox(width: 8),
                                   Text(
                                     'Atenção',
                                     style: TextStyle(

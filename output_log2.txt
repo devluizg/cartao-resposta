@@ -1,0 +1,159 @@
+========== INICIANDO TESTE EM LOTE (6 imagens) ==========
+Gabarito usado: {1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E', 6: 'A', 7: 'B', 8: 'C', 9: 'D', 10: 'E', 11: 'C', 12: 'C', 13: 'C', 14: 'A', 15: 'B', 16: 'C', 17: 'D', 18: 'E', 19: 'A', 20: 'B', 21: 'C', 22: 'D', 23: 'E', 24: 'C', 25: 'C'}
+======================================================================
+
+[Processando]: WhatsApp Image 2026-02-20 at 00.10.30.jpeg...
+Pré-processamento: brightness=197, contrast=32, shadow=NO (quad=19, grid=29), profile=high_light
+✅ Marcadores de canto detectados: TL=(49, 13) TR=(1132, 16) BR=(1197, 1598) BL=(3, 1567)
+✅ Usando marcadores de canto para correção de perspectiva
+  ✅ Retângulos de colunas detectados na binary: 2
+  Usando retângulos detectados: [(356, 217, 236, 618), (708, 220, 229, 570)]
+Divisão de questões por coluna: [13, 12]
+DBSCAN: 13 linhas físicas detectadas (esperado 13). Usando DBSCAN.
+Análise Adaptativa: Média=0.15, Desvio=0.35, Threshold_ref=0.55
+Q4: Fill muito baixo — usando máximo (B=0.00)
+Q6: Fill muito baixo — usando máximo (B=0.00)
+Q8: Fill muito baixo — usando máximo (A=0.01)
+Q10: Fill muito baixo — usando máximo (A=0.00)
+DBSCAN: 12 linhas físicas detectadas (esperado 12). Usando DBSCAN.
+Análise Adaptativa: Média=0.18, Desvio=0.38, Threshold_ref=0.55
+Q8: Fill muito baixo — usando máximo (A=0.00)
+DBSCAN: 16 linhas físicas detectadas (esperado 13). Usando DBSCAN.
+Aviso: Detectadas 16 linhas de questões (esperado 13).
+DBSCAN: 14 linhas físicas detectadas (esperado 12). Usando DBSCAN.
+Aviso: Detectadas 14 linhas de questões (esperado 12).
+  -> Precisão: 20/25 (80.0%) | ❌ ERROS
+  -> Divergências: Q4(Lido:B?|Esp:D), Q6(Lido:B?|Esp:A), Q8(Lido:A?|Esp:C), Q10(Lido:A?|Esp:E), Q21(Lido:A?|Esp:C)
+
+[Processando]: WhatsApp Image 2026-02-20 at 00.10.31.jpeg...
+  ⚡ Flash virtual aplicado (sombra detectada: quad=30, grid=48)
+Pré-processamento: brightness=173, contrast=33, shadow=YES (quad=30, grid=48), profile=shadow_detected
+✅ Marcadores de canto detectados: TL=(143, 193) TR=(959, 193) BR=(1160, 1283) BL=(154, 1448)
+✅ Usando marcadores de canto para correção de perspectiva
+  ✅ Retângulos de colunas detectados na binary: 2
+  Usando retângulos detectados: [(218, 371, 196, 465), (472, 381, 213, 445)]
+Divisão de questões por coluna: [13, 12]
+DBSCAN: 13 linhas físicas detectadas (esperado 13). Usando DBSCAN.
+Análise Adaptativa: Média=0.22, Desvio=0.40, Threshold_ref=0.55
+DBSCAN: 12 linhas físicas detectadas (esperado 12). Usando DBSCAN.
+Análise Adaptativa: Média=0.19, Desvio=0.38, Threshold_ref=0.55
+Q10: Fill muito baixo — usando máximo (B=0.00)
+DBSCAN: 16 linhas físicas detectadas (esperado 13). Usando DBSCAN.
+Aviso: Detectadas 16 linhas de questões (esperado 13).
+DBSCAN: 16 linhas físicas detectadas (esperado 12). Usando DBSCAN.
+Aviso: Detectadas 16 linhas de questões (esperado 12).
+  -> Precisão: 23/25 (92.0%) | ❌ ERROS
+  -> Divergências: Q15(Lido:A|Esp:B), Q23(Lido:B?|Esp:E)
+
+[Processando]: WhatsApp Image 2026-02-20 at 00.10.29.jpeg...
+Pré-processamento: brightness=199, contrast=32, shadow=NO (quad=18, grid=25), profile=high_light
+Marcadores de canto: detectados 2/4 — fallback para contorno
+  ⚠️ Falha ao corrigir perspectiva, processando imagem original.
+  ✅ Retângulos de colunas detectados na binary: 2
+  Usando retângulos detectados: [(299, 206, 257, 698), (695, 206, 253, 644)]
+Divisão de questões por coluna: [13, 12]
+DBSCAN: 13 linhas físicas detectadas (esperado 13). Usando DBSCAN.
+Análise Adaptativa: Média=0.13, Desvio=0.33, Threshold_ref=0.55
+Q7: Fill muito baixo — usando máximo (A=0.00)
+Q10: Fill muito baixo — usando máximo (A=0.00)
+Q11: Fill muito baixo — usando máximo (A=0.00)
+Q12: Fill muito baixo — usando máximo (A=0.00)
+Q13: Fill muito baixo — usando máximo (A=0.00)
+Aviso: Alternativa 'A' aparece 7 vezes (esperado ~2.6)
+  ⚠️ Voting encontrou apenas 45 bolhas de 156 detecções, relaxando...
+DBSCAN: 12 linhas físicas detectadas (esperado 12). Usando DBSCAN.
+Análise Adaptativa: Média=0.25, Desvio=0.44, Threshold_ref=0.90
+Q7: Múltiplas candidatas (C, B), escolhendo C (fill=0.98)
+DBSCAN: 15 linhas físicas detectadas (esperado 13). Usando DBSCAN.
+Aviso: Detectadas 15 linhas de questões (esperado 13).
+DBSCAN: 13 linhas físicas detectadas (esperado 12). Usando DBSCAN.
+Aviso: Detectadas 13 linhas de questões (esperado 12).
+  -> Precisão: 18/25 (72.0%) | ❌ ERROS
+  -> Divergências: Q7(Lido:A?|Esp:B), Q10(Lido:A?|Esp:E), Q11(Lido:A?|Esp:C), Q12(Lido:A?|Esp:C), Q13(Lido:A?|Esp:C), Q20(Lido:C?|Esp:B), Q21(Lido:D|Esp:C)
+
+[Processando]: WhatsApp Image 2026-02-20 at 00.10.32.jpeg...
+  ⚡ Flash virtual aplicado (sombra detectada: quad=110, grid=143)
+Pré-processamento: brightness=145, contrast=74, shadow=YES (quad=110, grid=143), profile=shadow_detected
+✅ Marcadores de canto detectados: TL=(167, 217) TR=(1145, 31) BR=(989, 1463) BL=(36, 1257)
+✅ Usando marcadores de canto para correção de perspectiva
+  ✅ Retângulos de colunas detectados na binary: 2
+  Usando retângulos detectados: [(337, 282, 216, 590), (606, 313, 193, 510)]
+Divisão de questões por coluna: [13, 12]
+DBSCAN: 13 linhas físicas detectadas (esperado 13). Usando DBSCAN.
+Análise Adaptativa: Média=0.19, Desvio=0.39, Threshold_ref=0.55
+Q11: Fill muito baixo — usando máximo (B=0.00)
+DBSCAN: 13 linhas físicas detectadas (esperado 12). Usando DBSCAN.
+Aviso: Detectadas 13 linhas de questões (esperado 12).
+Análise Adaptativa: Média=0.16, Desvio=0.37, Threshold_ref=0.55
+Q1: Fill muito baixo — usando máximo (B=0.00)
+Q2: Fill muito baixo — usando máximo (B=0.00)
+Q5: Fill muito baixo — usando máximo (A=0.00)
+DBSCAN: 16 linhas físicas detectadas (esperado 13). Usando DBSCAN.
+Aviso: Detectadas 16 linhas de questões (esperado 13).
+DBSCAN: 17 linhas físicas detectadas (esperado 12). Usando DBSCAN.
+Aviso: Detectadas 17 linhas de questões (esperado 12).
+  -> Precisão: 20/25 (80.0%) | ❌ ERROS
+  -> Divergências: Q11(Lido:B?|Esp:C), Q14(Lido:B?|Esp:A), Q15(Lido:B?|Esp:B), Q18(Lido:A?|Esp:E), Q20(Lido:A|Esp:B)
+
+[Processando]: WhatsApp Image 2026-02-20 at 00.10.28.jpeg...
+  ⚡ Flash virtual aplicado (sombra detectada: quad=87, grid=163)
+Pré-processamento: brightness=145, contrast=77, shadow=YES (quad=87, grid=163), profile=shadow_detected
+Marcadores de canto: detectados 2/4 — fallback para contorno
+  ✅ Retângulos de colunas detectados na shadow-free: 2
+  Usando retângulos detectados: [(27, 115, 365, 759), (930, 361, 246, 513)]
+Divisão de questões por coluna: [13, 12]
+  ⚠️ Voting encontrou apenas 1 bolhas de 64 detecções, relaxando...
+Aviso: DBSCAN detectou apenas 8 linhas (esperado 13). Usando KMeans(8).
+Aviso: Detectadas 8 linhas de questões (esperado 13).
+Análise Adaptativa: Média=0.93, Desvio=0.13, Threshold_ref=0.90
+Aviso: Alternativa 'A' aparece 8 vezes (esperado ~1.6)
+  ⚠️ Voting encontrou apenas 1 bolhas de 42 detecções, relaxando...
+Aviso: DBSCAN detectou apenas 5 linhas (esperado 12). Usando KMeans(5).
+Aviso: Detectadas 5 linhas de questões (esperado 12).
+Análise Adaptativa: Média=0.99, Desvio=0.09, Threshold_ref=0.90
+Aviso: Alternativa 'A' aparece 4 vezes (esperado ~1.0)
+Aviso: Apenas 5 de 12 questões detectadas.
+  ⚠️ Voting encontrou apenas 1 bolhas de 61 detecções, relaxando...
+Aviso: DBSCAN detectou apenas 4 linhas (esperado 13). Usando KMeans(4).
+Aviso: Detectadas 4 linhas de questões (esperado 13).
+  ⚠️ Voting encontrou apenas 1 bolhas de 90 detecções, relaxando...
+Aviso: DBSCAN detectou apenas 4 linhas (esperado 12). Usando KMeans(4).
+Aviso: Detectadas 4 linhas de questões (esperado 12).
+  -> Precisão: 3/25 (12.0%) | ❌ ERROS
+  -> Divergências: Q2(Lido:A|Esp:B), Q3(Lido:A|Esp:C), Q4(Lido:A|Esp:D), Q5(Lido:A|Esp:E), Q7(Lido:A|Esp:B), Q8(Lido:A|Esp:C), Q9(Lido:None|Esp:D), Q10(Lido:None|Esp:E), Q11(Lido:None|Esp:C), Q12(Lido:None|Esp:C), Q13(Lido:None|Esp:C), Q15(Lido:C|Esp:B), Q16(Lido:A|Esp:C), Q17(Lido:A|Esp:D), Q18(Lido:A|Esp:E), Q19(Lido:None|Esp:A), Q20(Lido:None|Esp:B), Q21(Lido:None|Esp:C), Q22(Lido:None|Esp:D), Q23(Lido:None|Esp:E), Q24(Lido:None|Esp:C), Q25(Lido:None|Esp:C)
+
+[Processando]: WhatsApp Image 2026-02-20 at 00.10.27.jpeg...
+  ⚡ Flash virtual aplicado (sombra detectada: quad=90, grid=167)
+Pré-processamento: brightness=148, contrast=76, shadow=YES (quad=90, grid=167), profile=shadow_detected
+✅ Marcadores de canto detectados: TL=(55, 346) TR=(1095, 73) BR=(963, 1503) BL=(271, 1526)
+✅ Usando marcadores de canto para correção de perspectiva
+  ✅ Retângulos de colunas detectados na binary: 2
+  Usando retângulos detectados: [(0, 563, 1075, 873), (353, 12, 255, 486)]
+Divisão de questões por coluna: [13, 12]
+  ⚠️ Voting encontrou apenas 2 bolhas de 37 detecções, relaxando...
+Aviso: DBSCAN detectou apenas 3 linhas (esperado 13). Usando KMeans(3).
+Aviso: Detectadas 3 linhas de questões (esperado 13).
+Análise Adaptativa: Média=0.83, Desvio=0.24, Threshold_ref=0.90
+Q1: Fill muito baixo — usando máximo (A=0.48)
+Aviso: Apenas 3 de 13 questões detectadas.
+DBSCAN: 13 linhas físicas detectadas (esperado 12). Usando DBSCAN.
+Aviso: Detectadas 13 linhas de questões (esperado 12).
+Análise Adaptativa: Média=0.31, Desvio=0.45, Threshold_ref=0.90
+Q2: Múltiplas candidatas (B, A), escolhendo B (fill=0.97)
+Q4: Múltiplas candidatas (E, A, B), escolhendo E (fill=1.00)
+Q7: Múltiplas candidatas (C, D), escolhendo D (fill=0.96)
+Q12: Fill muito baixo — usando máximo (B=0.00)
+Aviso: DBSCAN detectou apenas 3 linhas (esperado 13). Usando KMeans(3).
+Aviso: Detectadas 3 linhas de questões (esperado 13).
+Aviso: DBSCAN detectou apenas 11 linhas (esperado 12). Usando KMeans(11).
+Aviso: Detectadas 11 linhas de questões (esperado 12).
+  -> Precisão: 2/25 (8.0%) | ❌ ERROS
+  -> Divergências: Q1(Lido:A?|Esp:A), Q2(Lido:A|Esp:B), Q3(Lido:A|Esp:C), Q4(Lido:None|Esp:D), Q5(Lido:None|Esp:E), Q6(Lido:None|Esp:A), Q7(Lido:None|Esp:B), Q8(Lido:None|Esp:C), Q9(Lido:None|Esp:D), Q10(Lido:None|Esp:E), Q11(Lido:None|Esp:C), Q12(Lido:None|Esp:C), Q13(Lido:None|Esp:C), Q14(Lido:C|Esp:A), Q15(Lido:B?|Esp:B), Q16(Lido:A|Esp:C), Q17(Lido:E?|Esp:D), Q18(Lido:A|Esp:E), Q20(Lido:D?|Esp:B), Q21(Lido:D|Esp:C), Q22(Lido:E|Esp:D), Q23(Lido:C|Esp:E), Q25(Lido:B?|Esp:C)
+
+======================================================================
+RESUMO FINAL DO LOTE:
+======================================================================
+Imagens processadas: 6
+Total de questões lidas em todas as imagens: 150
+Total de acertos perante gabarito: 86
+PRECISÃO GLOBAL DA API: 57.33%

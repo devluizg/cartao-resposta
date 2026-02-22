@@ -48,7 +48,8 @@ async def processar_cartao(
     sensitivity: float = Form(0.3),
     retornar_imagens: str = Form("false"),
     retornar_debug: str = Form("false"),
-    auto_detect: bool = Form(False)
+    auto_detect: bool = Form(False),
+    salvar_debug: bool = Form(False)
 ):
     try:
         # Salvar arquivo e ler com OpenCV
@@ -66,6 +67,21 @@ async def processar_cartao(
 
         # === ETAPA 1: Pré-processamento Adaptativo ===
         binary, preproc_metadata = melhorar_pre_processamento_adaptativo(image)
+
+        # Fallback: se a binarização ficou pobre (poucos pixels pretos),
+        # tentar o pré-processamento legado e escolher o melhor resultado.
+        try:
+            black_ratio = float(preproc_metadata.get('black_ratio', 0.0))
+            if black_ratio < 0.003:
+                binary_alt, _ = melhorar_pre_processamento(image)
+                br_alt = float(np.mean(binary_alt > 0))
+                if br_alt > black_ratio:
+                    print(f"  ⚠️ Fallback preproc: black_ratio {black_ratio:.4f} -> {br_alt:.4f}")
+                    binary = binary_alt
+                    preproc_metadata['fallback_preproc'] = 'legacy'
+                    preproc_metadata['black_ratio'] = br_alt
+        except Exception as e:
+            print(f"  ⚠️ Fallback preproc falhou: {e}")
 
         debug_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         debug_preprocessed = binary.copy()
@@ -89,7 +105,8 @@ async def processar_cartao(
             num_colunas=num_colunas,
             sensitivity=float(sensitivity),
             threshold=threshold,
-            return_debug_image=True
+            return_debug_image=True,
+            quality_meta=preproc_metadata
         )
 
         # === ETAPA 5: Cálculo de métricas de qualidade ===
@@ -101,7 +118,8 @@ async def processar_cartao(
 
         # Estatísticas das respostas
         respostas_detectadas = sum(1 for r in resultados.values() if r is not None)
-        questoes_com_baixa_confianca = []
+        # Baixa confiança acumulada pelo CartaoRespostaAnalyzer durante a análise
+        questoes_com_baixa_confianca = list(getattr(analyzer, 'ultima_baixa_confianca', []))
         warnings = []
 
         # Calcular distribuição de respostas
@@ -139,6 +157,9 @@ async def processar_cartao(
             "diagnostico": diagnostico
         }
 
+        if retornar_debug.lower() == "true":
+            response_data["preproc_metadata"] = preproc_metadata
+
         # === ETAPA 6: Adicionar imagens de debug (se solicitado) ===
         if retornar_imagens.lower() == "true":
             debug_images = {}
@@ -155,6 +176,29 @@ async def processar_cartao(
             debug_images["resultado_final"] = _converter_imagem_para_base64(cv2.cvtColor(debug_image_with_marks, cv2.COLOR_RGB2BGR))
 
             response_data["debug_images"] = debug_images
+
+        # === ETAPA 7: Salvar debug local (opcional) ===
+        if salvar_debug:
+            try:
+                os.makedirs("debug_runs", exist_ok=True)
+                run_id = f"{int(cv2.getTickCount())}"
+
+                cv2.imwrite(f"debug_runs/{run_id}_binary.png", binary)
+                cv2.imwrite(f"debug_runs/{run_id}_preproc.png", cv2.cvtColor(debug_preprocessed, cv2.COLOR_GRAY2BGR))
+                cv2.imwrite(f"debug_runs/{run_id}_persp.png", cv2.cvtColor(debug_perspective, cv2.COLOR_GRAY2BGR))
+                cv2.imwrite(f"debug_runs/{run_id}_resultado.png", cv2.cvtColor(debug_image_with_marks, cv2.COLOR_RGB2BGR))
+
+                with open(f"debug_runs/{run_id}_meta.json", "w") as f:
+                    json.dump({
+                        "diagnostico": diagnostico,
+                        "preproc_metadata": preproc_metadata,
+                        "num_questoes": num_questoes,
+                        "num_colunas": num_colunas
+                    }, f, indent=2)
+
+                response_data["debug_id"] = run_id
+            except Exception as e:
+                print(f"  ⚠️ Falha ao salvar debug local: {e}")
 
         # Log estruturado
         print("\n" + "="*60)

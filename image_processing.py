@@ -865,7 +865,7 @@ def _aplicar_voting_system(circle_lists, threshold_distancia):
     return np.array(bolhas_finais) if bolhas_finais else np.array([])
 
 
-def detectar_bolhas_avancado(binary, debug_image=None, threshold=100, sensitivity=0.5):
+def detectar_bolhas_avancado(binary, debug_image=None, threshold=100, sensitivity=0.5, quality_meta=None):
     """
     Detecta bolhas em um cartão resposta com método híbrido (4 detectores + voting system).
 
@@ -874,6 +874,7 @@ def detectar_bolhas_avancado(binary, debug_image=None, threshold=100, sensitivit
         debug_image: Imagem para desenhar informações de debug (opcional)
         threshold: Valor de limiar para detecção de marcação (0-255)
         sensitivity: Sensibilidade para considerar uma bolha preenchida (0.0-1.0)
+        quality_meta: Metadados de qualidade opcionais para diagnóstico
 
     Returns:
         bolhas: Lista de dicionários com informações de cada bolha detectada

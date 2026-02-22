@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:app_links/app_links.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
-import 'dart:convert';
 import '../services/api_service.dart';
 import 'selection_screen.dart';
 
@@ -323,7 +321,7 @@ class _LoginScreenState extends State<LoginScreen> {
         // Left side - Branding com gradiente cyan/azul
         Expanded(
           child: Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -379,7 +377,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           const SizedBox(height: 24),
           // Título
-          Text(
+          const Text(
             'SimuladoApp',
             style: TextStyle(
               fontSize: 32,
@@ -568,7 +566,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             onTap: () => _launchWebsite(
                               'https://simuladoapp.com.br/accounts/register/',
                             ),
-                            child: Text(
+                            child: const Text(
                               'Criar conta',
                               style: TextStyle(
                                 color: primary,
@@ -586,7 +584,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Center(
                   child: GestureDetector(
                     onTap: () => _launchWebsite('https://simuladoapp.com.br/'),
-                    child: Text(
+                    child: const Text(
                       '🌐 Visitar SimuladoApp',
                       style: TextStyle(
                         fontSize: 12,
@@ -620,8 +618,8 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
             child: Icon(
               Icons.error_outline_rounded,
               color: errorColor,
@@ -632,7 +630,7 @@ class _LoginScreenState extends State<LoginScreen> {
           Expanded(
             child: Text(
               _errorMessage,
-              style: TextStyle(
+              style: const TextStyle(
                 color: errorColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -700,14 +698,14 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
+              borderSide: const BorderSide(
                 color: errorColor,
                 width: 1.5,
               ),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
+              borderSide: const BorderSide(
                 color: errorColor,
                 width: 2,
               ),
@@ -806,14 +804,14 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
+              borderSide: const BorderSide(
                 color: errorColor,
                 width: 1.5,
               ),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
+              borderSide: const BorderSide(
                 color: errorColor,
                 width: 2,
               ),
@@ -868,9 +866,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   backgroundColor: primary.withOpacity(0.3),
                 ),
               )
-            : Row(
+            : const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   Icon(Icons.login_rounded, size: 20),
                   SizedBox(width: 10),
                   Text(
@@ -893,7 +891,7 @@ class _LoginScreenState extends State<LoginScreen> {
       child: OutlinedButton(
         onPressed: _isLoading ? null : _loginWithGoogle,
         style: OutlinedButton.styleFrom(
-          side: BorderSide(
+          side: const BorderSide(
             color: borderLight,
             width: 2,
           ),
@@ -904,7 +902,7 @@ class _LoginScreenState extends State<LoginScreen> {
           foregroundColor: _textMain,
         ),
         child: _isLoading
-            ? SizedBox(
+            ? const SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
@@ -927,7 +925,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: 1,
                       ),
                     ),
-                    child: Center(
+                    child: const Center(
                       child: Text(
                         'G',
                         style: TextStyle(

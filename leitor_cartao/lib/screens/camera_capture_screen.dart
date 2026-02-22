@@ -240,7 +240,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                   ),
                 ),
                 Text(
-                  'Enquadre os 4 marcadores nos cantos',
+                  'Enquadre os quadrados pretos de cada coluna',
                   style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
                 ),
               ],
@@ -420,11 +420,11 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
           // Cantos em L (guias visuais)
           ..._buildCorners(frameColor),
 
-          // Marcadores de canto (representam os círculos do cartão impresso)
-          _positionedDot(8, 8, true, true, frameColor),
-          _positionedDot(8, 8, true, false, frameColor),
-          _positionedDot(8, 8, false, true, frameColor),
-          _positionedDot(8, 8, false, false, frameColor),
+          // Marcadores de canto da coluna guide (agora com _positionedSquare)
+          _positionedSquare(8, 8, true, true, frameColor),
+          _positionedSquare(8, 8, true, false, frameColor),
+          _positionedSquare(8, 8, false, true, frameColor),
+          _positionedSquare(8, 8, false, false, frameColor),
 
           // Divisórias de coluna
           if (_numColunas >= 2)
@@ -471,7 +471,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     );
   }
 
-  Widget _positionedDot(
+  Widget _positionedSquare(
       double margin, double size, bool isTop, bool isLeft, Color color) {
     return Positioned(
       top: isTop ? margin : null,
@@ -482,7 +482,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         width: size,
         height: size,
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
+          shape: BoxShape.rectangle, // Mudança: de circle para rectangle
           color: color.withOpacity(0.5),
           border: Border.all(color: color, width: 1.5),
         ),

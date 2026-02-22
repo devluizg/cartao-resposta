@@ -1,0 +1,27 @@
+{
+  "_comentario": "Parâmetros de configuração para o pipeline OpenCV de OMR. Ajuste conforme qualidade das imagens.",
+
+  "resize_max_dim": 800,
+
+  "gaussian_blur_kernel": 5,
+
+  "clahe_clip_limit": 2.0,
+  "clahe_tile_grid": 8,
+
+  "canny_threshold1": 75,
+  "canny_threshold2": 200,
+
+  "min_bubble_width": 20,
+  "min_bubble_height": 20,
+  "aspect_ratio_tolerance": 0.1,
+
+  "fill_threshold_pct": 0.50,
+
+  "_notas_ajuste": {
+    "imagens_escuras": "Reduza canny_threshold1 para 50 e aumente clahe_clip_limit para 3.0",
+    "imagens_desfocadas": "Reduza gaussian_blur_kernel para 3",
+    "bolhas_pequenas": "Reduza min_bubble_width e min_bubble_height para 15",
+    "muitas_bolhas_falsas": "Aumente aspect_ratio_tolerance para 0.05 (mais restrito)",
+    "marcacoes_fracas": "Reduza fill_threshold_pct para 0.35"
+  }
+}

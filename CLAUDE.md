@@ -101,3 +101,48 @@ Claude is the **builder/developer**. Claude writes code, implements features, an
   - [ ] Button Z should trigger action W
   - [ ] Style change A should be visible on page B
 - The user will test and report back with results or screenshots.
+
+---
+
+## Skills Disponíveis
+
+Skills são Procedimentos Operacionais Padrão (SOP) que o Claude deve seguir à risca quando acionados.
+Ao reconhecer uma das frases de gatilho abaixo, leia o SKILL.md correspondente **antes de qualquer outra ação**.
+
+### OMR Scanner — Leitura e Correção Automática de Gabaritos
+
+**Localização:** `skills/omr-scanner/SKILL.md`
+
+**Quando acionar — frases de gatilho:**
+- "escanear gabarito" / "scan answer sheet" / "ler folha de respostas"
+- "corrigir prova automaticamente" / "grade bubble sheet"
+- "pipeline OMR" / "optical mark recognition" / "leitura óptica"
+- "processar gabarito" / "cartão resposta" / "cartão de respostas"
+- "detectar bolhas marcadas em imagem de prova"
+
+**O que faz:**
+Pipeline determinístico OpenCV (pré-processamento → detecção de documento → transformação de perspectiva → detecção de bolhas → classificação) com fallback automático para Claude Vision API em casos de falha ou ambiguidade. Gera `resultado_final.json` com nota, acertos, erros e imagem anotada.
+
+**Scripts disponíveis em `skills/omr-scanner/scripts/`:**
+
+| Script | Função |
+|--------|--------|
+| `processamento_imagem.py` | Pipeline OpenCV completo (modos: preprocessar, detectar_documento, perspectiva, detectar_bolhas, classificar) |
+| `claude_vision_fallback.py` | Fallback Claude Vision (modo completo ou parcial para ambiguidades) |
+| `metricas_acuracia.py` | Pontuação final, mesclagem de resultados e geração de imagem anotada |
+
+**Referências em `skills/omr-scanner/references/`:**
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| `configuracoes_normalizacao.json` | Parâmetros CLAHE, Canny, thresholds OpenCV |
+| `gabarito_exemplo.json` | Template de gabarito (substitua pelo gabarito real) |
+| `resposta_api_exemplo.json` | Formatos esperados da Claude Vision API |
+
+**Pré-requisitos:**
+```bash
+pip install opencv-python-headless imutils numpy anthropic Pillow
+export ANTHROPIC_API_KEY="sk-ant-..."
+```
+
+**Grau de liberdade: BAIXO** — Siga as etapas do SKILL.md em sequência estrita. Não pule passos.

@@ -1,0 +1,170 @@
+========== INICIANDO TESTE EM LOTE (VERSÃO ANTERIOR) (6 imagens) ==========
+Gabarito usado: {1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E', 6: 'A', 7: 'B', 8: 'C', 9: 'D', 10: 'E', 11: 'C', 12: 'C', 13: 'C', 14: 'A', 15: 'B', 16: 'C', 17: 'D', 18: 'E', 19: 'A', 20: 'B', 21: 'C', 22: 'D', 23: 'E', 24: 'C', 25: 'C'}
+======================================================================
+
+[Processando]: WhatsApp Image 2026-02-20 at 00.10.30.jpeg...
+✅ Marcadores de canto detectados: TL=(49, 13) TR=(1132, 16) BR=(1197, 1598) BL=(3, 1567)
+✅ Usando marcadores de canto para correção de perspectiva
+  ✅ Retângulos de colunas detectados na binary: 2
+  Usando retângulos detectados: [(356, 217, 236, 618), (708, 219, 229, 571)]
+Divisão de questões por coluna: [13, 12]
+DBSCAN: 13 linhas físicas detectadas (esperado 13). Usando DBSCAN.
+Análise Adaptativa: Média=0.14, Desvio=0.35, Threshold_ref=0.55
+Q2: Fill muito baixo — usando máximo (B=0.00)
+Q3: Fill muito baixo — usando máximo (A=0.10)
+Q4: Fill muito baixo — usando máximo (A=0.00)
+Q5: Fill muito baixo — usando máximo (A=0.01)
+Q10: Fill muito baixo — usando máximo (B=0.00)
+DBSCAN: 12 linhas físicas detectadas (esperado 12). Usando DBSCAN.
+Análise Adaptativa: Média=0.09, Desvio=0.29, Threshold_ref=0.55
+Q1: Fill muito baixo — usando máximo (B=0.00)
+Q2: Fill muito baixo — usando máximo (A=0.00)
+Q7: Fill muito baixo — usando máximo (B=0.00)
+Q8: Fill muito baixo — usando máximo (A=0.01)
+Q10: Fill muito baixo — usando máximo (A=0.00)
+Q11: Fill muito baixo — usando máximo (A=0.00)
+Q12: Fill muito baixo — usando máximo (A=0.00)
+Aviso: Alternativa 'A' aparece 6 vezes (esperado ~2.4)
+DBSCAN: 15 linhas físicas detectadas (esperado 13). Usando DBSCAN.
+Aviso: Detectadas 15 linhas de questões (esperado 13).
+DBSCAN: 13 linhas físicas detectadas (esperado 12). Usando DBSCAN.
+Aviso: Detectadas 13 linhas de questões (esperado 12).
+  -> Precisão: 13/25 (52.0%) | ❌ ERROS
+  -> Divergências: Q2(Lido:B?|Esp:B), Q3(Lido:A?|Esp:C), Q4(Lido:A?|Esp:D), Q5(Lido:A?|Esp:E), Q10(Lido:B?|Esp:E), Q14(Lido:B?|Esp:A), Q15(Lido:A?|Esp:B), Q20(Lido:B?|Esp:B), Q21(Lido:A?|Esp:C), Q23(Lido:A?|Esp:E), Q24(Lido:A?|Esp:C), Q25(Lido:A?|Esp:C)
+
+[Processando]: WhatsApp Image 2026-02-20 at 00.10.31.jpeg...
+✅ Marcadores de canto detectados: TL=(143, 193) TR=(959, 193) BR=(1160, 1283) BL=(154, 1448)
+✅ Usando marcadores de canto para correção de perspectiva
+  ✅ Retângulos de colunas detectados na binary: 2
+  Usando retângulos detectados: [(218, 371, 197, 465), (472, 380, 213, 446)]
+Divisão de questões por coluna: [13, 12]
+DBSCAN: 13 linhas físicas detectadas (esperado 13). Usando DBSCAN.
+Análise Adaptativa: Média=0.23, Desvio=0.39, Threshold_ref=0.55
+Q2: Múltiplas candidatas (A, D), escolhendo D (fill=0.92)
+Q5: Fill muito baixo — usando máximo (B=0.11)
+Q6: Múltiplas candidatas (A, C), escolhendo A (fill=0.99)
+Q7: Fill muito baixo — usando máximo (B=0.25)
+Q8: Fill muito baixo — usando máximo (A=0.04)
+Q9: Fill muito baixo — usando máximo (A=0.12)
+Q12: Fill muito baixo — usando máximo (B=0.14)
+Aviso: Alternativa 'A' aparece 6 vezes (esperado ~2.6)
+DBSCAN: 12 linhas físicas detectadas (esperado 12). Usando DBSCAN.
+Análise Adaptativa: Média=0.20, Desvio=0.38, Threshold_ref=0.55
+Q7: Fill muito baixo — usando máximo (A=0.00)
+Q9: Fill muito baixo — usando máximo (A=0.04)
+Q11: Múltiplas candidatas (C, B), escolhendo C (fill=0.99)
+Q12: Fill muito baixo — usando máximo (B=0.04)
+Aviso: Alternativa 'A' aparece 8 vezes (esperado ~2.4)
+DBSCAN: 17 linhas físicas detectadas (esperado 13). Usando DBSCAN.
+Aviso: Detectadas 17 linhas de questões (esperado 13).
+  ⚠️ Voting encontrou apenas 31 bolhas de 295 detecções, relaxando...
+DBSCAN: 16 linhas físicas detectadas (esperado 12). Usando DBSCAN.
+Aviso: Detectadas 16 linhas de questões (esperado 12).
+  -> Precisão: 9/25 (36.0%) | ❌ ERROS
+  -> Divergências: Q2(Lido:D?|Esp:B), Q3(Lido:A|Esp:C), Q4(Lido:A|Esp:D), Q5(Lido:B?|Esp:E), Q6(Lido:A?|Esp:A), Q8(Lido:A?|Esp:C), Q9(Lido:A?|Esp:D), Q12(Lido:B?|Esp:C), Q15(Lido:A|Esp:B), Q16(Lido:A|Esp:C), Q17(Lido:A|Esp:D), Q18(Lido:A|Esp:E), Q20(Lido:A?|Esp:B), Q22(Lido:A?|Esp:D), Q24(Lido:C?|Esp:C), Q25(Lido:B?|Esp:C)
+
+[Processando]: WhatsApp Image 2026-02-20 at 00.10.29.jpeg...
+Marcadores de canto: detectados 2/4 — fallback para contorno
+  ⚠️ Falha ao corrigir perspectiva, processando imagem original.
+  ✅ Retângulos de colunas detectados na binary: 2
+  Usando retângulos detectados: [(299, 206, 257, 697), (695, 205, 253, 645)]
+Divisão de questões por coluna: [13, 12]
+DBSCAN: 13 linhas físicas detectadas (esperado 13). Usando DBSCAN.
+Análise Adaptativa: Média=0.15, Desvio=0.34, Threshold_ref=0.55
+Q8: Fill muito baixo — usando máximo (A=0.01)
+Q10: Fill muito baixo — usando máximo (A=0.00)
+Q11: Fill muito baixo — usando máximo (A=0.01)
+Q13: Fill muito baixo — usando máximo (A=0.00)
+Aviso: Alternativa 'A' aparece 6 vezes (esperado ~2.6)
+DBSCAN: 12 linhas físicas detectadas (esperado 12). Usando DBSCAN.
+Análise Adaptativa: Média=0.04, Desvio=0.20, Threshold_ref=0.55
+Q1: Fill muito baixo — usando máximo (A=0.00)
+Q2: Fill muito baixo — usando máximo (A=0.00)
+Q3: Fill muito baixo — usando máximo (A=0.00)
+Q4: Fill muito baixo — usando máximo (B=0.00)
+Q5: Fill muito baixo — usando máximo (A=0.00)
+Q6: Fill muito baixo — usando máximo (A=0.00)
+Q9: Fill muito baixo — usando máximo (A=0.00)
+Q10: Fill muito baixo — usando máximo (A=0.00)
+Q11: Fill muito baixo — usando máximo (A=0.00)
+Q12: Fill muito baixo — usando máximo (A=0.00)
+Aviso: Alternativa 'A' aparece 9 vezes (esperado ~2.4)
+DBSCAN: 15 linhas físicas detectadas (esperado 13). Usando DBSCAN.
+Aviso: Detectadas 15 linhas de questões (esperado 13).
+DBSCAN: 13 linhas físicas detectadas (esperado 12). Usando DBSCAN.
+Aviso: Detectadas 13 linhas de questões (esperado 12).
+  -> Precisão: 11/25 (44.0%) | ❌ ERROS
+  -> Divergências: Q8(Lido:A?|Esp:C), Q10(Lido:A?|Esp:E), Q11(Lido:A?|Esp:C), Q13(Lido:A?|Esp:C), Q14(Lido:A?|Esp:A), Q15(Lido:A?|Esp:B), Q16(Lido:A?|Esp:C), Q17(Lido:B?|Esp:D), Q18(Lido:A?|Esp:E), Q19(Lido:A?|Esp:A), Q22(Lido:A?|Esp:D), Q23(Lido:A?|Esp:E), Q24(Lido:A?|Esp:C), Q25(Lido:A?|Esp:C)
+
+[Processando]: WhatsApp Image 2026-02-20 at 00.10.32.jpeg...
+✅ Marcadores de canto detectados: TL=(167, 217) TR=(1145, 31) BR=(989, 1463) BL=(36, 1257)
+✅ Usando marcadores de canto para correção de perspectiva
+  ✅ Retângulos de colunas detectados na binary: 2
+  Usando retângulos detectados: [(337, 282, 217, 590), (433, 859, 562, 581)]
+Divisão de questões por coluna: [13, 12]
+DBSCAN: 13 linhas físicas detectadas (esperado 13). Usando DBSCAN.
+Análise Adaptativa: Média=0.13, Desvio=0.32, Threshold_ref=0.55
+Q2: Fill muito baixo — usando máximo (A=0.01)
+Q3: Fill muito baixo — usando máximo (A=0.04)
+Q4: Fill muito baixo — usando máximo (A=0.04)
+Q5: Fill muito baixo — usando máximo (A=0.05)
+Q7: Fill muito baixo — usando máximo (A=0.00)
+Aviso: Alternativa 'A' aparece 7 vezes (esperado ~2.6)
+  ⚠️ Voting encontrou apenas 0 bolhas de 42 detecções, relaxando...
+DBSCAN: 17 linhas físicas detectadas (esperado 13). Usando DBSCAN.
+Aviso: Detectadas 17 linhas de questões (esperado 13).
+DBSCAN: 14 linhas físicas detectadas (esperado 12). Usando DBSCAN.
+Aviso: Detectadas 14 linhas de questões (esperado 12).
+  -> Precisão: 4/25 (16.0%) | ❌ ERROS
+  -> Divergências: Q1(Lido:B|Esp:A), Q2(Lido:A?|Esp:B), Q3(Lido:A?|Esp:C), Q4(Lido:A?|Esp:D), Q5(Lido:A?|Esp:E), Q6(Lido:B|Esp:A), Q7(Lido:A?|Esp:B), Q9(Lido:A|Esp:D), Q10(Lido:A|Esp:E), Q14(Lido:None|Esp:A), Q15(Lido:None|Esp:B), Q16(Lido:None|Esp:C), Q17(Lido:None|Esp:D), Q18(Lido:None|Esp:E), Q19(Lido:None|Esp:A), Q20(Lido:None|Esp:B), Q21(Lido:None|Esp:C), Q22(Lido:None|Esp:D), Q23(Lido:None|Esp:E), Q24(Lido:None|Esp:C), Q25(Lido:None|Esp:C)
+
+[Processando]: WhatsApp Image 2026-02-20 at 00.10.28.jpeg...
+Marcadores de canto: detectados 2/4 — fallback para contorno
+  ✅ Retângulos de colunas detectados na shadow-free: 2
+  Usando retângulos detectados: [(27, 115, 365, 759), (930, 361, 246, 513)]
+Divisão de questões por coluna: [13, 12]
+  ⚠️ Voting encontrou apenas 1 bolhas de 28 detecções, relaxando...
+Aviso: DBSCAN detectou apenas 2 linhas (esperado 13). Usando KMeans(2).
+Aviso: Detectadas 2 linhas de questões (esperado 13).
+Análise Adaptativa: Média=0.66, Desvio=0.46, Threshold_ref=0.90
+Aviso: Apenas 2 de 13 questões detectadas.
+  ⚠️ Voting encontrou apenas 0 bolhas de 16 detecções, relaxando...
+Aviso: DBSCAN detectou apenas 2 linhas (esperado 13). Usando KMeans(2).
+Aviso: Detectadas 2 linhas de questões (esperado 13).
+  -> Precisão: 1/25 (4.0%) | ❌ ERROS
+  -> Divergências: Q2(Lido:A|Esp:B), Q3(Lido:None|Esp:C), Q4(Lido:None|Esp:D), Q5(Lido:None|Esp:E), Q6(Lido:None|Esp:A), Q7(Lido:None|Esp:B), Q8(Lido:None|Esp:C), Q9(Lido:None|Esp:D), Q10(Lido:None|Esp:E), Q11(Lido:None|Esp:C), Q12(Lido:None|Esp:C), Q13(Lido:None|Esp:C), Q14(Lido:None|Esp:A), Q15(Lido:None|Esp:B), Q16(Lido:None|Esp:C), Q17(Lido:None|Esp:D), Q18(Lido:None|Esp:E), Q19(Lido:None|Esp:A), Q20(Lido:None|Esp:B), Q21(Lido:None|Esp:C), Q22(Lido:None|Esp:D), Q23(Lido:None|Esp:E), Q24(Lido:None|Esp:C), Q25(Lido:None|Esp:C)
+
+[Processando]: WhatsApp Image 2026-02-20 at 00.10.27.jpeg...
+✅ Marcadores de canto detectados: TL=(55, 346) TR=(1095, 73) BR=(963, 1503) BL=(271, 1526)
+✅ Usando marcadores de canto para correção de perspectiva
+  ✅ Retângulos de colunas detectados na binary: 2
+  Usando retângulos detectados: [(0, 550, 1075, 886), (353, 12, 255, 487)]
+Divisão de questões por coluna: [13, 12]
+  ⚠️ Voting encontrou apenas 1 bolhas de 14 detecções, relaxando...
+Aviso: DBSCAN detectou apenas 2 linhas (esperado 13). Usando KMeans(2).
+Aviso: Detectadas 2 linhas de questões (esperado 13).
+Análise Adaptativa: Média=0.30, Desvio=0.09, Threshold_ref=0.55
+Q2: Fill muito baixo — usando máximo (A=0.20)
+Aviso: Apenas 2 de 13 questões detectadas.
+Análise Adaptativa: Média=0.22, Desvio=0.40, Threshold_ref=0.57
+Q4: Fill muito baixo — usando máximo (B=0.00)
+Q9: Fill muito baixo — usando máximo (A=0.04)
+Q10: Fill muito baixo — usando máximo (A=0.02)
+Q11: Fill muito baixo — usando máximo (A=0.02)
+Q12: Fill muito baixo — usando máximo (A=0.06)
+Aviso: Alternativa 'A' aparece 11 vezes (esperado ~2.4)
+  ⚠️ Voting encontrou apenas 43 bolhas de 471 detecções, relaxando...
+Aviso: DBSCAN detectou apenas 6 linhas (esperado 13). Usando KMeans(6).
+Aviso: Detectadas 6 linhas de questões (esperado 13).
+Aviso: DBSCAN detectou apenas 2 linhas (esperado 12). Usando KMeans(2).
+Aviso: Detectadas 2 linhas de questões (esperado 12).
+  -> Precisão: 3/25 (12.0%) | ❌ ERROS
+  -> Divergências: Q2(Lido:A|Esp:B), Q3(Lido:None|Esp:C), Q4(Lido:None|Esp:D), Q5(Lido:None|Esp:E), Q6(Lido:None|Esp:A), Q7(Lido:None|Esp:B), Q8(Lido:None|Esp:C), Q9(Lido:None|Esp:D), Q10(Lido:None|Esp:E), Q11(Lido:None|Esp:C), Q12(Lido:None|Esp:C), Q13(Lido:None|Esp:C), Q15(Lido:A|Esp:B), Q16(Lido:A|Esp:C), Q17(Lido:B?|Esp:D), Q18(Lido:A|Esp:E), Q20(Lido:A|Esp:B), Q21(Lido:A|Esp:C), Q22(Lido:A?|Esp:D), Q23(Lido:A?|Esp:E), Q24(Lido:A?|Esp:C), Q25(Lido:A?|Esp:C)
+
+======================================================================
+RESUMO FINAL DO LOTE (VERSÃO ANTERIOR):
+======================================================================
+Imagens processadas: 6
+Total de questões lidas em todas as imagens: 150
+Total de acertos perante gabarito: 41
+PRECISÃO GLOBAL DA API: 27.33%

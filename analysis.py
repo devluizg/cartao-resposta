@@ -140,19 +140,32 @@ def _calcular_simetria_radial(roi_circular, cx, cy, r):
 
 def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 'E'], binary=None, image=None):
     """
-    Analisa as questões agrupadas usando estratégia de gap máximo.
-    
-    Esta é a versão PRINCIPAL usada pelo pipeline multi-colunas.
-    Usa o método de "maior gap entre fill_rates consecutivos" para
-    identificar a bolha marcada, que é robusto a variações de contraste.
-    """
-    resultados = {}
-    confianca = {}
-    for q in range(1, num_questoes + 1):
-        resultados[q] = None
-        confianca[q] = 0.0
+    Analisa as questões agrupadas usando intensidade relativa intra-linha.
 
-    # --- ANÁLISE ADAPTATIVA GLOBAL ---
+    ABORDAGEM PRINCIPAL — Comparação Relativa:
+    Para cada questão (linha de 5 bolhas), normaliza os fill_rates pelo
+    máximo local da linha. A bolha com maior valor normalizado é a marcada,
+    independente do valor absoluto. Isso elimina o efeito de sombras e
+    iluminação desuniforme que afeta todas as bolhas de uma linha igualmente.
+
+    Score de separação = (max_fill - second_max_fill) / max_fill
+    → score < 0.15: candidatos muito próximos → questão de "baixa confiança"
+
+    ABORDAGEM SECUNDÁRIA (fallback):
+    Para score < 0.10, aciona analisar_preenchimento_avancado para desempatar
+    as 2 melhores candidatas via análise morfológica (fill_rate circular,
+    simetria radial, gradiente).
+
+    Returns:
+        resultados:               dict {num_questao: letra | None}
+        confianca:                dict {num_questao: float}
+        questoes_baixa_confianca: list[dict] com questao, score e candidatos
+    """
+    resultados = {q: None for q in range(1, num_questoes + 1)}
+    confianca = {q: 0.0 for q in range(1, num_questoes + 1)}
+    questoes_baixa_confianca = []
+
+    # --- DIAGNÓSTICO GLOBAL (para log e threshold de fallback) ---
     todas_taxas = []
     for questao in questoes:
         for bolha in questao:
@@ -160,20 +173,18 @@ def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 
                 todas_taxas.append(bolha.get('fill_rate', 0.0))
 
     if todas_taxas:
-        media_global = np.mean(todas_taxas)
-        desvio_global = np.std(todas_taxas)
-
+        media_global = float(np.mean(todas_taxas))
+        desvio_global = float(np.std(todas_taxas))
         taxas_arr = np.array(todas_taxas)
-        threshold_referencia = float(np.percentile(taxas_arr, 80))
-        threshold_referencia = float(np.clip(threshold_referencia, 0.55, 0.90))
-
+        threshold_referencia = float(np.clip(np.percentile(taxas_arr, 80), 0.55, 0.90))
         print(f"Análise Adaptativa: Média={media_global:.2f}, Desvio={desvio_global:.2f}, "
               f"Threshold_ref={threshold_referencia:.2f}")
     else:
+        media_global = desvio_global = 0.0
         threshold_referencia = 0.65
         print("Aviso: Nenhuma bolha detectada para análise adaptativa. Usando threshold padrão.")
 
-    # --- ANÁLISE POR QUESTÃO: gap máximo ---
+    # --- ANÁLISE POR QUESTÃO: intensidade relativa intra-linha ---
     for i, questao in enumerate(questoes):
         num_questao = i + 1
         if num_questao > num_questoes:
@@ -181,111 +192,99 @@ def analisar_gabarito(questoes, num_questoes, alternativas=['A', 'B', 'C', 'D', 
         if not questao:
             continue
 
-        # 1. Coletar fill_rates com índices originais
-        bolhas_com_idx = [(j, bolha.get('fill_rate', 0.0)) for j, bolha in enumerate(questao)
-                         if not bolha.get('sintetica', False)]
-
-        if not bolhas_com_idx:
+        bolhas_reais = [b for b in questao if not b.get('sintetica', False)]
+        if not bolhas_reais:
             continue
 
-        # Ordenar pelo fill_rate (decrescente)
-        bolhas_sorted = sorted(bolhas_com_idx, key=lambda x: x[1], reverse=True)
-        fills_sorted = [f for _, f in bolhas_sorted]
+        # === MÉTODO PRIMÁRIO: Máximo Fill Rate ===
+        # Encontra a bolha com maior preenchimento (fill_rate)
+        # Se houver múltiplas com fill alto, marca como baixa confiança
+        fills = [b.get('fill_rate', 0.0) for b in questao if not b.get('sintetica', False)]
 
-        max_fill = fills_sorted[0]
-        second_fill = fills_sorted[1] if len(fills_sorted) > 1 else 0.0
-
-        # 2. Estratégia: maior gap entre fills consecutivos
-        if len(fills_sorted) >= 2:
-            gaps = [fills_sorted[k] - fills_sorted[k+1] for k in range(len(fills_sorted)-1)]
-            maior_gap_idx = int(np.argmax(gaps))
-            candidatas_acima = bolhas_sorted[:maior_gap_idx + 1]
+        if not fills:
+            letra = None
+            score_sep = 0.0
         else:
-            candidatas_acima = bolhas_sorted
-            gaps = []
+            max_fill = float(np.max(fills))
+            if max_fill < 1e-6:
+                # Todas as bolhas ~0
+                letra = None
+                score_sep = 0.0
+                print(f"Q{num_questao}: Todas bolhas ~0 — nenhuma resposta detectada")
+            else:
+                # Normalizar pelo máximo (intensidade relativa)
+                fills_norm = np.array(fills) / max_fill
+                idx_max = int(np.argmax(fills_norm))
+                letra = alternativas[idx_max] if idx_max < len(alternativas) else None
 
-        # 3. Validação: fill muito baixo → forced choice com confiança baixa
-        if max_fill < threshold_referencia * 0.6:
-            alt_index = bolhas_com_idx[0][0]
-            resultados[num_questao] = alternativas[alt_index] if alt_index < len(alternativas) else None
-            confianca[num_questao] = max(0.1, min(max_fill * 1.5, 0.3))
-            print(f"Q{num_questao}: Fill muito baixo — usando máximo "
-                  f"({alternativas[alt_index] if alt_index < len(alternativas) else '?'}={max_fill:.2f})")
-            continue
+                # Score de separação
+                sorted_norm = np.sort(fills_norm)[::-1]
+                second_norm = sorted_norm[1] if len(sorted_norm) > 1 else 0.0
+                score_sep = float(1.0 - second_norm)
 
-        if len(candidatas_acima) == 1:
-            # Caso ideal: apenas uma bolha acima do maior gap
-            idx_orig, fill_val = candidatas_acima[0]
-            gap_val = gaps[maior_gap_idx] if gaps else fill_val
-            nivel_confianca = min(gap_val * 2, 1.0)
-            
-            # Validação Avançada
-            if binary is not None and (nivel_confianca < 0.6 or fill_val < threshold_referencia):
-                bolha_alvo = questao[idx_orig]
-                res_adv = analisar_preenchimento_avancado(binary, image, bolha_alvo)
-                if res_adv['score'] > 0.45:
-                    nivel_confianca = res_adv['confianca']
-                    fill_val = res_adv['score']
-                else:
-                    # Mesmo a única opção estava fraca
-                    pass
-                    
-            resultados[num_questao] = alternativas[idx_orig] if idx_orig < len(alternativas) else None
-            confianca[num_questao] = nivel_confianca
+        resultados[num_questao] = letra
+        confianca[num_questao] = score_sep
 
-        elif len(candidatas_acima) > 1 and len(gaps) > 0:
-            melhor_idx, melhor_fill = candidatas_acima[0]
-            segunda_fill = candidatas_acima[1][1]
-            gap_entre = melhor_fill - segunda_fill
-            
-            # --- TENTAR DESEMPATAR COM ANÁLISE AVANÇADA ---
-            if binary is not None and melhor_fill - segunda_fill < 0.2:
-                for idx_c, val_c in candidatas_acima:
-                    idx_real = idx_c
-                    if idx_real < len(questao):
-                        res_adv = analisar_preenchimento_avancado(binary, image, questao[idx_real])
-                        # Atualiza fill interno para o score híbrido
-                        bolhas_com_idx[idx_real] = (idx_real, res_adv['score'])
-                
-                # Re-ordenar após analysis avançada
-                candidatas_revisadas = sorted([bolhas_com_idx[idx_c] for idx_c, _ in candidatas_acima], key=lambda x: x[1], reverse=True)
-                melhor_idx, melhor_fill = candidatas_revisadas[0]
-                segunda_fill = candidatas_revisadas[1][1] if len(candidatas_revisadas) > 1 else 0
+        # === SINALIZAÇÃO DE BAIXA CONFIANÇA (score < 0.15) ===
+        if score_sep < 0.15:
+            # Identificar candidatos que estão dentro de 20% do máximo
+            fills_com_letra = [
+                (alternativas[j], bolha.get('fill_rate', 0.0))
+                for j, bolha in enumerate(questao)
+                if j < len(alternativas) and not bolha.get('sintetica', False)
+            ]
+            max_fill_q = max((f for _, f in fills_com_letra), default=0.0)
+            candidatos = [
+                lt for lt, f in fills_com_letra
+                if max_fill_q > 0 and f >= max_fill_q * 0.80
+            ]
 
-            # Filtro de dominância relativa revisado
-            if segunda_fill > 0 and melhor_fill / segunda_fill >= 1.5:
-                idx_orig = melhor_idx
-                gap_val = gaps[maior_gap_idx] if maior_gap_idx < len(gaps) else melhor_fill
-                nivel_confianca = min(gap_val * 2, 1.0)
-                resultados[num_questao] = alternativas[idx_orig] if idx_orig < len(alternativas) else None
-                confianca[num_questao] = nivel_confianca
-                continue
-
-            letras_marcadas = [alternativas[j] for j, f in candidatas_acima if j < len(alternativas)]
-            nivel_confianca = min(max(gap_entre * 2, 0.0), 0.5)
-
-            print(f"Q{num_questao}: Múltiplas candidatas ({', '.join(letras_marcadas)}), "
-                  f"escolhendo {alternativas[melhor_idx] if melhor_idx < len(alternativas) else '?'} "
-                  f"(fill={melhor_fill:.2f})")
-            resultados[num_questao] = alternativas[melhor_idx] if melhor_idx < len(alternativas) else None
-            confianca[num_questao] = nivel_confianca
-
+            questoes_baixa_confianca.append({
+                "questao": num_questao,
+                "score": round(score_sep, 4),
+                "candidatos": candidatos
+            })
+            fills_log = ", ".join(f"{lt}={f:.2f}" for lt, f in fills_com_letra)
+            print(f"Q{num_questao}: ⚠️ Baixa confiança sep={score_sep:.3f} "
+                  f"→ {candidatos} [{fills_log}]")
         else:
-            # Sem candidatas claras → forced choice
-            idx_orig = bolhas_sorted[0][0]
-            
-            if binary is not None:
-                bolha_alvo = questao[idx_orig]
-                res_adv = analisar_preenchimento_avancado(binary, image, bolha_alvo)
-                if res_adv['score'] > 0.45:
-                    max_fill = res_adv['score']
-            
-            resultados[num_questao] = alternativas[idx_orig] if idx_orig < len(alternativas) else None
-            confianca[num_questao] = max(0.1, min(max_fill * 2, 0.4))
-            print(f"Q{num_questao}: Sem candidata clara — usando máximo "
-                  f"({alternativas[idx_orig] if idx_orig < len(alternativas) else '?'}={max_fill:.2f})")
+            fills_log = ", ".join(
+                f"{alternativas[j]}={b.get('fill_rate', 0):.2f}"
+                for j, b in enumerate(questao) if j < len(alternativas)
+            )
+            print(f"Q{num_questao}: {letra} (sep={score_sep:.3f}) [{fills_log}]")
 
-    return resultados, confianca
+        # === FALLBACK AVANÇADO: desempate morfológico para ambiguidade extrema ===
+        # Acionado apenas quando score < 0.10 E binary disponível
+        fills_reais_vals = [b.get('fill_rate', 0.0) for b in bolhas_reais]
+        max_fill = max(fills_reais_vals) if fills_reais_vals else 0.0
+
+        if binary is not None and score_sep < 0.10:
+            # Analisar as top-2 bolhas por fill_rate com análise avançada
+            bolhas_com_idx = sorted(
+                [(j, b) for j, b in enumerate(questao)
+                 if j < len(alternativas) and not b.get('sintetica', False)],
+                key=lambda x: x[1].get('fill_rate', 0.0),
+                reverse=True
+            )
+            scores_adv = []
+            for j, bolha in bolhas_com_idx[:2]:
+                res_adv = analisar_preenchimento_avancado(binary, image, bolha)
+                scores_adv.append((j, res_adv['score'], res_adv['confianca']))
+
+            if scores_adv:
+                scores_adv.sort(key=lambda x: x[1], reverse=True)
+                melhor_j, melhor_score_adv, melhor_conf = scores_adv[0]
+                if melhor_score_adv > 0.45:
+                    letra_adv = alternativas[melhor_j] if melhor_j < len(alternativas) else letra
+                    if letra_adv != letra:
+                        print(f"Q{num_questao}: Análise avançada corrige "
+                              f"{letra}→{letra_adv} (score_adv={melhor_score_adv:.2f})")
+                        resultados[num_questao] = letra_adv
+                    # Elevar confiança usando score avançado ponderado
+                    confianca[num_questao] = max(score_sep, melhor_conf * 0.5)
+
+    return resultados, confianca, questoes_baixa_confianca
 
 
 def validar_resultados(resultados, confianca, num_questoes, num_alternativas=5):
@@ -507,8 +506,10 @@ def segmentar_colunas_com_bordas(binary, num_colunas):
 class CartaoRespostaAnalyzer:
     def __init__(self):
         self.alternativas = ['A', 'B', 'C', 'D', 'E']
+        # Populado após cada chamada de analisar_gabarito; acessível pelo api_backend
+        self.ultima_baixa_confianca = []
 
-    def analisar_cartao_melhorado(self, image, binary, debug_image, num_questoes, num_colunas, sensitivity):
+    def analisar_cartao_melhorado(self, image, binary, debug_image, num_questoes, num_colunas, sensitivity, quality_meta=None):
         resultados = {}
         h, w = binary.shape
 
@@ -550,49 +551,64 @@ class CartaoRespostaAnalyzer:
                 roi_cartao = binary_proc[y:y+h, x:x+w]
                 roi_debug = debug_image[y:y+h, x:x+w]
 
-                bolhas, debug_area = detectar_bolhas_avancado(roi_cartao, roi_debug, sensitivity=sensitivity)
-                debug_image[y:y+h, x:x+w] = debug_area
+            bolhas, debug_area = detectar_bolhas_avancado(
+                roi_cartao, roi_debug, sensitivity=sensitivity, quality_meta=quality_meta
+            )
+            debug_image[y:y+h, x:x+w] = debug_area
 
-                for bolha in bolhas:
-                    bolha['centro'] = (bolha['centro'][0] + x, bolha['centro'][1] + y)
-                    bolha['x'] += x
-                    bolha['y'] += y
+            for bolha in bolhas:
+                bolha['centro'] = (bolha['centro'][0] + x, bolha['centro'][1] + y)
+                bolha['x'] += x
+                bolha['y'] += y
 
-                if bolhas:
-                    questoes = agrupar_bolhas_por_questoes(bolhas, num_questoes, 5)
-                    resultados, confianca_res = analisar_gabarito(questoes, num_questoes, self.alternativas, binary=roi_cartao, image=image[y:y+h, x:x+w])
+            if bolhas:
+                questoes = agrupar_bolhas_por_questoes(bolhas, num_questoes, 5)
+                resultados, confianca_res, baixa_confianca = analisar_gabarito(
+                    questoes, num_questoes, self.alternativas, binary=roi_cartao, image=image[y:y+h, x:x+w]
+                )
+                self.ultima_baixa_confianca = baixa_confianca
 
-                    for i, questao in enumerate(questoes):
-                        if i >= num_questoes: break
-                        num_questao = i + 1
-                        resposta = resultados.get(num_questao)
+                for i, questao in enumerate(questoes):
+                    if i >= num_questoes:
+                        break
+                    num_questao = i + 1
+                    resposta = resultados.get(num_questao)
 
-                        if "ERRO" in str(resposta):
-                            cor = (0, 0, 255)
-                        elif resposta is not None:
-                            cor = (0, 255, 0)
-                        else:
-                            cor = (255, 0, 0)
+                    if "ERRO" in str(resposta):
+                        cor = (0, 0, 255)
+                    elif resposta is not None:
+                        cor = (0, 255, 0)
+                    else:
+                        cor = (255, 0, 0)
 
-                        for j, bolha in enumerate(questao):
-                            if j >= 5: break
-                            cv2.circle(debug_image, bolha['centro'], bolha['radius'], cor, 2)
-                            alt_letra = self.alternativas[j]
-                            cv2.putText(debug_image, alt_letra, 
-                                       (bolha['centro'][0] - 5, bolha['centro'][1] + 5), 
-                                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, cor, 2)
-                else:
-                    for i in range(1, num_questoes + 1):
-                        resultados[i] = None
+                    for j, bolha in enumerate(questao):
+                        if j >= 5:
+                            break
+                        cv2.circle(debug_image, bolha['centro'], bolha['radius'], cor, 2)
+                        alt_letra = self.alternativas[j]
+                        cv2.putText(
+                            debug_image,
+                            alt_letra,
+                            (bolha['centro'][0] - 5, bolha['centro'][1] + 5),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.7,
+                            cor,
+                            2
+                        )
+            else:
+                for i in range(1, num_questoes + 1):
+                    resultados[i] = None
         else:
-            return self.analisar_cartao_fallback(image, binary, debug_image, num_questoes, num_colunas, sensitivity)
+            return self.analisar_cartao_fallback(
+                image, binary, debug_image, num_questoes, num_colunas, sensitivity, quality_meta=quality_meta
+            )
 
         for i in range(1, num_questoes + 1):
             if i not in resultados:
                 resultados[i] = None
         return resultados
 
-    def analisar_cartao_fallback(self, image, binary, debug_image, num_questoes, num_colunas, sensitivity):
+    def analisar_cartao_fallback(self, image, binary, debug_image, num_questoes, num_colunas, sensitivity, quality_meta=None):
         resultados = {i: None for i in range(1, num_questoes + 1)}
 
         if binary.max() <= 1.0:
@@ -600,13 +616,16 @@ class CartaoRespostaAnalyzer:
         else:
             binary_proc = binary.copy()
 
-        bolhas, debug_img = detectar_bolhas_avancado(binary_proc, debug_image, sensitivity=sensitivity)
+        bolhas, debug_img = detectar_bolhas_avancado(
+            binary_proc, debug_image, sensitivity=sensitivity, quality_meta=quality_meta
+        )
 
         debug_image[:] = debug_img[:]
 
         if bolhas:
             questoes = agrupar_bolhas_por_questoes(bolhas, num_questoes, len(self.alternativas))
-            resultados_analise, confianca_res = analisar_gabarito(questoes, num_questoes, self.alternativas, binary=binary_proc, image=image)
+            resultados_analise, confianca_res, baixa_confianca = analisar_gabarito(questoes, num_questoes, self.alternativas, binary=binary_proc, image=image)
+            self.ultima_baixa_confianca = baixa_confianca
             resultados = validar_resultados(resultados_analise, confianca_res, num_questoes)
         return resultados
 
@@ -659,7 +678,9 @@ class MultiColumnCartaoAnalyzer:
             else:
                 coluna_bin_proc = coluna_bin.copy()
 
-            bolhas_coluna, _ = detectar_bolhas_avancado(coluna_bin_proc, None, sensitivity=0.1)
+            bolhas_coluna, _ = detectar_bolhas_avancado(
+                coluna_bin_proc, None, sensitivity=0.1, quality_meta=None
+            )
 
             for bolha in bolhas_coluna:
                 bolha['x'] += x_inicio
@@ -696,7 +717,7 @@ class MultiColumnCartaoAnalyzer:
 
             questao_atual += questoes_nesta_coluna
 
-    def analisar_cartao_multicolunas(self, image, binary, debug_image, num_questoes, num_colunas, sensitivity, threshold=150, return_debug_image=False):
+    def analisar_cartao_multicolunas(self, image, binary, debug_image, num_questoes, num_colunas, sensitivity, threshold=150, return_debug_image=False, quality_meta=None):
         """
         v2: Usa detecção de retângulos impressos como âncora para as colunas.
         Fallback para segmentação por projeção se retângulos não forem encontrados.
@@ -711,7 +732,7 @@ class MultiColumnCartaoAnalyzer:
 
         if num_colunas <= 1:
             resultados = self.analyzer.analisar_cartao_melhorado(
-                image, binary, debug_image, num_questoes, num_colunas, sensitivity
+                image, binary, debug_image, num_questoes, num_colunas, sensitivity, quality_meta=quality_meta
             )
             self.criar_visualizacao_simplificada(clean_debug, resultados, binary, num_colunas)
 
@@ -767,7 +788,7 @@ class MultiColumnCartaoAnalyzer:
                 
                 resultados_coluna = self.analyzer.analisar_cartao_fallback(
                     coluna_img, coluna_bin, coluna_debug,
-                    questoes_nesta_coluna, 1, sensitivity
+                    questoes_nesta_coluna, 1, sensitivity, quality_meta=quality_meta
                 )
                 
                 debug_image[ry:ry+rh, rx:rx+rw] = coluna_debug
@@ -822,7 +843,7 @@ class MultiColumnCartaoAnalyzer:
                     coluna_img,
                     coluna_bin,
                     coluna_debug,
-                    questoes_nesta_coluna, 1, sensitivity
+                    questoes_nesta_coluna, 1, sensitivity, quality_meta=quality_meta
                 )
 
                 debug_image[:, x_inicio:x_fim] = coluna_debug

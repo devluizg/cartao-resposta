@@ -1,21 +1,23 @@
 import os
 import cv2
 import glob
+import json
 from analysis import CartaoRespostaAnalyzer, MultiColumnCartaoAnalyzer
 from image_processing import melhorar_pre_processamento_adaptativo, corrigir_perspectiva, redimensionar_imagem_otimizada
 
 # VOCÊ PODE EDITAR SEU GABARITO CORRETO AQUI
 GABARITO_CORRETO = {
-    1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E',
-    6: 'A', 7: 'B', 8: 'C', 9: 'D', 10: 'E',
-    11: 'C', 12: 'C', 13: 'C', 14: 'A', 15: 'B',
-    16: 'C', 17: 'D', 18: 'E', 19: 'A', 20: 'B',
-    21: 'C', 22: 'D', 23: 'E', 24: 'C', 25: 'C'
+    1: 'A', 2: 'C', 3: 'B', 4: 'B', 5: 'E',
+    6: 'D', 7: 'E', 8: 'B', 9: 'D', 10: 'A',
+    11: 'B', 12: 'D', 13: 'C', 14: 'A', 15: 'D',
+    16: 'B', 17: 'C', 18: 'D', 19: 'E', 20: 'A',
+    21: 'B', 22: 'D', 23: 'C', 24: 'B', 25: 'A'
 }
 
 NUM_QUESTOES = 25
 NUM_COLUNAS = 2
 PASTA_IMAGENS = "/home/luiz/cartao-resposta/test_images" # Pode apontar para a pasta que quiser!
+PASTA_DEBUG = "/home/luiz/cartao-resposta/debug_lote"
 
 def agrupar_respostas_str(respostas_obj):
     # Converte {"1": "A", "2": "B"} ou objeto similar garantindo chaves numéricas
@@ -45,6 +47,8 @@ def main():
     
     total_questoes_avaliadas = 0
     total_acertos = 0
+    relatorio = []
+    problemas = []
     
     for _, img_path in enumerate(imagens, 1):
         nome_arquivo = os.path.basename(img_path)
@@ -57,7 +61,7 @@ def main():
             
         try:
             image, _ = redimensionar_imagem_otimizada(image)
-            binary, _ = melhorar_pre_processamento_adaptativo(image)
+            binary, meta = melhorar_pre_processamento_adaptativo(image)
             image_corrected, binary_corrected, success = corrigir_perspectiva(image, binary)
             
             if success:
@@ -74,10 +78,10 @@ def main():
                 num_colunas=NUM_COLUNAS,
                 sensitivity=0.3,
                 threshold=150,
-                return_debug_image=False
+                return_debug_image=True,
+                quality_meta=meta
             )
-            
-            resultados = ret[0] if isinstance(ret, tuple) else ret
+            resultados, debug_img = ret if isinstance(ret, tuple) else (ret, debug_image)
             respostas_detectadas = agrupar_respostas_str(resultados)
             
             # Comparação
@@ -101,6 +105,35 @@ def main():
             print(f"  -> Precisão: {acertos}/{NUM_QUESTOES} ({pct:.1f}%) | {status}")
             if falhas_ou_erros:
                 print(f"  -> Divergências: {', '.join(falhas_ou_erros)}")
+            
+            # Salvar debug do lote
+            try:
+                os.makedirs(PASTA_DEBUG, exist_ok=True)
+                base = os.path.splitext(nome_arquivo)[0].replace(" ", "_")
+                cv2.imwrite(os.path.join(PASTA_DEBUG, f"{base}_debug.png"), cv2.cvtColor(debug_img, cv2.COLOR_RGB2BGR))
+                cv2.imwrite(os.path.join(PASTA_DEBUG, f"{base}_binary.png"), binary)
+                with open(os.path.join(PASTA_DEBUG, f"{base}_meta.json"), "w") as f:
+                    json.dump(meta, f, indent=2)
+            except Exception as e:
+                print(f"  ⚠️ Falha ao salvar debug local: {e}")
+
+            # Relatório por imagem
+            item = {
+                "arquivo": nome_arquivo,
+                "acertos": acertos,
+                "total": NUM_QUESTOES,
+                "precisao_pct": round(pct, 2),
+                "brightness": float(meta.get("brightness", 0.0)),
+                "contrast": float(meta.get("contrast", 0.0)),
+                "black_ratio": float(meta.get("black_ratio", 0.0)),
+                "illumination_profile": meta.get("illumination_profile", "unknown"),
+                "divergencias": falhas_ou_erros
+            }
+            relatorio.append(item)
+
+            # Marcar casos problemáticos
+            if item["black_ratio"] < 0.01 or item["brightness"] < 90 or item["precisao_pct"] < 80:
+                problemas.append(item)
                 
         except Exception as e:
             print(f"  ❌ Crash ao processar: {str(e)}")
@@ -115,6 +148,22 @@ def main():
         print(f"Total de questões lidas em todas as imagens: {total_questoes_avaliadas}")
         print(f"Total de acertos perante gabarito: {total_acertos}")
         print(f"PRECISÃO GLOBAL DA API: {global_pct:.2f}%")
+
+        # Salvar relatório agregado
+        try:
+            os.makedirs(PASTA_DEBUG, exist_ok=True)
+            with open(os.path.join(PASTA_DEBUG, "relatorio_lote.json"), "w") as f:
+                json.dump({
+                    "imagens": len(imagens),
+                    "questoes_total": total_questoes_avaliadas,
+                    "acertos_total": total_acertos,
+                    "precisao_global_pct": round(global_pct, 2),
+                    "problemas": problemas,
+                    "detalhes": relatorio
+                }, f, indent=2)
+            print(f"Relatório salvo em: {os.path.join(PASTA_DEBUG, 'relatorio_lote.json')}")
+        except Exception as e:
+            print(f"  ⚠️ Falha ao salvar relatório: {e}")
 
 if __name__ == '__main__':
     main()

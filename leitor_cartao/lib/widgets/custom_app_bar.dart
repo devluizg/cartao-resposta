@@ -98,12 +98,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         // Botão Sair
         TextButton.icon(
           onPressed: () => _handleExit(context),
-          icon: Icon(
+          icon: const Icon(
             Icons.logout_rounded,
             color: textSub,
             size: 20,
           ),
-          label: Text(
+          label: const Text(
             'Sair',
             style: TextStyle(
               color: textSub,

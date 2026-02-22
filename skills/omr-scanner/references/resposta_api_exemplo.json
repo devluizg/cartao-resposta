@@ -1,0 +1,43 @@
+{
+  "_comentario": "Exemplos de respostas da Claude Vision API para reconhecimento de padrões e validação.",
+  "_uso": "Compare a resposta real da API com estes exemplos para detectar anomalias de formato.",
+
+  "exemplo_resposta_completa": {
+    "respostas": {
+      "1": "C", "2": "A", "3": "B", "4": "EM_BRANCO", "5": "D",
+      "6": "AMBIGUA", "7": "C", "8": "B", "9": "D", "10": "E"
+    },
+    "num_questoes_detectadas": 10,
+    "confianca": 0.92,
+    "observacoes": "Questão 4 sem marcação visível. Questão 6 com duas marcações de intensidade similar (B e C)."
+  },
+
+  "exemplo_resposta_parcial": {
+    "resolucoes": {
+      "6": "B",
+      "12": "IMPOSSIVEL_DETERMINAR",
+      "18": "A"
+    },
+    "confianca": 0.81,
+    "observacoes": "Questão 12 muito apagada — impossível determinar a alternativa com segurança."
+  },
+
+  "valores_validos_por_campo": {
+    "alternativa": ["A", "B", "C", "D", "E", "EM_BRANCO", "AMBIGUA"],
+    "alternativa_parcial": ["A", "B", "C", "D", "E", "IMPOSSIVEL_DETERMINAR"],
+    "confianca": "float entre 0.0 e 1.0",
+    "num_questoes_detectadas": "integer >= 1"
+  },
+
+  "thresholds_aceitacao": {
+    "confianca_minima_aceitavel": 0.75,
+    "confianca_alta": 0.90,
+    "acao_confianca_baixa": "Alertar usuário e pedir revisão manual das questões sinalizadas"
+  },
+
+  "erros_comuns_api": {
+    "resposta_nao_json": "API retornou texto livre. Verifique o prompt — deve pedir SOMENTE JSON.",
+    "questoes_faltando": "API detectou menos questões que o esperado. Verifique qualidade da imagem.",
+    "confianca_zero": "API não conseguiu analisar a imagem. Imagem muito pequena, escura ou borrada."
+  }
+}
