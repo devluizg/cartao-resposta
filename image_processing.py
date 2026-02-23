@@ -456,13 +456,66 @@ def _validar_proporcoes_a4(rect, tolerance=0.3):
     return (1.414 * (1 - tolerance) < ratio < 1.414 * (1 + tolerance))
 
 
+def _completar_marcadores_com_geometria(centros, h, w):
+    """
+    Tenta completar marcadores faltantes usando geometria do paralelogramo.
+
+    Se 3/4 marcadores estão detectados, o 4º pode ser reconstruído geometricamente.
+    Por exemplo: se TL, TR, BL detectados → BR = BL + TR - TL (lei do paralelogramo)
+
+    Args:
+        centros: dict com chaves 'TL','TR','BR','BL' (alguns podem estar faltando)
+        h, w: altura e largura da imagem
+
+    Returns:
+        dict atualizado com os pontos reconstruídos marcados
+    """
+    tl = centros.get('TL')
+    tr = centros.get('TR')
+    br = centros.get('BR')
+    bl = centros.get('BL')
+
+    # Caso 1: Se TL, TR, BL conhecidos → BR = BL + TR - TL
+    if tl and tr and bl and not br:
+        cx = int(bl[0] + tr[0] - tl[0])
+        cy = int(bl[1] + tr[1] - tl[1])
+        if 0 <= cx <= w and 0 <= cy <= h:
+            centros['BR'] = (cx, cy)
+            print(f"  ⚠️ Marcador BR reconstruído geometricamente: ({cx},{cy})")
+
+    # Caso 2: Se TL, TR, BR conhecidos → BL = BR + TL - TR
+    if tl and tr and br and not bl:
+        cx = int(br[0] + tl[0] - tr[0])
+        cy = int(br[1] + tl[1] - tr[1])
+        if 0 <= cx <= w and 0 <= cy <= h:
+            centros['BL'] = (cx, cy)
+            print(f"  ⚠️ Marcador BL reconstruído geometricamente: ({cx},{cy})")
+
+    # Caso 3: Se TL, BL, BR conhecidos → TR = TL + BR - BL
+    if tl and bl and br and not tr:
+        cx = int(tl[0] + br[0] - bl[0])
+        cy = int(tl[1] + br[1] - bl[1])
+        if 0 <= cx <= w and 0 <= cy <= h:
+            centros['TR'] = (cx, cy)
+            print(f"  ⚠️ Marcador TR reconstruído geometricamente: ({cx},{cy})")
+
+    # Caso 4: Se TR, BL, BR conhecidos → TL = TR + BL - BR
+    if tr and bl and br and not tl:
+        cx = int(tr[0] + bl[0] - br[0])
+        cy = int(tr[1] + bl[1] - br[1])
+        if 0 <= cx <= w and 0 <= cy <= h:
+            centros['TL'] = (cx, cy)
+            print(f"  ⚠️ Marcador TL reconstruído geometricamente: ({cx},{cy})")
+
+    return centros
+
+
 def detectar_marcadores_de_canto(binary):
     """
     Detecta os 4 marcadores de canto sólidos (círculos pretos) do cartão v2.
 
-    MUDANÇA: Agora usa Otsu LOCAL na ROI do canto (em vez de threshold fixo=60)
-    e relaxa circularidade para 0.45 para lidar com bordas levemente distorcidas
-    após remoção de sombra. Também adiciona verificação de solidez.
+    Estratégia multi-pass: para cada canto, tenta 4 estratégias diferentes antes
+    de desistir. Se ≥3 marcadores são detectados, tenta reconstruir o 4º geometricamente.
 
     Returns:
         np.ndarray shape (4,2) float32 com os centros, ou None se não detectar.
@@ -487,18 +540,19 @@ def detectar_marcadores_de_canto(binary):
 
     centros = {}
 
+    # ===== MAIN DETECTION LOOP POR CANTO =====
     for (x1, y1, x2, y2, label) in regioes:
         roi = blurred[y1:y2, x1:x2]
         if roi.size == 0:
             continue
 
-        # MUDANÇA: Usar Otsu LOCAL na ROI em vez de threshold fixo
+        melhor = None
+
+        # ===== TENTATIVA 1: Otsu LOCAL + contornos =====
         _, thresh_roi = cv2.threshold(roi, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         contornos, _ = cv2.findContours(thresh_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        melhor = None
         melhor_score = 0
-
         for cnt in contornos:
             area = cv2.contourArea(cnt)
             if area < (raio_min ** 2 * 3.14) or area > (raio_max ** 2 * 3.14):
@@ -508,11 +562,9 @@ def detectar_marcadores_de_canto(binary):
             if perimeter == 0:
                 continue
             circularidade = 4 * np.pi * area / (perimeter ** 2)
-            # MUDANÇA: Relaxar circularidade de 0.55 para 0.45
             if circularidade < 0.45:
                 continue
 
-            # NOVO: Verificar solidez
             hull = cv2.convexHull(cnt)
             hull_area = cv2.contourArea(hull)
             solidity = area / hull_area if hull_area > 0 else 0
@@ -530,22 +582,83 @@ def detectar_marcadores_de_canto(binary):
 
         if melhor is not None:
             centros[label] = melhor
-        else:
-            # Fallback: HoughCircles na ROI
-            circles = cv2.HoughCircles(
-                roi,
+            continue
+
+        # ===== TENTATIVA 2: Threshold fixo (80) + HoughCircles(param2=10) =====
+        _, thresh_roi2 = cv2.threshold(roi, 80, 255, cv2.THRESH_BINARY)
+        circles2 = cv2.HoughCircles(
+            thresh_roi2,
+            cv2.HOUGH_GRADIENT,
+            dp=1.2,
+            minDist=raio_min * 2,
+            param1=30,
+            param2=10,
+            minRadius=raio_min,
+            maxRadius=raio_max,
+        )
+        if circles2 is not None and len(circles2[0]) > 0:
+            circles2 = np.round(circles2[0]).astype(int)
+            maior = max(circles2, key=lambda c: c[2])
+            centros[label] = (int(maior[0]) + x1, int(maior[1]) + y1)
+            continue
+
+        # ===== TENTATIVA 3: ROI maior (30% em vez de 25%) + mesma busca =====
+        margin_x_bigger = int(w * 0.30)
+        margin_y_bigger = int(h * 0.30)
+
+        if label == 'TL':
+            roi_bigger = blurred[0:margin_y_bigger, 0:margin_x_bigger]
+            offset_x, offset_y = 0, 0
+        elif label == 'TR':
+            roi_bigger = blurred[0:margin_y_bigger, max(0, w - margin_x_bigger):w]
+            offset_x, offset_y = max(0, w - margin_x_bigger), 0
+        elif label == 'BR':
+            roi_bigger = blurred[max(0, h - margin_y_bigger):h, max(0, w - margin_x_bigger):w]
+            offset_x, offset_y = max(0, w - margin_x_bigger), max(0, h - margin_y_bigger)
+        elif label == 'BL':
+            roi_bigger = blurred[max(0, h - margin_y_bigger):h, 0:margin_x_bigger]
+            offset_x, offset_y = 0, max(0, h - margin_y_bigger)
+
+        if roi_bigger.size > 0:
+            _, thresh_roi3 = cv2.threshold(roi_bigger, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            circles3 = cv2.HoughCircles(
+                thresh_roi3,
                 cv2.HOUGH_GRADIENT,
                 dp=1.2,
                 minDist=raio_min * 2,
-                param1=50,
-                param2=15,  # MUDANÇA: Reduzido de 20 para 15 (mais sensível)
+                param1=30,
+                param2=12,
                 minRadius=raio_min,
                 maxRadius=raio_max,
             )
-            if circles is not None:
-                circles = np.round(circles[0]).astype(int)
-                maior = max(circles, key=lambda c: c[2])
+            if circles3 is not None and len(circles3[0]) > 0:
+                circles3 = np.round(circles3[0]).astype(int)
+                maior = max(circles3, key=lambda c: c[2])
+                centros[label] = (int(maior[0]) + offset_x, int(maior[1]) + offset_y)
+                continue
+
+        # ===== TENTATIVA 4: Circularidade/solidez relaxadas + HoughCircles =====
+        if roi.size > 0:
+            circles4 = cv2.HoughCircles(
+                roi,
+                cv2.HOUGH_GRADIENT,
+                dp=1.2,
+                minDist=raio_min * 1.5,
+                param1=25,
+                param2=8,
+                minRadius=int(raio_min * 0.8),
+                maxRadius=int(raio_max * 1.3),
+            )
+            if circles4 is not None and len(circles4[0]) > 0:
+                circles4 = np.round(circles4[0]).astype(int)
+                maior = max(circles4, key=lambda c: c[2])
                 centros[label] = (int(maior[0]) + x1, int(maior[1]) + y1)
+                continue
+
+    # ===== PÓS-DETECÇÃO: TENTAR RECONSTRUÇÃO GEOMÉTRICA =====
+    if len(centros) >= 3:
+        print(f"Marcadores de canto: detectados {len(centros)}/4 — tentando reconstrução geométrica")
+        centros = _completar_marcadores_com_geometria(centros, h, w)
 
     if len(centros) < 4:
         print(f"Marcadores de canto: detectados {len(centros)}/4 — fallback para contorno")
@@ -1013,10 +1126,11 @@ def agrupar_bolhas_por_questoes(bolhas, num_questoes=10, num_alternativas=5):
     eps_base = max(raio_medio_bolhas * 1.5, 8.0)
 
     # **PILAR 3: DBSCAN ITERATIVO** — Tenta múltiplos eps até encontrar esperado
+    # MUDANÇA: Adicionados valores extremos (0.30, 0.35, 1.20, 1.50) para cobrir imagens muito distorcidas
     labels = None
     eps_used = None
 
-    for eps_factor in [0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.80, 0.90, 1.0]:
+    for eps_factor in [0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.80, 0.90, 1.0, 1.20, 1.50]:
         eps_teste = eps_base * eps_factor
         db_teste = DBSCAN(eps=eps_teste, min_samples=1).fit(y_only)
         linhas_teste = len(set(db_teste.labels_[db_teste.labels_ != -1]))

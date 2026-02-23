@@ -1,291 +1,245 @@
 {
-  "imagens": 7,
-  "questoes_total": 175,
-  "acertos_total": 118,
-  "precisao_global_pct": 67.43,
+  "imagens": 8,
+  "questoes_total": 200,
+  "acertos_total": 176,
+  "precisao_global_pct": 88.0,
   "problemas": [
     {
-      "arquivo": "WhatsApp Image 2026-02-21 at 19.33.45.jpeg",
-      "acertos": 22,
+      "arquivo": "WhatsApp Image 2026-02-23 at 12.37.40.jpeg",
+      "acertos": 24,
       "total": 25,
-      "precisao_pct": 88.0,
-      "brightness": 167.20911927083333,
-      "contrast": 39.090601130383405,
-      "black_ratio": 0.0,
-      "illumination_profile": "normal",
-      "divergencias": [
-        "Q5(Lido:D|Esp:E)",
-        "Q20(Lido:None|Esp:A)",
-        "Q21(Lido:A|Esp:B)"
-      ]
-    },
-    {
-      "arquivo": "WhatsApp Image 2026-02-21 at 19.33.48.jpeg",
-      "acertos": 15,
-      "total": 25,
-      "precisao_pct": 60.0,
-      "brightness": 158.953421875,
-      "contrast": 48.18091147413331,
+      "precisao_pct": 96.0,
+      "brightness": 170.38768229166666,
+      "contrast": 45.80620190158817,
       "black_ratio": 0.0,
       "illumination_profile": "shadow_detected",
       "divergencias": [
-        "Q5(Lido:D|Esp:E)",
-        "Q7(Lido:None|Esp:E)",
-        "Q8(Lido:A|Esp:B)",
-        "Q9(Lido:A|Esp:D)",
-        "Q10(Lido:B|Esp:A)",
-        "Q11(Lido:C|Esp:B)",
-        "Q12(Lido:C|Esp:D)",
+        "Q12(Lido:None|Esp:D)"
+      ]
+    },
+    {
+      "arquivo": "WhatsApp Image 2026-02-23 at 12.37.43.jpeg",
+      "acertos": 23,
+      "total": 25,
+      "precisao_pct": 92.0,
+      "brightness": 197.13799895833333,
+      "contrast": 31.692638357813728,
+      "black_ratio": 0.0,
+      "illumination_profile": "high_light",
+      "divergencias": [
+        "Q18(Lido:None|Esp:D)",
+        "Q19(Lido:A|Esp:E)"
+      ]
+    },
+    {
+      "arquivo": "WhatsApp Image 2026-02-23 at 12.37.44554443.jpeg",
+      "acertos": 23,
+      "total": 25,
+      "precisao_pct": 92.0,
+      "brightness": 192.86275885416666,
+      "contrast": 39.735133013456206,
+      "black_ratio": 0.0,
+      "illumination_profile": "shadow_detected",
+      "divergencias": [
+        "Q13(Lido:None|Esp:C)",
+        "Q18(Lido:E|Esp:D)"
+      ]
+    },
+    {
+      "arquivo": "WhatsApp Image 2026-02-23 at 12.37.38.jpeg",
+      "acertos": 22,
+      "total": 25,
+      "precisao_pct": 88.0,
+      "brightness": 209.31206666666668,
+      "contrast": 32.83653573352233,
+      "black_ratio": 0.0,
+      "illumination_profile": "shadow_detected",
+      "divergencias": [
+        "Q11(Lido:None|Esp:B)",
         "Q13(Lido:A|Esp:C)",
-        "Q23(Lido:A|Esp:C)",
         "Q24(Lido:A|Esp:B)"
       ]
     },
     {
-      "arquivo": "WhatsApp Image 2026-02-21 at 19.33.55.jpeg",
-      "acertos": 20,
+      "arquivo": "WhatsApp Image 2026-02-23 at 12.37.39.jpeg",
+      "acertos": 25,
       "total": 25,
-      "precisao_pct": 80.0,
-      "brightness": 133.139996875,
-      "contrast": 71.52439982737818,
+      "precisao_pct": 100.0,
+      "brightness": 184.7258703125,
+      "contrast": 41.570528351147985,
       "black_ratio": 0.0,
       "illumination_profile": "shadow_detected",
+      "divergencias": []
+    },
+    {
+      "arquivo": "WhatsApp Image 2026-02-23 at 12.37.42.jpeg",
+      "acertos": 24,
+      "total": 25,
+      "precisao_pct": 96.0,
+      "brightness": 181.63386666666668,
+      "contrast": 35.806246858482055,
+      "black_ratio": 0.0,
+      "illumination_profile": "high_light",
       "divergencias": [
-        "Q5(Lido:D|Esp:E)",
-        "Q9(Lido:None|Esp:D)",
-        "Q18(Lido:None|Esp:D)",
-        "Q24(Lido:None|Esp:B)",
-        "Q25(Lido:None|Esp:A)"
+        "Q4(Lido:A|Esp:B)"
       ]
     },
     {
-      "arquivo": "WhatsApp Image 2026-02-21 at 19.33.51.jpeg",
-      "acertos": 7,
+      "arquivo": "WhatsApp Image 2026-02-23 at 12.37.4666.jpeg",
+      "acertos": 25,
       "total": 25,
-      "precisao_pct": 28.0,
-      "brightness": 136.41720885416666,
-      "contrast": 70.82448755404334,
+      "precisao_pct": 100.0,
+      "brightness": 201.03366614583334,
+      "contrast": 35.68119950844504,
       "black_ratio": 0.0,
-      "illumination_profile": "shadow_detected",
-      "divergencias": [
-        "Q1(Lido:A?|Esp:A)",
-        "Q2(Lido:None|Esp:C)",
-        "Q3(Lido:None|Esp:B)",
-        "Q4(Lido:C|Esp:B)",
-        "Q5(Lido:B|Esp:E)",
-        "Q8(Lido:C|Esp:B)",
-        "Q9(Lido:B|Esp:D)",
-        "Q11(Lido:A|Esp:B)",
-        "Q12(Lido:B|Esp:D)",
-        "Q14(Lido:C|Esp:A)",
-        "Q16(Lido:D|Esp:B)",
-        "Q17(Lido:None|Esp:C)",
-        "Q20(Lido:D|Esp:A)",
-        "Q21(Lido:None|Esp:B)",
-        "Q22(Lido:E|Esp:D)",
-        "Q23(Lido:E|Esp:C)",
-        "Q24(Lido:E|Esp:B)",
-        "Q25(Lido:None|Esp:A)"
-      ]
+      "illumination_profile": "high_light",
+      "divergencias": []
     },
     {
-      "arquivo": "WhatsApp Image 2026-02-21 at 19.33.50.jpeg",
-      "acertos": 23,
-      "total": 25,
-      "precisao_pct": 92.0,
-      "brightness": 150.60668385416668,
-      "contrast": 61.29715365038246,
-      "black_ratio": 0.0,
-      "illumination_profile": "shadow_detected",
-      "divergencias": [
-        "Q5(Lido:D|Esp:E)",
-        "Q13(Lido:B|Esp:C)"
-      ]
-    },
-    {
-      "arquivo": "WhatsApp Image 2026-02-21 at 19.33.47.jpeg",
+      "arquivo": "WhatsApp Image 2026-02-23 at 12.37.37.jpeg",
       "acertos": 10,
       "total": 25,
       "precisao_pct": 40.0,
-      "brightness": 164.38252291666666,
-      "contrast": 32.26141040342508,
-      "black_ratio": 0.0,
-      "illumination_profile": "normal",
-      "divergencias": [
-        "Q1(Lido:C|Esp:A)",
-        "Q2(Lido:A|Esp:C)",
-        "Q3(Lido:C|Esp:B)",
-        "Q4(Lido:None|Esp:B)",
-        "Q5(Lido:D|Esp:E)",
-        "Q14(Lido:D|Esp:A)",
-        "Q16(Lido:D|Esp:B)",
-        "Q17(Lido:A|Esp:C)",
-        "Q18(Lido:B|Esp:D)",
-        "Q19(Lido:D|Esp:E)",
-        "Q20(Lido:C|Esp:A)",
-        "Q22(Lido:E?|Esp:D)",
-        "Q23(Lido:A?|Esp:C)",
-        "Q24(Lido:A|Esp:B)",
-        "Q25(Lido:None|Esp:A)"
-      ]
-    },
-    {
-      "arquivo": "WhatsApp Image 2026-02-21 at 19.33.54.jpeg",
-      "acertos": 21,
-      "total": 25,
-      "precisao_pct": 84.0,
-      "brightness": 122.22306979166666,
-      "contrast": 77.47269215311532,
+      "brightness": 175.0284390625,
+      "contrast": 39.354216936675165,
       "black_ratio": 0.0,
       "illumination_profile": "shadow_detected",
       "divergencias": [
-        "Q2(Lido:None|Esp:C)",
-        "Q5(Lido:D|Esp:E)",
-        "Q23(Lido:None|Esp:C)",
-        "Q24(Lido:None|Esp:B)"
+        "Q1(Lido:B|Esp:A)",
+        "Q2(Lido:D|Esp:C)",
+        "Q6(Lido:E|Esp:D)",
+        "Q7(Lido:C|Esp:E)",
+        "Q9(Lido:E|Esp:D)",
+        "Q10(Lido:B|Esp:A)",
+        "Q11(Lido:B?|Esp:B)",
+        "Q12(Lido:E|Esp:D)",
+        "Q13(Lido:E|Esp:C)",
+        "Q14(Lido:None|Esp:A)",
+        "Q15(Lido:A|Esp:D)",
+        "Q19(Lido:B|Esp:E)",
+        "Q20(Lido:None|Esp:A)",
+        "Q22(Lido:None|Esp:D)",
+        "Q24(Lido:A|Esp:B)"
       ]
     }
   ],
   "detalhes": [
     {
-      "arquivo": "WhatsApp Image 2026-02-21 at 19.33.45.jpeg",
-      "acertos": 22,
+      "arquivo": "WhatsApp Image 2026-02-23 at 12.37.40.jpeg",
+      "acertos": 24,
       "total": 25,
-      "precisao_pct": 88.0,
-      "brightness": 167.20911927083333,
-      "contrast": 39.090601130383405,
-      "black_ratio": 0.0,
-      "illumination_profile": "normal",
-      "divergencias": [
-        "Q5(Lido:D|Esp:E)",
-        "Q20(Lido:None|Esp:A)",
-        "Q21(Lido:A|Esp:B)"
-      ]
-    },
-    {
-      "arquivo": "WhatsApp Image 2026-02-21 at 19.33.48.jpeg",
-      "acertos": 15,
-      "total": 25,
-      "precisao_pct": 60.0,
-      "brightness": 158.953421875,
-      "contrast": 48.18091147413331,
+      "precisao_pct": 96.0,
+      "brightness": 170.38768229166666,
+      "contrast": 45.80620190158817,
       "black_ratio": 0.0,
       "illumination_profile": "shadow_detected",
       "divergencias": [
-        "Q5(Lido:D|Esp:E)",
-        "Q7(Lido:None|Esp:E)",
-        "Q8(Lido:A|Esp:B)",
-        "Q9(Lido:A|Esp:D)",
-        "Q10(Lido:B|Esp:A)",
-        "Q11(Lido:C|Esp:B)",
-        "Q12(Lido:C|Esp:D)",
+        "Q12(Lido:None|Esp:D)"
+      ]
+    },
+    {
+      "arquivo": "WhatsApp Image 2026-02-23 at 12.37.43.jpeg",
+      "acertos": 23,
+      "total": 25,
+      "precisao_pct": 92.0,
+      "brightness": 197.13799895833333,
+      "contrast": 31.692638357813728,
+      "black_ratio": 0.0,
+      "illumination_profile": "high_light",
+      "divergencias": [
+        "Q18(Lido:None|Esp:D)",
+        "Q19(Lido:A|Esp:E)"
+      ]
+    },
+    {
+      "arquivo": "WhatsApp Image 2026-02-23 at 12.37.44554443.jpeg",
+      "acertos": 23,
+      "total": 25,
+      "precisao_pct": 92.0,
+      "brightness": 192.86275885416666,
+      "contrast": 39.735133013456206,
+      "black_ratio": 0.0,
+      "illumination_profile": "shadow_detected",
+      "divergencias": [
+        "Q13(Lido:None|Esp:C)",
+        "Q18(Lido:E|Esp:D)"
+      ]
+    },
+    {
+      "arquivo": "WhatsApp Image 2026-02-23 at 12.37.38.jpeg",
+      "acertos": 22,
+      "total": 25,
+      "precisao_pct": 88.0,
+      "brightness": 209.31206666666668,
+      "contrast": 32.83653573352233,
+      "black_ratio": 0.0,
+      "illumination_profile": "shadow_detected",
+      "divergencias": [
+        "Q11(Lido:None|Esp:B)",
         "Q13(Lido:A|Esp:C)",
-        "Q23(Lido:A|Esp:C)",
         "Q24(Lido:A|Esp:B)"
       ]
     },
     {
-      "arquivo": "WhatsApp Image 2026-02-21 at 19.33.55.jpeg",
-      "acertos": 20,
+      "arquivo": "WhatsApp Image 2026-02-23 at 12.37.39.jpeg",
+      "acertos": 25,
       "total": 25,
-      "precisao_pct": 80.0,
-      "brightness": 133.139996875,
-      "contrast": 71.52439982737818,
+      "precisao_pct": 100.0,
+      "brightness": 184.7258703125,
+      "contrast": 41.570528351147985,
       "black_ratio": 0.0,
       "illumination_profile": "shadow_detected",
+      "divergencias": []
+    },
+    {
+      "arquivo": "WhatsApp Image 2026-02-23 at 12.37.42.jpeg",
+      "acertos": 24,
+      "total": 25,
+      "precisao_pct": 96.0,
+      "brightness": 181.63386666666668,
+      "contrast": 35.806246858482055,
+      "black_ratio": 0.0,
+      "illumination_profile": "high_light",
       "divergencias": [
-        "Q5(Lido:D|Esp:E)",
-        "Q9(Lido:None|Esp:D)",
-        "Q18(Lido:None|Esp:D)",
-        "Q24(Lido:None|Esp:B)",
-        "Q25(Lido:None|Esp:A)"
+        "Q4(Lido:A|Esp:B)"
       ]
     },
     {
-      "arquivo": "WhatsApp Image 2026-02-21 at 19.33.51.jpeg",
-      "acertos": 7,
+      "arquivo": "WhatsApp Image 2026-02-23 at 12.37.4666.jpeg",
+      "acertos": 25,
       "total": 25,
-      "precisao_pct": 28.0,
-      "brightness": 136.41720885416666,
-      "contrast": 70.82448755404334,
+      "precisao_pct": 100.0,
+      "brightness": 201.03366614583334,
+      "contrast": 35.68119950844504,
       "black_ratio": 0.0,
-      "illumination_profile": "shadow_detected",
-      "divergencias": [
-        "Q1(Lido:A?|Esp:A)",
-        "Q2(Lido:None|Esp:C)",
-        "Q3(Lido:None|Esp:B)",
-        "Q4(Lido:C|Esp:B)",
-        "Q5(Lido:B|Esp:E)",
-        "Q8(Lido:C|Esp:B)",
-        "Q9(Lido:B|Esp:D)",
-        "Q11(Lido:A|Esp:B)",
-        "Q12(Lido:B|Esp:D)",
-        "Q14(Lido:C|Esp:A)",
-        "Q16(Lido:D|Esp:B)",
-        "Q17(Lido:None|Esp:C)",
-        "Q20(Lido:D|Esp:A)",
-        "Q21(Lido:None|Esp:B)",
-        "Q22(Lido:E|Esp:D)",
-        "Q23(Lido:E|Esp:C)",
-        "Q24(Lido:E|Esp:B)",
-        "Q25(Lido:None|Esp:A)"
-      ]
+      "illumination_profile": "high_light",
+      "divergencias": []
     },
     {
-      "arquivo": "WhatsApp Image 2026-02-21 at 19.33.50.jpeg",
-      "acertos": 23,
-      "total": 25,
-      "precisao_pct": 92.0,
-      "brightness": 150.60668385416668,
-      "contrast": 61.29715365038246,
-      "black_ratio": 0.0,
-      "illumination_profile": "shadow_detected",
-      "divergencias": [
-        "Q5(Lido:D|Esp:E)",
-        "Q13(Lido:B|Esp:C)"
-      ]
-    },
-    {
-      "arquivo": "WhatsApp Image 2026-02-21 at 19.33.47.jpeg",
+      "arquivo": "WhatsApp Image 2026-02-23 at 12.37.37.jpeg",
       "acertos": 10,
       "total": 25,
       "precisao_pct": 40.0,
-      "brightness": 164.38252291666666,
-      "contrast": 32.26141040342508,
-      "black_ratio": 0.0,
-      "illumination_profile": "normal",
-      "divergencias": [
-        "Q1(Lido:C|Esp:A)",
-        "Q2(Lido:A|Esp:C)",
-        "Q3(Lido:C|Esp:B)",
-        "Q4(Lido:None|Esp:B)",
-        "Q5(Lido:D|Esp:E)",
-        "Q14(Lido:D|Esp:A)",
-        "Q16(Lido:D|Esp:B)",
-        "Q17(Lido:A|Esp:C)",
-        "Q18(Lido:B|Esp:D)",
-        "Q19(Lido:D|Esp:E)",
-        "Q20(Lido:C|Esp:A)",
-        "Q22(Lido:E?|Esp:D)",
-        "Q23(Lido:A?|Esp:C)",
-        "Q24(Lido:A|Esp:B)",
-        "Q25(Lido:None|Esp:A)"
-      ]
-    },
-    {
-      "arquivo": "WhatsApp Image 2026-02-21 at 19.33.54.jpeg",
-      "acertos": 21,
-      "total": 25,
-      "precisao_pct": 84.0,
-      "brightness": 122.22306979166666,
-      "contrast": 77.47269215311532,
+      "brightness": 175.0284390625,
+      "contrast": 39.354216936675165,
       "black_ratio": 0.0,
       "illumination_profile": "shadow_detected",
       "divergencias": [
-        "Q2(Lido:None|Esp:C)",
-        "Q5(Lido:D|Esp:E)",
-        "Q23(Lido:None|Esp:C)",
-        "Q24(Lido:None|Esp:B)"
+        "Q1(Lido:B|Esp:A)",
+        "Q2(Lido:D|Esp:C)",
+        "Q6(Lido:E|Esp:D)",
+        "Q7(Lido:C|Esp:E)",
+        "Q9(Lido:E|Esp:D)",
+        "Q10(Lido:B|Esp:A)",
+        "Q11(Lido:B?|Esp:B)",
+        "Q12(Lido:E|Esp:D)",
+        "Q13(Lido:E|Esp:C)",
+        "Q14(Lido:None|Esp:A)",
+        "Q15(Lido:A|Esp:D)",
+        "Q19(Lido:B|Esp:E)",
+        "Q20(Lido:None|Esp:A)",
+        "Q22(Lido:None|Esp:D)",
+        "Q24(Lido:A|Esp:B)"
       ]
     }
   ]
