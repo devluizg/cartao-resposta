@@ -556,8 +556,13 @@ class CartaoRespostaAnalyzer:
         self.alternativas = ['A', 'B', 'C', 'D', 'E']
         # Populado após cada chamada de analisar_gabarito; acessível pelo api_backend
         self.ultima_baixa_confianca = []
+        # Armazenar bolhas realmente selecionadas durante análise
+        self.bolhas_selecionadas_por_questao = {}
 
     def analisar_cartao_melhorado(self, image, binary, debug_image, num_questoes, num_colunas, sensitivity, quality_meta=None):
+        # Limpar bolhas selecionadas
+        self.bolhas_selecionadas_por_questao = {}
+
         resultados = {}
         h, w = binary.shape
 
@@ -611,39 +616,28 @@ class CartaoRespostaAnalyzer:
 
             if bolhas:
                 # **PILAR 5: Usar processamento em cascata**
+                questoes = agrupar_bolhas_por_questoes(bolhas, num_questoes, 5)
                 resultados, confianca_res, estrategia_usada, valido = processar_cartao_com_cascata(
                     bolhas, num_questoes, 5,
                     binary=roi_cartao, image=image[y:y+h, x:x+w], debug=False
                 )
                 self.ultima_baixa_confianca = []
 
+                # Armazenar bolhas realmente selecionadas
                 for i, questao in enumerate(questoes):
                     if i >= num_questoes:
                         break
                     num_questao = i + 1
                     resposta = resultados.get(num_questao)
 
-                    if "ERRO" in str(resposta):
-                        cor = (0, 0, 255)
-                    elif resposta is not None:
-                        cor = (0, 255, 0)
-                    else:
-                        cor = (255, 0, 0)
-
-                    for j, bolha in enumerate(questao):
-                        if j >= 5:
-                            break
-                        cv2.circle(debug_image, bolha['centro'], bolha['radius'], cor, 2)
-                        alt_letra = self.alternativas[j]
-                        cv2.putText(
-                            debug_image,
-                            alt_letra,
-                            (bolha['centro'][0] - 5, bolha['centro'][1] + 5),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.7,
-                            cor,
-                            2
-                        )
+                    if resposta is not None and resposta[0] in self.alternativas:
+                        try:
+                            alt_index = self.alternativas.index(resposta[0])
+                            if alt_index < len(questao) and not questao[alt_index].get('sintetica', False):
+                                bolha_selecionada = questao[alt_index].copy()
+                                self.bolhas_selecionadas_por_questao[num_questao] = bolha_selecionada
+                        except (ValueError, IndexError):
+                            pass
             else:
                 for i in range(1, num_questoes + 1):
                     resultados[i] = None
@@ -658,6 +652,9 @@ class CartaoRespostaAnalyzer:
         return resultados
 
     def analisar_cartao_fallback(self, image, binary, debug_image, num_questoes, num_colunas, sensitivity, quality_meta=None):
+        # Limpar bolhas selecionadas
+        self.bolhas_selecionadas_por_questao = {}
+
         resultados = {i: None for i in range(1, num_questoes + 1)}
 
         if binary.max() <= 1.0:
@@ -674,6 +671,7 @@ class CartaoRespostaAnalyzer:
         if bolhas:
             # **PILAR 5: Usar processamento em cascata**
             # Tenta múltiplas estratégias até uma passar na validação
+            questoes = agrupar_bolhas_por_questoes(bolhas, num_questoes, len(self.alternativas))
             resultados_analise, confianca_res, estrategia_usada, valido = processar_cartao_com_cascata(
                 bolhas, num_questoes, len(self.alternativas),
                 binary=binary_proc, image=image, debug=False
@@ -682,6 +680,22 @@ class CartaoRespostaAnalyzer:
 
             # Simular baixa_confianca (para compatibilidade)
             self.ultima_baixa_confianca = []
+
+            # Armazenar bolhas realmente selecionadas
+            for i, questao in enumerate(questoes):
+                if i >= num_questoes:
+                    break
+                num_questao = i + 1
+                resposta = resultados_analise.get(num_questao)
+
+                if resposta is not None and resposta[0] in self.alternativas:
+                    try:
+                        alt_index = self.alternativas.index(resposta[0])
+                        if alt_index < len(questao) and not questao[alt_index].get('sintetica', False):
+                            bolha_selecionada = questao[alt_index].copy()
+                            self.bolhas_selecionadas_por_questao[num_questao] = bolha_selecionada
+                    except (ValueError, IndexError):
+                        pass
 
             resultados = validar_resultados(resultados_analise, confianca_res, num_questoes)
         return resultados
@@ -819,88 +833,47 @@ class MultiColumnCartaoAnalyzer:
     def __init__(self, analyzer):
         self.analyzer = analyzer
         self.alternativas = ['A', 'B', 'C', 'D', 'E']
+        # Armazenar bolhas realmente selecionadas durante análise
+        self.bolhas_selecionadas_por_questao = {}
+
+    def ajustar_bolhas_para_global(self, offset_x, offset_y):
+        """
+        Ajusta todas as bolhas armazenadas em self.bolhas_selecionadas_por_questao
+        para coordenadas globais, adicionando o offset.
+        """
+        for num_questao in self.bolhas_selecionadas_por_questao:
+            bolha = self.bolhas_selecionadas_por_questao[num_questao]
+            cx, cy = bolha['centro']
+            bolha['centro'] = (cx + offset_x, cy + offset_y)
+            if 'x' in bolha:
+                bolha['x'] += offset_x
+            if 'y' in bolha:
+                bolha['y'] += offset_y
 
     def criar_visualizacao_simplificada(self, clean_image, resultados, binary, num_colunas):
-        from image_processing import detectar_retangulos_colunas, detectar_bolhas_avancado
-        
-        h, w = binary.shape
-        
-        # Tentar usar retângulos detectados
-        # Nota: não temos acesso à image original aqui, criar uma versão gray
-        gray_bin = binary  # já é binária
-        
-        num_questoes = len(resultados)
-        if num_colunas == 2:
-            questoes_por_coluna = [(num_questoes + 1) // 2, num_questoes // 2]
-        elif num_colunas == 3:
-            base = num_questoes // 3
-            resto = num_questoes % 3
-            questoes_por_coluna = [base + (1 if i < resto else 0) for i in range(3)]
-        else:
-            base = num_questoes // num_colunas
-            resto = num_questoes % num_colunas
-            questoes_por_coluna = [base + (1 if i < resto else 0) for i in range(num_colunas)]
+        """
+        Desenha as bolhas realmente selecionadas usando EXATAMENTE as coordenadas
+        (x, y) e raio que foram processadas durante a cascata de análise.
 
-        # Usar segmentação por bordas como fallback
-        regioes_colunas = segmentar_colunas_com_bordas(binary, num_colunas)
-        
-        questao_atual = 1
+        NÃO faz nenhuma detecção independente de bolhas — apenas desenha aquelas
+        que foram realmente selecionadas e armazenadas em self.bolhas_selecionadas_por_questao.
+        """
+        h, w = clean_image.shape[:2]
 
-        for idx, (x_inicio, x_fim) in enumerate(regioes_colunas):
-            if idx >= len(questoes_por_coluna):
-                break
+        # Desenhar APENAS as bolhas realmente selecionadas
+        for num_questao in sorted(self.bolhas_selecionadas_por_questao.keys()):
+            bolha = self.bolhas_selecionadas_por_questao[num_questao]
 
-            x_inicio = max(0, min(x_inicio, w-1))
-            x_fim = max(0, min(x_fim, w))
+            # Usar as coordenadas reais da bolha selecionada
+            cx, cy = bolha['centro']
+            raio = bolha['radius']
 
-            if x_fim <= x_inicio:
+            # Limites de segurança
+            if not (0 <= cx < w and 0 <= cy < h):
                 continue
 
-            coluna_bin = binary[:, x_inicio:x_fim]
-
-            if coluna_bin.max() <= 1.0:
-                coluna_bin_proc = (coluna_bin * 255).astype(np.uint8)
-            else:
-                coluna_bin_proc = coluna_bin.copy()
-
-            bolhas_coluna, _ = detectar_bolhas_avancado(
-                coluna_bin_proc, None, sensitivity=0.1, quality_meta=None
-            )
-
-            for bolha in bolhas_coluna:
-                bolha['x'] += x_inicio
-                if 'centro' in bolha:
-                    cx, cy = bolha['centro']
-                    bolha['centro'] = (cx + x_inicio, cy)
-
-            questoes_nesta_coluna = questoes_por_coluna[idx]
-            from image_processing import agrupar_bolhas_por_questoes
-            questoes_agrupadas = agrupar_bolhas_por_questoes(bolhas_coluna, questoes_nesta_coluna, 5)
-
-            for i, bolhas_questao in enumerate(questoes_agrupadas):
-                num_questao = questao_atual + i
-                resposta = resultados.get(num_questao)
-
-                if resposta is None or '?' in str(resposta):
-                    continue
-
-                try:
-                    alt_index = self.alternativas.index(resposta[0] if isinstance(resposta, str) else resposta)
-                except ValueError:
-                    continue
-
-                if alt_index < 0 or alt_index >= len(bolhas_questao):
-                    continue
-
-                bolha = bolhas_questao[alt_index]
-
-                cv2.circle(clean_image,
-                          (bolha['centro'][0], bolha['centro'][1]),
-                          bolha['radius'],
-                          (0, 255, 0),
-                          -1)
-
-            questao_atual += questoes_nesta_coluna
+            # Desenhar bolha verde (preenchida)
+            cv2.circle(clean_image, (cx, cy), raio, (0, 255, 0), -1)
 
     def analisar_cartao_multicolunas(self, image, binary, debug_image, num_questoes, num_colunas, sensitivity, threshold=150, return_debug_image=False, quality_meta=None):
         """
@@ -908,7 +881,10 @@ class MultiColumnCartaoAnalyzer:
         Fallback para segmentação por projeção se retângulos não forem encontrados.
         """
         from image_processing import detectar_retangulos_colunas
-        
+
+        # Limpar bolhas selecionadas da análise anterior
+        self.bolhas_selecionadas_por_questao = {}
+
         h, w = binary.shape
         resultados = {}
 
@@ -975,13 +951,16 @@ class MultiColumnCartaoAnalyzer:
                     coluna_img, coluna_bin, coluna_debug,
                     questoes_nesta_coluna, 1, sensitivity, quality_meta=quality_meta
                 )
-                
+
+                # Ajustar coordenadas das bolhas selecionadas para global
+                self.ajustar_bolhas_para_global(rx, ry)
+
                 debug_image[ry:ry+rh, rx:rx+rw] = coluna_debug
-                
+
                 for q, resposta in resultados_coluna.items():
                     if q <= questoes_nesta_coluna:
                         resultados[questao_atual + q - 1] = resposta
-                
+
                 questao_atual += questoes_nesta_coluna
             
         else:
@@ -1030,6 +1009,10 @@ class MultiColumnCartaoAnalyzer:
                     coluna_debug,
                     questoes_nesta_coluna, 1, sensitivity, quality_meta=quality_meta
                 )
+
+                # Ajustar coordenadas das bolhas selecionadas para global
+                # (x_inicio é o offset horizontal, y é sempre 0 nesse caso)
+                self.ajustar_bolhas_para_global(x_inicio, 0)
 
                 debug_image[:, x_inicio:x_fim] = coluna_debug
 

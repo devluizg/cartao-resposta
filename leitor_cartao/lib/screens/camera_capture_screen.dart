@@ -5,12 +5,18 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
+import '../services/image_quality_analyzer.dart';
 
 /// Resultado da captura: imagem e metadados
 class CaptureResult {
   final File imageFile;
   final int numColunas;
-  CaptureResult({required this.imageFile, required this.numColunas});
+  final ImageQualityResult? qualityResult; // ✨ NOVO: Score de qualidade
+  CaptureResult({
+    required this.imageFile,
+    required this.numColunas,
+    this.qualityResult,
+  });
 }
 
 /// Tela de captura guiada do cartão-resposta com câmera ao vivo.
@@ -38,6 +44,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   bool _hasError = false;
   String _errorMessage = '';
   File? _capturedImage;
+  ImageQualityResult? _qualityResult; // ✨ NOVO: Resultado de qualidade
+  bool _isAnalyzingQuality = false; // ✨ NOVO: Flag de análise
   _ScreenState _screenState = _ScreenState.camera; // começa na câmera ao vivo
 
   @override
@@ -138,17 +146,26 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       );
       final File arquivoFinal = await File(foto.path).copy(novoPath);
 
+      // ✨ NOVO: Analisar qualidade da imagem
+      setState(() => _isAnalyzingQuality = true);
+      final qualityResult = await ImageQualityAnalyzer.analyzeImage(
+        XFile(arquivoFinal.path),
+      );
+
       if (mounted) {
         setState(() {
           _capturedImage = arquivoFinal;
+          _qualityResult = qualityResult;
           _screenState = _ScreenState.preview;
           _isCapturing = false;
+          _isAnalyzingQuality = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _isCapturing = false;
+          _isAnalyzingQuality = false;
           _hasError = true;
           _errorMessage = 'Erro ao capturar: $e';
         });
@@ -159,17 +176,32 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   void _refazer() {
     setState(() {
       _capturedImage = null;
+      _qualityResult = null; // ✨ NOVO: Limpar resultado
       _screenState = _ScreenState.camera;
     });
   }
 
   void _confirmarImagem() {
     if (_capturedImage == null) return;
+
+    // ✨ NOVO: Bloquear se qualidade < 60
+    if (_qualityResult != null && !_qualityResult!.isAcceptable) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_qualityResult!.recommendation),
+          backgroundColor: Colors.redAccent,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     Navigator.pop(
       context,
       CaptureResult(
         imageFile: _capturedImage!,
         numColunas: _numColunas,
+        qualityResult: _qualityResult, // ✨ NOVO: Passar resultado
       ),
     );
   }
@@ -647,38 +679,19 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                 ),
               ),
 
-              // Banner de confirmação
+              // ✨ NOVO: Banner de qualidade ou confirmação
               Positioned(
                 top: 12,
                 left: 16,
                 right: 16,
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.black87,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                        color: const Color(0xFF22C55E).withOpacity(0.5)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.check_circle,
-                          color: Color(0xFF22C55E), size: 20),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Verifique se os cantos e bolhas estão visíveis',
-                          style:
-                              TextStyle(color: Colors.white70, fontSize: 12),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                child: _buildQualityBanner(),
               ),
             ],
           ),
         ),
+
+        // ✨ NOVO: Card de análise de qualidade detalhada
+        if (_qualityResult != null) _buildQualityDetailsCard(),
 
         // Botões: Refazer / Usar
         Container(
@@ -709,11 +722,28 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
               Expanded(
                 flex: 2,
                 child: ElevatedButton.icon(
-                  onPressed: _confirmarImagem,
-                  icon: const Icon(Icons.send_rounded,
-                      color: Colors.white, size: 18),
-                  label: const Text(
-                    'USAR ESTA FOTO',
+                  onPressed: _isAnalyzingQuality ? null : _confirmarImagem,
+                  icon: _isAnalyzingQuality
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              _qualityResult?.isAcceptable ?? false
+                                  ? Colors.white
+                                  : Colors.red,
+                            ),
+                          ),
+                        )
+                      : const Icon(Icons.send_rounded,
+                          color: Colors.white, size: 18),
+                  label: Text(
+                    _isAnalyzingQuality
+                        ? 'ANALISANDO...'
+                        : (_qualityResult?.isAcceptable ?? false)
+                            ? 'USAR ESTA FOTO'
+                            : 'QUALIDADE BAIXA',
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -721,7 +751,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF16A34A),
+                    backgroundColor: (_qualityResult?.isAcceptable ?? false)
+                        ? const Color(0xFF16A34A)
+                        : Colors.grey.shade700,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -734,6 +766,205 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
           ),
         ),
       ],
+    );
+  }
+
+  /// ✨ NOVO: Banner que muda cor baseado na qualidade
+  Widget _buildQualityBanner() {
+    if (_isAnalyzingQuality) {
+      return Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.5)),
+        ),
+        child: const Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation(Color(0xFFF59E0B)),
+              ),
+            ),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Analisando qualidade...',
+                style: TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_qualityResult == null) {
+      return Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+              color: const Color(0xFF22C55E).withOpacity(0.5)),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.check_circle,
+                color: Color(0xFF22C55E), size: 20),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Verifique se os cantos e bolhas estão visíveis',
+                style: TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final quality = _qualityResult!;
+    final bgColor = quality.isExcellent
+        ? Colors.green.shade900.withOpacity(0.7)
+        : quality.isGood
+            ? Colors.blue.shade900.withOpacity(0.7)
+            : Colors.orange.shade900.withOpacity(0.7);
+
+    final borderColor = quality.isExcellent
+        ? const Color(0xFF22C55E)
+        : quality.isGood
+            ? const Color(0xFF0DA6F2)
+            : const Color(0xFFF59E0B);
+
+    final icon = quality.isExcellent
+        ? Icons.check_circle
+        : quality.isGood
+            ? Icons.info
+            : Icons.warning_amber_rounded;
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: borderColor.withOpacity(0.8)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: borderColor, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Qualidade: ${quality.overallScore.toStringAsFixed(0)}%',
+                  style: TextStyle(
+                    color: borderColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  quality.recommendation,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ✨ NOVO: Card com detalhes técnicos de qualidade
+  Widget _buildQualityDetailsCard() {
+    if (_qualityResult == null) return const SizedBox.shrink();
+
+    final q = _qualityResult!;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        children: [
+          // Grid 2x3 de métricas
+          GridView.count(
+            crossAxisCount: 3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            childAspectRatio: 1.2,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            children: [
+              _buildQualityMetric('☀️ Brilho', q.brightness.toStringAsFixed(0),
+                  q.isBrightnessBad),
+              _buildQualityMetric('📊 Contraste', q.contrast.toStringAsFixed(0),
+                  q.isContrastBad),
+              _buildQualityMetric('🎯 Nitidez',
+                  '${(q.sharpness * 100).toStringAsFixed(0)}%', q.isSharpnessBad),
+              _buildQualityMetric('💡 Iluminação',
+                  '${(q.illuminationUniformity * 100).toStringAsFixed(0)}%',
+                  q.isIlluminationBad),
+              _buildQualityMetric('📐 Cantos',
+                  '${(q.cornerVisibility * 100).toStringAsFixed(0)}%',
+                  q.isCornersNotVisible),
+              _buildQualityMetric('⭐ Score', '${q.overallScore.toStringAsFixed(0)}%',
+                  !q.isAcceptable),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ✨ NOVO: Widget para uma métrica individual
+  Widget _buildQualityMetric(String label, String value, bool isBad) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: isBad
+            ? Colors.red.shade900.withOpacity(0.3)
+            : Colors.green.shade900.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: isBad
+              ? Colors.red.shade400.withOpacity(0.5)
+              : Colors.green.shade400.withOpacity(0.5),
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 10, color: Colors.white60),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: isBad ? Colors.redAccent : Colors.greenAccent,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

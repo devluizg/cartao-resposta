@@ -1,3 +1,12 @@
+"""
+Teste em Lote - Versão 2.1 (Visualização Corrigida)
+
+NOVO na v2.1:
+- Bolhas verdes desenhadas usando EXATAMENTE as coordenadas
+  que foram processadas (sem detecção independente)
+- Nenhum ponto verde fora dos limites das colunas
+- Performance melhorada (sem processamento duplicado)
+"""
 import os
 import cv2
 import glob
@@ -33,12 +42,13 @@ def main():
     imagens_encontradas = glob.glob(os.path.join(PASTA_IMAGENS, "**/*.*"), recursive=True)
     extensoes_validas = ['.jpg', '.jpeg', '.png']
     imagens = [img for img in imagens_encontradas if os.path.splitext(img)[1].lower() in extensoes_validas]
-    
+
     if len(imagens) == 0:
         print(f"Nenhuma imagem encontrada na pasta: {PASTA_IMAGENS}")
         return
-        
+
     print(f"========== INICIANDO TESTE EM LOTE ({len(imagens)} imagens) ==========")
+    print(f"✨ Usando versão corrigida: Visualização com bolhas realmente selecionadas")
     print(f"Gabarito usado: {GABARITO_CORRETO}")
     print("=" * 70)
     
@@ -71,7 +81,9 @@ def main():
                 print("  ⚠️ Falha ao corrigir perspectiva, processando imagem original.")
                 
             debug_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            
+
+            # Analisar cartão multicolunas
+            # A visualização retornada usa EXATAMENTE as coordenadas das bolhas realmente selecionadas
             ret = multi_analyzer.analisar_cartao_multicolunas(
                 image, binary, debug_image,
                 num_questoes=NUM_QUESTOES,
@@ -141,19 +153,22 @@ def main():
     # Resumo Global
     if total_questoes_avaliadas > 0:
         print("\n" + "=" * 70)
-        print("RESUMO FINAL DO LOTE:")
+        print("RESUMO FINAL DO LOTE (v2.1 - Visualização Corrigida):")
         print("=" * 70)
         global_pct = (total_acertos / total_questoes_avaliadas) * 100
         print(f"Imagens processadas: {len(imagens)}")
         print(f"Total de questões lidas em todas as imagens: {total_questoes_avaliadas}")
         print(f"Total de acertos perante gabarito: {total_acertos}")
         print(f"PRECISÃO GLOBAL DA API: {global_pct:.2f}%")
+        print(f"\n✨ Bolhas verdes desenhadas com coordenadas reais (sem ruído fora de colunas)")
 
         # Salvar relatório agregado
         try:
             os.makedirs(PASTA_DEBUG, exist_ok=True)
             with open(os.path.join(PASTA_DEBUG, "relatorio_lote.json"), "w") as f:
                 json.dump({
+                    "versao": "2.1 (Visualização Corrigida)",
+                    "descricao": "Bolhas verdes desenhadas com coordenadas realmente selecionadas, sem detecção independente",
                     "imagens": len(imagens),
                     "questoes_total": total_questoes_avaliadas,
                     "acertos_total": total_acertos,
