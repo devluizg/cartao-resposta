@@ -8,6 +8,8 @@ import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import '../services/image_quality_analyzer.dart';
+import '../services/frame_alignment_analyzer.dart';
+import '../widgets/frame_guide_painter.dart';
 
 /// Resultado da captura: imagem e metadados
 class CaptureResult {
@@ -60,6 +62,11 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   String _liveTip = 'Encaixe o cartão na moldura';
   bool _isAnalyzingLive = false;
   StreamSubscription<CameraImage>? _imageStreamSubscription;
+
+  // ✨ NOVO: Estados para alinhamento de frame
+  FrameAlignmentState _frameAlignment = FrameAlignmentState.analyzing;
+  double _skewAngle = 0.0;
+  bool _showAdvancedGuides = true; // Mostra guias avançadas
 
   @override
   void initState() {
@@ -530,13 +537,18 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
               ),
             ),
 
-            // ── MOLDURA DO CARTÃO (borda + marcadores) ──
-            Positioned.fromRect(
-              rect: _calcFrameRect(constraints),
-              child: _buildFrameDecoration(),
+            // ── MOLDURA DO CARTÃO (borda + marcadores + guias avançadas) ──
+            CustomPaint(
+              size: Size(constraints.maxWidth, constraints.maxHeight),
+              painter: FrameGuidePainter(
+                frameColor: _frameColor,
+                alignmentState: _frameAlignment,
+                skewAngle: _skewAngle,
+                showAdvancedGuides: _showAdvancedGuides,
+              ),
             ),
 
-            // ── DICA de enquadramento (dinâmica) ──
+            // ── DICA de enquadramento (dinâmica) com alinhamento ──
             Positioned(
               bottom: 8,
               left: 16,
@@ -555,12 +567,16 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 300),
                       child: Icon(
-                        _liveQuality == LiveQualityState.bad
-                            ? Icons.warning_rounded
-                            : _liveQuality == LiveQualityState.warning
-                                ? Icons.info_rounded
-                                : Icons.wb_sunny_outlined,
-                        key: ValueKey(_liveQuality),
+                        _frameAlignment == FrameAlignmentState.badAngle ||
+                                _frameAlignment == FrameAlignmentState.warningAngle
+                            ? Icons.straighten_rounded
+                            : _liveQuality == LiveQualityState.bad
+                                ? Icons.warning_rounded
+                                : _liveQuality == LiveQualityState.warning
+                                    ? Icons.info_rounded
+                                    : Icons.wb_sunny_outlined,
+                        key: ValueKey(
+                            '${_liveQuality}_${_frameAlignment}'),
                         color: _frameColor,
                         size: 14,
                       ),
@@ -574,7 +590,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                           fontSize: 11,
                         ),
                         child: Text(
-                          _liveTip,
+                          _liveTipWithAlignment, // ✨ Usar dica com alinhamento
                           style: const TextStyle(fontSize: 11),
                           textAlign: TextAlign.center,
                           maxLines: 1,
@@ -630,73 +646,17 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     }
   }
 
-  Widget _buildFrameDecoration() {
-    final frameColor = _frameColor;
-
-    return IgnorePointer(
-      child: Stack(
-        children: [
-          // Borda principal com transição suave
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            decoration: BoxDecoration(
-              border: Border.all(color: frameColor, width: 2),
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-
-          // Cantos em L (guias visuais)
-          ..._buildCorners(frameColor),
-
-          // ✨ REMOVIDO: Marcadores de canto (quadrados) para melhor visualização
-          // Mantém a qualidade pois o processamento usa visão computacional, não esses marcadores
-
-          // Divisórias de coluna
-          if (_numColunas >= 2)
-            Positioned(
-              left: 0,
-              right: 0,
-              top: 0,
-              bottom: 0,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return Stack(
-                    children: [
-                      for (int i = 1; i < _numColunas; i++)
-                        Positioned(
-                          left: constraints.maxWidth * i / _numColunas,
-                          top: 0,
-                          bottom: 0,
-                          child: Container(
-                            width: 1,
-                            color: frameColor.withOpacity(0.3),
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ),
-
-          // Label central
-          Center(
-            child: AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 300),
-              style: TextStyle(
-                color: frameColor.withOpacity(0.25),
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 3,
-              ),
-              child: const Text(
-                'CARTÃO\nRESPOSTA',
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+  /// ✨ NOVO: Gerar dica com informações de alinhamento
+  String get _liveTipWithAlignment {
+    // Se moldura está inclinada, priorizar feedback de alinhamento
+    if (_frameAlignment == FrameAlignmentState.badAngle) {
+      return '❌ Ângulo ${_skewAngle.toStringAsFixed(1)}° • Deixe reto';
+    }
+    if (_frameAlignment == FrameAlignmentState.warningAngle) {
+      return '⚠️ Inclinado ${_skewAngle.toStringAsFixed(1)}° • Corrija';
+    }
+    // Caso contrário, usar feedback de qualidade
+    return _liveTip;
   }
 
   Widget _positionedSquare(
