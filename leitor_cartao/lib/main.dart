@@ -21,6 +21,17 @@ import 'widgets/custom_app_bar.dart';
 final Logger _logger = Logger('CartaoRespostaApp');
 final ApiService _apiService = ApiService();
 
+// ✨ NOVO: Classe para resultado do QR code (tipo + versão)
+class QrScanResult {
+  final int tipo;
+  final String? versionCode;
+
+  QrScanResult({
+    required this.tipo,
+    this.versionCode,
+  });
+}
+
 // Paleta de cores do site Django
 class AppColors {
   static const Color primaryColor = Color(0xFF0DA6F2);  // Azul claro/primário
@@ -60,6 +71,27 @@ int? _parseTipoProvaFromQr(String? data) {
   return null;
 }
 
+// ✨ NOVO: Função para parsear QR code com tipo + versão
+QrScanResult? _parseQrCodeCompleto(String? data) {
+  if (data == null || data.trim().isEmpty) return null;
+  final raw = data.trim();
+
+  // Extrai tipo (T:X)
+  final matchTipo = RegExp(r'\|T:(\d+)|\bT:(\d+)', caseSensitive: false)
+      .firstMatch(raw);
+  if (matchTipo == null) return null;
+
+  final tipoStr = matchTipo.group(1) ?? matchTipo.group(2);
+  final tipo = int.tryParse(tipoStr ?? '');
+  if (tipo == null || tipo < 1) return null;
+
+  // Extrai versão (ID:xxxxx) — opcional
+  final matchVersion = RegExp(r'ID:([^\|]+)').firstMatch(raw);
+  final version = matchVersion?.group(1);
+
+  return QrScanResult(tipo: tipo, versionCode: version);
+}
+
 class QrScanScreen extends StatefulWidget {
   const QrScanScreen({super.key});
 
@@ -94,11 +126,12 @@ class _QrScanScreenState extends State<QrScanScreen> {
     controller.scannedDataStream.listen((scanData) {
       if (_found) return;
       final code = scanData.code;
-      final tipo = _parseTipoProvaFromQr(code);
-      if (tipo != null && tipo >= 1 && tipo <= 5) {
+      // ✨ NOVO: Usar a função melhorada que retorna tipo + versão
+      final qrResult = _parseQrCodeCompleto(code);
+      if (qrResult != null && qrResult.tipo >= 1 && qrResult.tipo <= 5) {
         _found = true;
         _controller?.pauseCamera();
-        Navigator.pop(context, tipo);
+        Navigator.pop(context, qrResult);
       } else {
         setState(() {
           _lastCode = code;
@@ -363,24 +396,25 @@ class _TelaInicialState extends State<TelaInicial> {
   // ✅ ADICIONAR ESTA LINHA
   final CreditManager _creditManager = CreditManager();
 
-  Future<int?> _lerTipoProvaViaQr() async {
-    final tipoDetectado = await Navigator.push<int>(
+  // ✨ NOVO: Retorna QrScanResult (tipo + versionCode)
+  Future<QrScanResult?> _lerTipoProvaViaQr() async {
+    final qrResult = await Navigator.push<QrScanResult>(
       context,
       MaterialPageRoute(
         builder: (context) => const QrScanScreen(),
       ),
     );
 
-    if (tipoDetectado != null &&
-        tipoDetectado >= 1 &&
-        tipoDetectado <= 5 &&
+    if (qrResult != null &&
+        qrResult.tipo >= 1 &&
+        qrResult.tipo <= 5 &&
         mounted) {
       setState(() {
-        _tipoProva = tipoDetectado;
+        _tipoProva = qrResult.tipo;
       });
     }
 
-    return tipoDetectado;
+    return qrResult;
   }
 
   String _decodificarTexto(String? texto) {
@@ -581,12 +615,14 @@ class _TelaInicialState extends State<TelaInicial> {
         return;
       }
 
+      // ✨ NOVO: Passar versionCode do QR para CameraCaptureScreen
       final result = await Navigator.push<CaptureResult>(
         context,
         MaterialPageRoute(
           builder: (context) => CameraCaptureScreen(
             numQuestoes: _numeroQuestoes ?? 24,
-            tipoProva: tipoLido,
+            tipoProva: tipoLido.tipo, // ✨ Usar .tipo
+            versionCode: tipoLido.versionCode, // ✨ Passar versionCode
           ),
         ),
       );
@@ -596,7 +632,7 @@ class _TelaInicialState extends State<TelaInicial> {
           _imagemSelecionada = result.imageFile;
           _mensagemErro = null;
           _temImagensProcessadas = false;
-          _tipoProva = tipoLido;
+          _tipoProva = tipoLido.tipo; // ✨ Usar .tipo
         });
         await _enviarImagem();
       } else {

@@ -5,6 +5,9 @@ import 'dart:ui' as ui;
 import 'package:camera/camera.dart';
 import 'package:image/image.dart' as img;
 
+/// Estado de qualidade ao vivo para feedback em tempo real
+enum LiveQualityState { analyzing, excellent, good, warning, bad }
+
 /// Resultado da análise de qualidade
 class ImageQualityResult {
   final double brightness;      // 0-255, ideal: 150-220
@@ -132,6 +135,139 @@ class ImageQualityAnalyzer {
       overallScore: overallScore,
       recommendation: recommendation,
     );
+  }
+
+  /// Análise rápida para feedback ao vivo (apenas brightness + illumination)
+  /// Recebe bytes brutos (canal Y de YUV420) para análise rápida sem decodificação
+  static Future<LiveQualityState> analyzeLiveFrameFast(
+    List<int> lumaBytes,
+    int width,
+    int height,
+  ) async {
+    try {
+      if (lumaBytes.isEmpty) {
+        return LiveQualityState.analyzing;
+      }
+
+      // Calcular brilho médio (amostragem rápida)
+      double brightness = _calculateBrightnessFromBytes(lumaBytes, width, height);
+
+      // Calcular uniformidade de iluminação (amostragem rápida)
+      double illumination =
+          _calculateIlluminationFromBytes(lumaBytes, width, height);
+
+      // Determinar estado baseado em brightness e illumination
+      if (brightness < 100) {
+        return LiveQualityState.bad; // Muito escuro
+      } else if (brightness > 240) {
+        return LiveQualityState.bad; // Muito claro
+      }
+
+      // Se iluminação ruim, warning
+      if (illumination < 0.55) {
+        return LiveQualityState.warning; // Sombra detectada
+      }
+
+      // Se tudo bom
+      if (brightness >= 150 && brightness <= 220 && illumination > 0.75) {
+        return LiveQualityState.excellent;
+      }
+
+      if (brightness >= 120 && brightness <= 230 && illumination > 0.65) {
+        return LiveQualityState.good;
+      }
+
+      return LiveQualityState.warning;
+    } catch (e) {
+      print('❌ Erro na análise rápida: $e');
+      return LiveQualityState.analyzing;
+    }
+  }
+
+  /// Extrair dica textual baseada no estado ao vivo
+  static String getTipForLiveQualityState(LiveQualityState state) {
+    switch (state) {
+      case LiveQualityState.analyzing:
+        return 'Encaixe o cartão na moldura';
+      case LiveQualityState.excellent:
+        return '✅ Excelente! Pode fotografar';
+      case LiveQualityState.good:
+        return '✅ Boa iluminação • Pode fotografar';
+      case LiveQualityState.warning:
+        return '⚠️ Sombra detectada • Mude o ângulo';
+      case LiveQualityState.bad:
+        return '🔦 Muito escuro • Acenda o flash';
+    }
+  }
+
+  /// Calcular brilho a partir de bytes brutos (canal Y/luma)
+  static double _calculateBrightnessFromBytes(
+    List<int> bytes,
+    int width,
+    int height,
+  ) {
+    int sum = 0;
+    int count = 0;
+
+    // Amostragem cada 10 pixels para performance
+    final step = 10;
+    for (int i = 0; i < bytes.length; i += step) {
+      sum += bytes[i];
+      count++;
+    }
+
+    return count > 0 ? sum / count : 128;
+  }
+
+  /// Calcular uniformidade de iluminação a partir de bytes brutos
+  static double _calculateIlluminationFromBytes(
+    List<int> bytes,
+    int width,
+    int height,
+  ) {
+    if (bytes.isEmpty) return 0.5;
+
+    // Dividir em 4 quadrantes
+    List<double> quadrants = [];
+    int qx = width ~/ 2;
+    int qy = height ~/ 2;
+
+    // Amostra cada quadrante
+    for (int qIdx = 0; qIdx < 4; qIdx++) {
+      int startRow = (qIdx ~/ 2) * qy;
+      int endRow = startRow + qy;
+      int startCol = (qIdx % 2) * qx;
+      int endCol = startCol + qx;
+
+      int sum = 0;
+      int count = 0;
+
+      // Amostragem cada 5 pixels
+      for (int row = startRow; row < endRow && row < height; row += 5) {
+        for (int col = startCol; col < endCol && col < width; col += 5) {
+          int idx = row * width + col;
+          if (idx < bytes.length) {
+            sum += bytes[idx];
+            count++;
+          }
+        }
+      }
+
+      if (count > 0) {
+        quadrants.add(sum / count);
+      }
+    }
+
+    if (quadrants.isEmpty) return 0.5;
+
+    final mean = quadrants.reduce((a, b) => a + b) / quadrants.length;
+    final maxDiff = quadrants.fold<double>(
+      0,
+      (max, q) => max > (q - mean).abs() ? max : (q - mean).abs(),
+    );
+
+    // Normalizar: se maxDiff > 100, uniformidade é ruim
+    return (1 - (maxDiff / 200)).clamp(0.0, 1.0);
   }
 
   /// Calcular brilho médio da imagem (0-255)

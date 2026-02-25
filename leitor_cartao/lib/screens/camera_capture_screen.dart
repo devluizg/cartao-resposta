@@ -1,7 +1,9 @@
 // camera_capture_screen.dart
 // Tela de captura guiada com câmera AO VIVO e overlay de enquadramento
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
@@ -12,10 +14,12 @@ class CaptureResult {
   final File imageFile;
   final int numColunas;
   final ImageQualityResult? qualityResult; // ✨ NOVO: Score de qualidade
+  final String? versionCode; // ✨ NOVO: Código de versão do QR
   CaptureResult({
     required this.imageFile,
     required this.numColunas,
     this.qualityResult,
+    this.versionCode,
   });
 }
 
@@ -25,11 +29,13 @@ class CaptureResult {
 class CameraCaptureScreen extends StatefulWidget {
   final int numQuestoes;
   final int tipoProva;
+  final String? versionCode; // ✨ NOVO: Código de versão do QR (opcional)
 
   const CameraCaptureScreen({
     super.key,
     required this.numQuestoes,
     required this.tipoProva,
+    this.versionCode,
   });
 
   @override
@@ -46,7 +52,14 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   File? _capturedImage;
   ImageQualityResult? _qualityResult; // ✨ NOVO: Resultado de qualidade
   bool _isAnalyzingQuality = false; // ✨ NOVO: Flag de análise
+  FlashMode _currentFlashMode = FlashMode.off; // ✨ NOVO: Rastrear modo de flash
   _ScreenState _screenState = _ScreenState.camera; // começa na câmera ao vivo
+
+  // ✨ NOVO: Estados para feedback ao vivo
+  LiveQualityState _liveQuality = LiveQualityState.analyzing;
+  String _liveTip = 'Encaixe o cartão na moldura';
+  bool _isAnalyzingLive = false;
+  StreamSubscription<CameraImage>? _imageStreamSubscription;
 
   @override
   void initState() {
@@ -58,6 +71,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _imageStreamSubscription?.cancel(); // ✨ NOVO: Cancelar stream
+    _controller?.stopImageStream().catchError((_) {}); // ✨ NOVO: Parar stream
     _controller?.dispose();
     super.dispose();
   }
@@ -105,10 +120,14 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
       await _controller!.initialize();
 
-      // Travar auto-focus contínuo para melhor qualidade
+      // Configurar câmera: foco automático + flash desligado
       if (_controller!.value.isInitialized) {
         await _controller!.setFocusMode(FocusMode.auto);
         await _controller!.setFlashMode(FlashMode.off);
+        _currentFlashMode = FlashMode.off;
+
+        // ✨ NOVO: Iniciar análise ao vivo de frames
+        _startLiveQualityAnalysis();
       }
 
       if (mounted) {
@@ -135,6 +154,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     setState(() => _isCapturing = true);
 
     try {
+      // ✨ NOVO: Parar análise ao vivo antes de capturar
+      await _imageStreamSubscription?.cancel();
+      await _controller!.stopImageStream().catchError((_) {});
+
       // Capturar imagem
       final XFile foto = await _controller!.takePicture();
 
@@ -178,7 +201,125 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       _capturedImage = null;
       _qualityResult = null; // ✨ NOVO: Limpar resultado
       _screenState = _ScreenState.camera;
+      _liveQuality = LiveQualityState.analyzing; // ✨ NOVO: Reiniciar análise
+      _liveTip = 'Encaixe o cartão na moldura';
     });
+    // ✨ NOVO: Reiniciar análise ao vivo
+    _startLiveQualityAnalysis();
+  }
+
+  /// ✨ NOVO: Iniciar análise ao vivo de qualidade dos frames
+  void _startLiveQualityAnalysis() {
+    if (_controller == null || !_controller!.value.isInitialized) return;
+
+    try {
+      _imageStreamSubscription?.cancel();
+
+      _imageStreamSubscription =
+          _controller!.startImageStream(_onFrameReceived);
+    } catch (e) {
+      print('❌ Erro ao iniciar stream: $e');
+    }
+  }
+
+  /// ✨ NOVO: Callback para processar cada frame da câmera
+  Future<void> _onFrameReceived(CameraImage frame) async {
+    if (_isAnalyzingLive ||
+        _screenState == _ScreenState.preview ||
+        _isCapturing) {
+      return;
+    }
+
+    _isAnalyzingLive = true;
+
+    try {
+      // Extrair canal Y (luminância) para análise rápida
+      final lumaBytes = frame.planes[0].bytes;
+      final width = frame.width;
+      final height = frame.height;
+
+      // Executar análise rápida em isolate
+      final liveState = await compute(
+        _analyzeLiveFrameInIsolate,
+        _FrameAnalysisData(lumaBytes, width, height),
+      );
+
+      if (mounted) {
+        setState(() {
+          _liveQuality = liveState;
+          _liveTip = ImageQualityAnalyzer.getTipForLiveQualityState(liveState);
+        });
+      }
+    } catch (e) {
+      print('❌ Erro ao analisar frame: $e');
+    } finally {
+      _isAnalyzingLive = false;
+    }
+  }
+
+  /// ✨ NOVO: Função estática para rodar em isolate
+  static Future<LiveQualityState> _analyzeLiveFrameInIsolate(
+    _FrameAnalysisData data,
+  ) async {
+    return ImageQualityAnalyzer.analyzeLiveFrameFast(
+      data.lumaBytes,
+      data.width,
+      data.height,
+    );
+  }
+
+  /// ✨ NOVO: Alternar modo de flash (OFF → TORCH → AUTO → OFF)
+  Future<void> _toggleFlash() async {
+    if (_controller == null || !_controller!.value.isInitialized) return;
+
+    final nextMode = _getNextFlashMode(_currentFlashMode);
+    await _controller!.setFlashMode(nextMode);
+
+    setState(() {
+      _currentFlashMode = nextMode;
+    });
+  }
+
+  /// ✨ NOVO: Determinar próximo modo de flash
+  FlashMode _getNextFlashMode(FlashMode current) {
+    switch (current) {
+      case FlashMode.off:
+        return FlashMode.torch; // Acender contínuo
+      case FlashMode.torch:
+        return FlashMode.auto; // Automático
+      case FlashMode.auto:
+        return FlashMode.off; // Desligar
+      default:
+        return FlashMode.off;
+    }
+  }
+
+  /// ✨ NOVO: Obter ícone baseado no modo de flash
+  IconData _getFlashIcon() {
+    switch (_currentFlashMode) {
+      case FlashMode.off:
+        return Icons.flash_off_rounded;
+      case FlashMode.torch:
+        return Icons.flash_on_rounded;
+      case FlashMode.auto:
+        return Icons.flash_auto_rounded;
+      default:
+        return Icons.flash_off_rounded;
+    }
+  }
+
+  /// ✨ NOVO: Obter descrição do modo de flash
+  String _getFlashLabel() {
+    switch (_currentFlashMode) {
+      case FlashMode.off:
+        return 'Flash OFF';
+      case FlashMode.torch:
+        return 'Flash ON';
+      case FlashMode.auto:
+        return 'Flash AUTO';
+      default:
+        return 'Flash OFF';
+    }
   }
 
   void _confirmarImagem() {
@@ -202,6 +343,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         imageFile: _capturedImage!,
         numColunas: _numColunas,
         qualityResult: _qualityResult, // ✨ NOVO: Passar resultado
+        versionCode: widget.versionCode, // ✨ NOVO: Passar version code do QR
       ),
     );
   }
@@ -278,20 +420,34 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
               ],
             ),
           ),
-          // Badge com info
+          // Badge com info (mostra se foi lido do QR)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: const Color(0xFF0DA6F2).withOpacity(0.2),
+              color: widget.versionCode != null
+                  ? const Color(0xFF22C55E).withOpacity(0.2)
+                  : const Color(0xFF0DA6F2).withOpacity(0.2),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Text(
-              '${widget.numQuestoes}Q · ${_numColunas}Col',
-              style: const TextStyle(
-                color: Color(0xFF0DA6F2),
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.versionCode != null)
+                  const Icon(Icons.qr_code_2, size: 12, color: Color(0xFF22C55E))
+                else
+                  const SizedBox.shrink(),
+                if (widget.versionCode != null) const SizedBox(width: 4) else const SizedBox.shrink(),
+                Text(
+                  '${widget.numQuestoes}Q · ${_numColunas}Col${widget.versionCode != null ? ' · QR ✓' : ''}',
+                  style: TextStyle(
+                    color: widget.versionCode != null
+                        ? const Color(0xFF22C55E)
+                        : const Color(0xFF0DA6F2),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -380,7 +536,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
               child: _buildFrameDecoration(),
             ),
 
-            // ── DICA de enquadramento ──
+            // ── DICA de enquadramento (dinâmica) ──
             Positioned(
               bottom: 8,
               left: 16,
@@ -392,16 +548,39 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.wb_sunny_outlined,
-                        color: Color(0xFFF59E0B), size: 14),
-                    SizedBox(width: 6),
-                    Text(
-                      'Boa iluminação • Sem sombras • Cartão reto',
-                      style: TextStyle(color: Colors.white70, fontSize: 11),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: Icon(
+                        _liveQuality == LiveQualityState.bad
+                            ? Icons.warning_rounded
+                            : _liveQuality == LiveQualityState.warning
+                                ? Icons.info_rounded
+                                : Icons.wb_sunny_outlined,
+                        key: ValueKey(_liveQuality),
+                        color: _frameColor,
+                        size: 14,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 300),
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                        ),
+                        child: Text(
+                          _liveTip,
+                          style: const TextStyle(fontSize: 11),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -435,14 +614,31 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     return Rect.fromLTWH(left, top, frameW, frameH);
   }
 
+  /// ✨ NOVO: Obter cor dinâmica baseada na qualidade ao vivo
+  Color get _frameColor {
+    switch (_liveQuality) {
+      case LiveQualityState.analyzing:
+        return const Color(0xFFF59E0B); // Amarelo
+      case LiveQualityState.excellent:
+        return const Color(0xFF22C55E); // Verde
+      case LiveQualityState.good:
+        return const Color(0xFF22C55E); // Verde
+      case LiveQualityState.warning:
+        return const Color(0xFFF97316); // Laranja
+      case LiveQualityState.bad:
+        return const Color(0xFFEF4444); // Vermelho
+    }
+  }
+
   Widget _buildFrameDecoration() {
-    const Color frameColor = Color(0xFFF59E0B); // Amarelo guia
+    final frameColor = _frameColor;
 
     return IgnorePointer(
       child: Stack(
         children: [
-          // Borda principal
-          Container(
+          // Borda principal com transição suave
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
             decoration: BoxDecoration(
               border: Border.all(color: frameColor, width: 2),
               borderRadius: BorderRadius.circular(4),
@@ -452,11 +648,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
           // Cantos em L (guias visuais)
           ..._buildCorners(frameColor),
 
-          // Marcadores de canto da coluna guide (agora com _positionedSquare)
-          _positionedSquare(8, 8, true, true, frameColor),
-          _positionedSquare(8, 8, true, false, frameColor),
-          _positionedSquare(8, 8, false, true, frameColor),
-          _positionedSquare(8, 8, false, false, frameColor),
+          // ✨ REMOVIDO: Marcadores de canto (quadrados) para melhor visualização
+          // Mantém a qualidade pois o processamento usa visão computacional, não esses marcadores
 
           // Divisórias de coluna
           if (_numColunas >= 2)
@@ -487,14 +680,17 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
           // Label central
           Center(
-            child: Text(
-              'CARTÃO\nRESPOSTA',
-              textAlign: TextAlign.center,
+            child: AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 300),
               style: TextStyle(
                 color: frameColor.withOpacity(0.25),
                 fontSize: 14,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 3,
+              ),
+              child: const Text(
+                'CARTÃO\nRESPOSTA',
+                textAlign: TextAlign.center,
               ),
             ),
           ),
@@ -573,18 +769,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Botão de flash (opcional)
-          _buildSmallButton(
-            icon: Icons.flash_off,
-            onTap: () async {
-              if (_controller == null) return;
-              final current = _controller!.value.flashMode;
-              final next = current == FlashMode.off
-                  ? FlashMode.torch
-                  : FlashMode.off;
-              await _controller!.setFlashMode(next);
-              setState(() {});
-            },
+          // ✨ BOTÃO DE FLASH (com ícone dinâmico e tooltip)
+          Tooltip(
+            message: _getFlashLabel(),
+            child: _buildFlashButton(),
           ),
 
           const SizedBox(width: 32),
@@ -593,12 +781,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
           GestureDetector(
             onTap: _isCapturing ? null : _capturarFoto,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
+              duration: const Duration(milliseconds: 300),
               width: 72,
               height: 72,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 4),
+                border: Border.all(color: _frameColor, width: 4), // ✨ NOVO: Cor dinâmica
                 color: _isCapturing
                     ? Colors.grey.shade700
                     : Colors.white.withOpacity(0.2),
@@ -635,6 +823,34 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
             onTap: () => Navigator.pop(context),
           ),
         ],
+      ),
+    );
+  }
+
+  /// ✨ NOVO: Botão de flash melhorado com feedback visual
+  Widget _buildFlashButton() {
+    return GestureDetector(
+      onTap: _toggleFlash,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: _currentFlashMode == FlashMode.off
+              ? Colors.white.withOpacity(0.12)
+              : Colors.yellow.withOpacity(0.25),
+          border: _currentFlashMode != FlashMode.off
+              ? Border.all(color: Colors.yellow.shade300, width: 1.5)
+              : null,
+        ),
+        child: Icon(
+          _getFlashIcon(),
+          color: _currentFlashMode == FlashMode.off
+              ? Colors.white70
+              : Colors.yellow.shade300,
+          size: 22,
+        ),
       ),
     );
   }
@@ -970,8 +1186,17 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ENUMS E PAINTERS
+// ENUMS, CLASSES E PAINTERS
 // ═══════════════════════════════════════════════════════════════════════════════
+
+/// ✨ NOVO: Classe para passar dados ao isolate
+class _FrameAnalysisData {
+  final List<int> lumaBytes;
+  final int width;
+  final int height;
+
+  _FrameAnalysisData(this.lumaBytes, this.width, this.height);
+}
 
 enum _ScreenState { camera, preview }
 
