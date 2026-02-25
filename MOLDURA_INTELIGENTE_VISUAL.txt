@@ -1,0 +1,187 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                   MOLDURA INTELIGENTE - GUIA VISUAL                       ║
+║                   6 INDICADORES EM TEMPO REAL                             ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ 1. MOLDURA PRINCIPAL (Borda Colorida - Resposta Rápida)                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  ┌─────────────────────────────────────────────────────┐                 │
+│  │  MOLDURA 🟩 VERDE → PRONTO PARA FOTOGRAFAR!        │                 │
+│  │  Feedback: ✅ Excelente! Pode fotografar            │                 │
+│  │  Status: Brilho OK + Iluminação OK + Ângulo OK     │                 │
+│  └─────────────────────────────────────────────────────┘                 │
+│                                                                            │
+│  ┌─────────────────────────────────────────────────────┐                 │
+│  │  MOLDURA 🟨 AMARELO → ANALISANDO                   │                 │
+│  │  Feedback: ⏳ Encaixe o cartão na moldura          │                 │
+│  │  Status: Câmera está analisando (aguarde ~1s)      │                 │
+│  └─────────────────────────────────────────────────────┘                 │
+│                                                                            │
+│  ┌─────────────────────────────────────────────────────┐                 │
+│  │  MOLDURA 🟧 LARANJA → AVISO                        │                 │
+│  │  Feedback: ⚠️ Sombra detectada • Mude o ângulo    │                 │
+│  │  Status: Iluminação não uniforme (variação > 40)   │                 │
+│  │  Solução: Mude posição da luz, use 2 fontes        │                 │
+│  └─────────────────────────────────────────────────────┘                 │
+│                                                                            │
+│  ┌─────────────────────────────────────────────────────┐                 │
+│  │  MOLDURA 🔴 VERMELHO → MUITO RUIM                  │                 │
+│  │  Feedback (Ângulo): ❌ Muito inclinado (25°)      │                 │
+│  │  Feedback (Luz): 🔦 Muito escuro • Acenda flash   │                 │
+│  │  Feedback (Luz): ☁️ Muito claro • Evite luz direta│                 │
+│  │  Solução: Corrija ângulo OU aumentar iluminação    │                 │
+│  └─────────────────────────────────────────────────────┘                 │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ 2. 4 MARCADORES DE CANTO (Círculos Verdes - Alinhamento Preciso)          │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  ✓ TL (Top-Left)         ✓ TR (Top-Right)                                │
+│  │                        │                                              │
+│  │  ╔════════════════════════╗                                           │
+│  │  ║  CARTÃO-RESPOSTA (A4) ║                                           │
+│  │  ║  ┌─────────────────┐  ║                                           │
+│  │  ║  │ (área de segur.)│  ║                                           │
+│  │  ║  │ NÃO CORTAR AQUI │  ║                                           │
+│  │  ║  └─────────────────┘  ║                                           │
+│  │  ║                       ║                                           │
+│  │  ║   [Bolhas aqui]       ║                                           │
+│  │  ║                       ║                                           │
+│  │  ╚════════════════════════╝                                           │
+│  │                        │                                              │
+│  ✓ BL (Bottom-Left)      ✓ BR (Bottom-Right)                             │
+│                                                                            │
+│  ✅ USO:                                                                  │
+│  • Posicione o cartão para que os 4 círculos fiquem visíveis             │
+│  • Quando alinhados formam um retângulo perfeito                         │
+│  • Se deformado = cartão está em perspectiva (ângulo errado)             │
+│  • Quando retos: moldura vira VERDE                                      │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ 3. LINHAS DE PERSPECTIVA (Azuis - Detecta Inclinação)                     │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  ✅ CORRETO (0°):          ❌ INCLINADO:                                  │
+│                                                                            │
+│     ╔═════════╗                   ╱╱╱╱╱╱╱╱╱                              │
+│     ║  (X)   ║               (X)  ╱╱╱╱╱╱╱╱╱                              │
+│     ║         ║             /    ╱╱╱╱╱╱╱╱╱                               │
+│     ║         ║            /     ╱╱╱╱╱╱╱╱╱                               │
+│     ║  ─ ─ ─ ║           /      ╱╱╱╱╱╱╱╱╱                               │
+│     ║ │     │║         /      ╱╱╱╱╱╱╱╱╱                                │
+│     ║ │     │║        /      ╱╱╱╱╱╱╱╱╱                                 │
+│     ╚═════════╝      /      ╱╱╱╱╱╱╱╱╱                                  │
+│                     /      ╱╱╱╱╱╱╱╱╱                                   │
+│     Linhas:        /      ╱╱╱╱╱╱╱╱╱                                    │
+│     • Diagonais ✓  /     ╱╱╱╱╱╱╱╱╱                                     │
+│     • Verticais ✓ /    ╱╱╱╱╱╱╱╱╱ ← Linhas inclinadas!                │
+│     • Horz. ✓   /    ╱╱╱╱╱╱╱╱╱   Moldura LARANJA/VERMELHA            │
+│                                                                            │
+│  ✅ USO:                                                                  │
+│  • Se linhas parecem RETAS = ângulo 0° ✓                                │
+│  • Se linhas parecem INCLINADAS = mude posição do cartão                │
+│  • Mais inclinadas = moldura fica mais vermelha                         │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ 4. INDICADOR DE ÂNGULO (Topo - Escala Precisa)                            │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  ┌────────────────────────────────────────┐                              │
+│  │ ← -15° -10° -5° 0° (VERDE) 5° 10° 15° →│                            │
+│  │           ↑ ↑ ↑ ↑ ↑ ↑ ↑                  │                            │
+│  │           [Marcas de calibração]       │                            │
+│  │                   ▲                     │                            │
+│  │            Indicador atual              │                            │
+│  │                   0° = RETO ✅           │                            │
+│  │              Valor: 0.0°                │                            │
+│  └────────────────────────────────────────┘                              │
+│                                                                            │
+│  EXEMPLOS DE LEITURA:                                                     │
+│  • Indicador em 0°  → VERDE   ✅ Perfeito                               │
+│  • Indicador em ±3° → VERDE   ✅ Bom                                    │
+│  • Indicador em ±8° → LARANJA ⚠️ Aviso                                 │
+│  • Indicador >±15° → VERMELHO ❌ Ruim                                   │
+│                                                                            │
+│  ✅ USO:                                                                  │
+│  • Observe o número em graus na câmera                                   │
+│  • Ajuste o cartão até ficar próximo de 0°                              │
+│  • Quando VERDE, está alinhado corretamente                             │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ 5. ÁREA DE SEGURANÇA (Linha Vermelha - Não Cortar)                        │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  ╔════════════════════════════════════════╗                              │
+│  ║ 🚫 MARGEM (~15px)                      ║                              │
+│  ║ ┌──────────────────────────────────┐ ║                              │
+│  ║ │                                  │ ║                              │
+│  ║ │  ÁREA DE SEGURANÇA (Linha vermelha) ║                             │
+│  ║ │  • QR code visível               │ ║                              │
+│  ║ │  • Bolhas visíveis               │ ║                              │
+│  ║ │  • Rodapé visível                │ ║                              │
+│  ║ │                                  │ ║                              │
+│  ║ │  4 marcadores dentro da área     │ ║                              │
+│  ║ │                                  │ ║                              │
+│  ║ └──────────────────────────────────┘ ║                              │
+│  ║ 🚫 MARGEM (~15px)                     ║                              │
+│  ╚════════════════════════════════════════╝                              │
+│                                                                            │
+│  ✅ USO:                                                                  │
+│  • Mantenha TUDO dentro da linha vermelha                               │
+│  • Nunca deixe QR code sair da tela                                     │
+│  • Nunca deixe rodapé sair da tela                                      │
+│  • Nunca deixe os 4 cantos saírem da tela                               │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ 6. INDICADOR DE DISTÂNCIA (Canto Inferior - Alcance Ideal)                │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│                                    ┌──────────────┐                     │
+│                                    │ 📏           │                     │
+│                                    │ Ideal:       │                     │
+│                                    │ 20-30cm      │                     │
+│                                    │              │                     │
+│                                    │ Referência:  │                     │
+│                                    │ Uma mão      │                     │
+│                                    └──────────────┘                     │
+│                                                                            │
+│  DISTÂNCIAS:                                                              │
+│  • <20cm    → Muito perto (desfocado)   ❌                               │
+│  • 20-30cm  → IDEAL (foco nítido)       ✅                               │
+│  • >30cm    → Muito longe (bolhas pequenas) ❌                            │
+│                                                                            │
+│  ✅ USO:                                                                  │
+│  • Use "uma mão de distância" como referência rápida                    │
+│  • Ou use 25cm como ponto central                                       │
+│  • Verifique se bolhas estão NÍTIDAS                                    │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║  RESUMO: QUANDO TUDO ESTÁ VERDE = PODE FOTOGRAFAR!                       ║
+╠════════════════════════════════════════════════════════════════════════════╣
+║                                                                            ║
+║  ✅ Moldura está VERDE                                                    ║
+║  ✅ 4 marcadores formam retângulo                                        ║
+║  ✅ Indicador de ângulo mostra ~0°                                       ║
+║  ✅ Linhas de perspectiva estão retas                                    ║
+║  ✅ Área de segurança não tem conteúdo saindo                            ║
+║  ✅ Distância está entre 20-30cm                                         ║
+║  ✅ Dica diz "Pode fotografar"                                           ║
+║  ✅ Botão de captura tem borda VERDE                                     ║
+║                                                                            ║
+║  RESULTADO: Foto ótima (100% de precisão OMR) 🎉                         ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
