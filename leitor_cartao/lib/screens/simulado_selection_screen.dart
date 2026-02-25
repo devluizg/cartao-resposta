@@ -1,6 +1,10 @@
 // simulado_selection_screen.dart
-// Tela 1: Seleção de Simulado e Aluno
+// Tela 1: Seleção de Simulado e Aluno (com integração API)
 import 'package:flutter/material.dart';
+import 'dart:developer' as developer;
+import '../services/api_service.dart';
+import '../services/models/simulado_model.dart';
+import '../services/models/student_model.dart';
 import 'qr_capture_screen.dart';
 
 class SimuladoData {
@@ -15,6 +19,15 @@ class SimuladoData {
     required this.numQuestoes,
     required this.dataCriacao,
   });
+
+  factory SimuladoData.fromApiModel(SimuladoModel model) {
+    return SimuladoData(
+      id: model.id ?? 0,
+      nome: model.nome ?? 'Simulado sem nome',
+      numQuestoes: model.numQuestoes ?? 0,
+      dataCriacao: model.dataCriacao ?? DateTime.now(),
+    );
+  }
 }
 
 class AlunoData {
@@ -27,142 +40,216 @@ class AlunoData {
     required this.nome,
     required this.matricula,
   });
+
+  factory AlunoData.fromApiModel(StudentModel model) {
+    return AlunoData(
+      id: model.id ?? 0,
+      nome: model.nome ?? 'Aluno sem nome',
+      matricula: model.matricula ?? 'N/A',
+    );
+  }
 }
 
-/// Tela 1: Seleção de Simulado e Aluno
 class SimuladoSelectionScreen extends StatefulWidget {
-  const SimuladoSelectionScreen({super.key});
+  final int? turmaId;
+
+  const SimuladoSelectionScreen({
+    super.key,
+    this.turmaId,
+  });
 
   @override
   State<SimuladoSelectionScreen> createState() => _SimuladoSelectionScreenState();
 }
 
 class _SimuladoSelectionScreenState extends State<SimuladoSelectionScreen> {
-  // ✨ TODO: Conectar com API real
-  final List<SimuladoData> simulados = [
-    SimuladoData(
-      id: 1,
-      nome: 'ENEM 2024 - Simulado 1',
-      numQuestoes: 45,
-      dataCriacao: DateTime(2024, 1, 15),
-    ),
-    SimuladoData(
-      id: 2,
-      nome: 'ENEM 2024 - Simulado 2',
-      numQuestoes: 45,
-      dataCriacao: DateTime(2024, 2, 10),
-    ),
-    SimuladoData(
-      id: 3,
-      nome: 'Simulado Geral - 30 questões',
-      numQuestoes: 30,
-      dataCriacao: DateTime(2024, 2, 20),
-    ),
-  ];
+  final ApiService _apiService = ApiService();
+  bool _isLoading = true;
+  String _errorMessage = '';
 
-  final List<AlunoData> alunos = [
-    AlunoData(id: 1, nome: 'João Silva', matricula: '2024001'),
-    AlunoData(id: 2, nome: 'Maria Santos', matricula: '2024002'),
-    AlunoData(id: 3, nome: 'Pedro Oliveira', matricula: '2024003'),
-  ];
+  List<SimuladoData> simulados = [];
+  List<AlunoData> alunos = [];
 
   SimuladoData? _simuladoSelecionado;
   AlunoData? _alunoSelecionado;
 
+  static const Color primary = Color(0xFF0DA6F2);
+  static const Color primaryDark = Color(0xFF003D5C);
+  static const Color bgLight = Color(0xFFF8FAFC);
+  static const Color surfaceLight = Color(0xFFFFFFFF);
+  static const Color textMain = Color(0xFF003D5C);
+  static const Color textSub = Color(0xFF475569);
+  static const Color borderLight = Color(0xFFDBE2E6);
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarDados();
+  }
+
+  Future<void> _carregarDados() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      final simuladosApi = await _apiService.getSimulados();
+      final alunosApi = await _apiService.getStudents(
+        turmaId: widget.turmaId?.toString(),
+      );
+
+      setState(() {
+        simulados = simuladosApi
+            .map((s) => SimuladoData.fromApiModel(s))
+            .toList();
+        alunos = alunosApi
+            .map((a) => AlunoData.fromApiModel(a))
+            .toList();
+        _isLoading = false;
+
+        if (simulados.isEmpty) {
+          _errorMessage = 'Nenhum simulado encontrado';
+        }
+        if (alunos.isEmpty) {
+          _errorMessage = _errorMessage.isEmpty
+              ? 'Nenhum aluno encontrado'
+              : 'Sem simulados e alunos';
+        }
+      });
+    } catch (e) {
+      developer.log('Erro ao carregar dados: $e');
+      setState(() {
+        _errorMessage = 'Erro ao carregar dados: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: bgLight,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.white,
+        elevation: 0.5,
         title: const Text(
           'Corrigir Cartão-Resposta',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // SEÇÃO 1: SELEÇÃO DO SIMULADO
-              _buildSection(
-                title: 'Passo 1: Selecione o Simulado',
-                icon: Icons.assignment,
-                child: _buildSimuladoSelection(),
-              ),
-
-              const SizedBox(height: 24),
-
-              // SEÇÃO 2: SELEÇÃO DO ALUNO
-              _buildSection(
-                title: 'Passo 2: Selecione o Aluno',
-                icon: Icons.person,
-                child: _buildAlunoSelection(),
-              ),
-
-              const SizedBox(height: 32),
-
-              // BOTÃO: PRÓXIMO
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _simuladoSelecionado != null &&
-                          _alunoSelecionado != null
-                      ? _avancar
-                      : null,
-                  icon: const Icon(Icons.arrow_forward_rounded),
-                  label: const Text('PRÓXIMO: Ler QR Code'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0DA6F2),
-                    disabledBackgroundColor: Colors.grey.shade700,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // INFO: Fluxo
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade900.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: const Color(0xFF0DA6F2).withOpacity(0.5),
-                  ),
-                ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'ℹ️ Fluxo:',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      '1️⃣ Simulado + Aluno\n2️⃣ Ler QR Code\n3️⃣ Fotografar Cartão\n4️⃣ Processar\n5️⃣ Ver Resultado',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          style: TextStyle(
+            color: textMain,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
           ),
         ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: textMain),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: primary),
+            )
+          : _errorMessage.isNotEmpty
+              ? _buildErrorView()
+              : SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSection(
+                          title: 'Passo 1: Selecione o Simulado',
+                          icon: Icons.assignment,
+                          child: _buildSimuladoSelection(),
+                        ),
+                        const SizedBox(height: 24),
+                        _buildSection(
+                          title: 'Passo 2: Selecione o Aluno',
+                          icon: Icons.person,
+                          child: _buildAlunoSelection(),
+                        ),
+                        const SizedBox(height: 32),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _simuladoSelecionado != null &&
+                                    _alunoSelecionado != null
+                                ? _avancar
+                                : null,
+                            icon: const Icon(Icons.arrow_forward_rounded),
+                            label: const Text('PRÓXIMO: Ler QR Code'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primary,
+                              disabledBackgroundColor: Colors.grey.shade300,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: primary.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: primary.withOpacity(0.2),
+                            ),
+                          ),
+                          child: const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'ℹ️ Fluxo:',
+                                style: TextStyle(
+                                  color: textMain,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                '1️⃣ Simulado + Aluno\n2️⃣ Ler QR Code\n3️⃣ Fotografar Cartão\n4️⃣ Processar\n5️⃣ Ver Resultado',
+                                style: TextStyle(
+                                  color: textSub,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+    );
+  }
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, color: Colors.red.shade600, size: 48),
+          const SizedBox(height: 12),
+          Text(
+            _errorMessage,
+            style: const TextStyle(color: textSub, fontSize: 14),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: _carregarDados,
+            style: ElevatedButton.styleFrom(backgroundColor: primary),
+            child: const Text(
+              'Tentar novamente',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -177,12 +264,12 @@ class _SimuladoSelectionScreenState extends State<SimuladoSelectionScreen> {
       children: [
         Row(
           children: [
-            Icon(icon, color: const Color(0xFF0DA6F2), size: 24),
+            Icon(icon, color: primary, size: 24),
             const SizedBox(width: 12),
             Text(
               title,
               style: const TextStyle(
-                color: Colors.white,
+                color: textMain,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
@@ -192,9 +279,9 @@ class _SimuladoSelectionScreenState extends State<SimuladoSelectionScreen> {
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: surfaceLight,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white10),
+            border: Border.all(color: borderLight),
           ),
           padding: const EdgeInsets.all(12),
           child: child,
@@ -204,6 +291,15 @@ class _SimuladoSelectionScreenState extends State<SimuladoSelectionScreen> {
   }
 
   Widget _buildSimuladoSelection() {
+    if (simulados.isEmpty) {
+      return const Center(
+        child: Text(
+          'Nenhum simulado disponível',
+          style: TextStyle(color: textSub),
+        ),
+      );
+    }
+
     return Column(
       children: simulados.map((simulado) {
         final isSelected = _simuladoSelecionado?.id == simulado.id;
@@ -221,14 +317,10 @@ class _SimuladoSelectionScreenState extends State<SimuladoSelectionScreen> {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? const Color(0xFF0DA6F2).withOpacity(0.2)
-                      : Colors.transparent,
+                  color: isSelected ? primary.withOpacity(0.08) : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: isSelected
-                        ? const Color(0xFF0DA6F2)
-                        : Colors.white24,
+                    color: isSelected ? primary : borderLight,
                   ),
                 ),
                 child: Row(
@@ -239,16 +331,13 @@ class _SimuladoSelectionScreenState extends State<SimuladoSelectionScreen> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: isSelected
-                              ? const Color(0xFF0DA6F2)
-                              : Colors.white30,
+                          color: isSelected ? primary : Colors.grey.shade400,
                           width: 2,
                         ),
                       ),
                       child: isSelected
                           ? const Center(
-                              child: Icon(Icons.check,
-                                  color: Color(0xFF0DA6F2), size: 14),
+                              child: Icon(Icons.check, color: primary, size: 14),
                             )
                           : null,
                     ),
@@ -260,7 +349,7 @@ class _SimuladoSelectionScreenState extends State<SimuladoSelectionScreen> {
                           Text(
                             simulado.nome,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: textMain,
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                             ),
@@ -268,7 +357,7 @@ class _SimuladoSelectionScreenState extends State<SimuladoSelectionScreen> {
                           Text(
                             '${simulado.numQuestoes} questões • ${simulado.dataCriacao.day}/${simulado.dataCriacao.month}/${simulado.dataCriacao.year}',
                             style: const TextStyle(
-                              color: Colors.white60,
+                              color: textSub,
                               fontSize: 11,
                             ),
                           ),
@@ -286,6 +375,15 @@ class _SimuladoSelectionScreenState extends State<SimuladoSelectionScreen> {
   }
 
   Widget _buildAlunoSelection() {
+    if (alunos.isEmpty) {
+      return const Center(
+        child: Text(
+          'Nenhum aluno disponível',
+          style: TextStyle(color: textSub),
+        ),
+      );
+    }
+
     return Column(
       children: alunos.map((aluno) {
         final isSelected = _alunoSelecionado?.id == aluno.id;
@@ -303,14 +401,10 @@ class _SimuladoSelectionScreenState extends State<SimuladoSelectionScreen> {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? const Color(0xFF0DA6F2).withOpacity(0.2)
-                      : Colors.transparent,
+                  color: isSelected ? primary.withOpacity(0.08) : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: isSelected
-                        ? const Color(0xFF0DA6F2)
-                        : Colors.white24,
+                    color: isSelected ? primary : borderLight,
                   ),
                 ),
                 child: Row(
@@ -321,16 +415,13 @@ class _SimuladoSelectionScreenState extends State<SimuladoSelectionScreen> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: isSelected
-                              ? const Color(0xFF0DA6F2)
-                              : Colors.white30,
+                          color: isSelected ? primary : Colors.grey.shade400,
                           width: 2,
                         ),
                       ),
                       child: isSelected
                           ? const Center(
-                              child: Icon(Icons.check,
-                                  color: Color(0xFF0DA6F2), size: 14),
+                              child: Icon(Icons.check, color: primary, size: 14),
                             )
                           : null,
                     ),
@@ -342,7 +433,7 @@ class _SimuladoSelectionScreenState extends State<SimuladoSelectionScreen> {
                           Text(
                             aluno.nome,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: textMain,
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                             ),
@@ -350,7 +441,7 @@ class _SimuladoSelectionScreenState extends State<SimuladoSelectionScreen> {
                           Text(
                             'Matrícula: ${aluno.matricula}',
                             style: const TextStyle(
-                              color: Colors.white60,
+                              color: textSub,
                               fontSize: 11,
                             ),
                           ),

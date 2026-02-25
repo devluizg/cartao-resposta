@@ -10,6 +10,7 @@ import 'dart:developer' as developer;
 import 'package:leitor_cartao/services/models/class_model.dart';
 import 'package:leitor_cartao/services/models/student_model.dart';
 import 'package:leitor_cartao/services/models/simulado_model.dart';
+import 'simulado_selection_screen.dart';
 
 class SelectionScreen extends StatefulWidget {
   const SelectionScreen({super.key});
@@ -556,6 +557,89 @@ class _SelectionScreenState extends State<SelectionScreen> {
                               ),
                             ),
                           ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 28),
+
+                      // ✨ NOVO: Card para fluxo OMR simplificado
+                      Container(
+                        decoration: BoxDecoration(
+                          color: surfaceLight,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: primary.withOpacity(0.3)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: primary.withOpacity(0.1),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => SimuladoSelectionScreen(
+                                    turmaId: _turmaId,
+                                  ),
+                                ),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 56,
+                                    height: 56,
+                                    decoration: BoxDecoration(
+                                      color: primary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(
+                                      Icons.qr_code_2_rounded,
+                                      color: primary,
+                                      size: 28,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Novo Cartão-Resposta',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: textMain,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Ler QR Code e corrigir',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: textSub.withOpacity(0.7),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    color: primary.withOpacity(0.6),
+                                    size: 16,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ),
                       ),
 
