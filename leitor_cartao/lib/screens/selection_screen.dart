@@ -11,6 +11,7 @@ import 'package:leitor_cartao/services/models/class_model.dart';
 import 'package:leitor_cartao/services/models/student_model.dart';
 import 'package:leitor_cartao/services/models/simulado_model.dart';
 import 'simulado_selection_screen.dart';
+import 'qr_capture_screen.dart';
 
 class SelectionScreen extends StatefulWidget {
   const SelectionScreen({super.key});
@@ -300,6 +301,7 @@ class _SelectionScreenState extends State<SelectionScreen> {
       return;
     }
 
+    // ✨ NOVO: Usar o novo fluxo de 5 telas ao invés de TelaInicial
     final alunoSelecionado = _alunos.firstWhere(
       (aluno) => aluno.id == _alunoId,
       orElse: () => StudentModel(
@@ -326,45 +328,31 @@ class _SelectionScreenState extends State<SelectionScreen> {
       ),
     );
 
-    final turmaSelecionada = _turmas.firstWhere(
-      (turma) => turma.id == _turmaId,
-      orElse: () => ClassModel(
-        id: _turmaId!,
-        name: 'Turma Desconhecida',
-        description: '',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
+    developer.log(
+        'Navegando para novo fluxo OMR: Simulado=$_simuladoId (${simuladoSelecionado.titulo}), Aluno=$_alunoId (${alunoSelecionado.name})');
+
+    // Converter para SimuladoData e AlunoData (classes do novo fluxo)
+    final simuladoData = SimuladoData(
+      id: simuladoSelecionado.id ?? 0,
+      nome: simuladoSelecionado.titulo ?? 'Simulado',
+      numQuestoes: simuladoSelecionado.questoes?.length ?? 0,
+      dataCriacao: simuladoSelecionado.dataCriacao ?? DateTime.now(),
     );
 
-    developer.log(
-        'Navegando para TelaInicial com: Turma=$_turmaId (${turmaSelecionada.name}), Simulado=$_simuladoId (${simuladoSelecionado.titulo}), Aluno=$_alunoId (${alunoSelecionado.name})');
+    final alunoData = AlunoData(
+      id: alunoSelecionado.id ?? 0,
+      nome: alunoSelecionado.name ?? 'Aluno',
+      matricula: alunoSelecionado.studentId ?? 'N/A',
+    );
 
-    final alunoMap = {
-      'id': alunoSelecionado.id,
-      'nome': alunoSelecionado.name,
-    };
-
-    final simuladoMap = {
-      'id': simuladoSelecionado.id,
-      'titulo': simuladoSelecionado.titulo,
-    };
-
-    final turmaMap = {
-      'id': turmaSelecionada.id,
-      'nome': turmaSelecionada.name,
-    };
-
+    // ✨ NOVO: Ir direto para QRCaptureScreen (Passo 2 do novo fluxo)
+    // Pulamos SimuladoSelectionScreen pois já selecionamos simulado/aluno aqui
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TelaInicial(
-          turmaId: _turmaId!,
-          simuladoId: _simuladoId!,
-          alunoId: _alunoId!,
-          aluno: alunoMap,
-          simulado: simuladoMap,
-          turma: turmaMap,
+        builder: (context) => QRCaptureScreen(
+          simulado: simuladoData,
+          aluno: alunoData,
         ),
       ),
     );
@@ -562,7 +550,36 @@ class _SelectionScreenState extends State<SelectionScreen> {
 
                       const SizedBox(height: 28),
 
-                      // ✨ NOVO: Card para fluxo OMR simplificado
+                      // ✨ Info: Use o fluxo tradicional abaixo para selecionar turma/simulado/aluno
+                      // Ou use "Novo Cartão" para selecionar apenas simulado/aluno
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: primary.withOpacity(0.2)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_rounded, color: primary, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Selecione turma+simulado+aluno abaixo, ou use "Novo Cartão" para modo rápido',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: primary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // ✨ NOVO: Card para fluxo OMR rápido
                       Container(
                         decoration: BoxDecoration(
                           color: surfaceLight,
@@ -613,7 +630,7 @@ class _SelectionScreenState extends State<SelectionScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         const Text(
-                                          'Novo Cartão-Resposta',
+                                          'Novo Cartão (Modo Rápido)',
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold,
@@ -622,7 +639,7 @@ class _SelectionScreenState extends State<SelectionScreen> {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          'Ler QR Code e corrigir',
+                                          'Selecione simulado+aluno e leia QR Code',
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: textSub.withOpacity(0.7),
