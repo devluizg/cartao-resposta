@@ -40,8 +40,8 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
       final bytes = await widget.imageFile.readAsBytes();
 
       // Preparar requisição multipart
-      // ✨ OMR Backend (FastAPI - Servidor Remoto)
-      final omrBaseUrl = 'https://simuladoapp.com.br';  // Backend hospedado
+      // ✨ OMR Backend (FastAPI - Servidor Remoto Hetzner)
+      final omrBaseUrl = 'http://sokk4wsk8c4ok4sccswwwccg.65.108.245.193.sslip.io';  // Coolify Hetzner
 
       final request = http.MultipartRequest(
         'POST',
