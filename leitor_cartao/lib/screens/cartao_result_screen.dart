@@ -219,7 +219,7 @@ class _CartaoResultScreenState extends State<CartaoResultScreen> {
                           subtitle: 'de processamento',
                         ),
                         _buildMetricCard(
-                          icon: Icons.image_quality_high_rounded,
+                          icon: Icons.photo,
                           color: const Color(0xFFF59E0B),
                           label: 'Qualidade',
                           value: widget.result.qualidade,

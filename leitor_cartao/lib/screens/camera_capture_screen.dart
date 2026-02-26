@@ -61,7 +61,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   LiveQualityState _liveQuality = LiveQualityState.analyzing;
   String _liveTip = 'Encaixe o cartão na moldura';
   bool _isAnalyzingLive = false;
-  StreamSubscription<CameraImage>? _imageStreamSubscription;
 
   // ✨ NOVO: Estados para alinhamento de frame
   FrameAlignmentState _frameAlignment = FrameAlignmentState.analyzing;
@@ -78,7 +77,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _imageStreamSubscription?.cancel(); // ✨ NOVO: Cancelar stream
     _controller?.stopImageStream().catchError((_) {}); // ✨ NOVO: Parar stream
     _controller?.dispose();
     super.dispose();
@@ -162,7 +160,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
     try {
       // ✨ NOVO: Parar análise ao vivo antes de capturar
-      await _imageStreamSubscription?.cancel();
       await _controller!.stopImageStream().catchError((_) {});
 
       // Capturar imagem
@@ -220,10 +217,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     if (_controller == null || !_controller!.value.isInitialized) return;
 
     try {
-      _imageStreamSubscription?.cancel();
-
-      _imageStreamSubscription =
-          _controller!.startImageStream(_onFrameReceived);
+      _controller!.startImageStream(_onFrameReceived).catchError((e) {
+        print('❌ Erro ao iniciar stream: $e');
+      });
     } catch (e) {
       print('❌ Erro ao iniciar stream: $e');
     }

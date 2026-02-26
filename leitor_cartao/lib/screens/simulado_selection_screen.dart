@@ -22,10 +22,10 @@ class SimuladoData {
 
   factory SimuladoData.fromApiModel(SimuladoModel model) {
     return SimuladoData(
-      id: model.id ?? 0,
-      nome: model.nome ?? 'Simulado sem nome',
-      numQuestoes: model.numQuestoes ?? 0,
-      dataCriacao: model.dataCriacao ?? DateTime.now(),
+      id: model.id,
+      nome: model.titulo,
+      numQuestoes: model.questoes.length,
+      dataCriacao: model.dataCriacao,
     );
   }
 }
@@ -43,9 +43,9 @@ class AlunoData {
 
   factory AlunoData.fromApiModel(StudentModel model) {
     return AlunoData(
-      id: model.id ?? 0,
-      nome: model.nome ?? 'Aluno sem nome',
-      matricula: model.matricula ?? 'N/A',
+      id: model.id,
+      nome: model.name,
+      matricula: model.studentId?.toString() ?? 'N/A',
     );
   }
 }

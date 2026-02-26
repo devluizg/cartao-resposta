@@ -224,6 +224,174 @@ async def processar_cartao(
         print(error_detail)
         return JSONResponse(content={"error": str(e), "detail": error_detail}, status_code=500)
 
+@app.post("/processar_cartao_robusto")
+async def processar_cartao_robusto(
+    file: UploadFile = File(...),
+    num_questoes: int = Form(...),
+    num_colunas: int = Form(...),
+    gabarito_json: str = Form(None),  # Opcional: gabarito para validação
+    threshold: int = Form(150),
+    sensitivity: float = Form(0.3),
+    forcar_claude_vision: bool = Form(False)  # Forçar fallback imediatamente
+):
+    """
+    Versão ROBUSTA que tenta OpenCV + fallback Claude Vision automático.
+    Se OpenCV detectar < 50% das questões, tenta Claude Vision.
+    """
+    try:
+        # === ETAPA 1: Tentar OpenCV normalmente ===
+        contents = await file.read()
+        np_arr = np.frombuffer(contents, np.uint8)
+        image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+        if image is None:
+            return JSONResponse(content={"error": "Imagem inválida"}, status_code=400)
+
+        image, scale_factor = redimensionar_imagem_otimizada(image)
+        binary, preproc_metadata = melhorar_pre_processamento_adaptativo(image)
+
+        debug_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        image_corrected, binary_corrected, correction_success = corrigir_perspectiva(image, binary)
+        if correction_success:
+            image = image_corrected
+            binary = binary_corrected
+
+        resultados, debug_image_with_marks = multi_analyzer.analisar_cartao_multicolunas(
+            image, binary, debug_image,
+            num_questoes=num_questoes,
+            num_colunas=num_colunas,
+            sensitivity=float(sensitivity),
+            threshold=threshold,
+            return_debug_image=True,
+            quality_meta=preproc_metadata
+        )
+
+        # === ETAPA 2: Avaliar se OpenCV funcionou bem ===
+        respostas_detectadas = sum(1 for r in resultados.values() if r is not None)
+        taxa_deteccao = respostas_detectadas / max(num_questoes, 1)
+
+        print(f"\n[ROBUSTO] OpenCV: {respostas_detectadas}/{num_questoes} ({taxa_deteccao*100:.1f}%)")
+
+        # Se funcionou bem, retornar OpenCV (rápido)
+        if taxa_deteccao >= 0.50 and not forcar_claude_vision:
+            print(f"✅ OpenCV foi bem-sucedido ({taxa_deteccao*100:.1f}%)")
+
+            distribuicao = {}
+            for r in resultados.values():
+                if r is not None and not isinstance(r, str):
+                    letra = r[0] if isinstance(r, str) else r
+                    distribuicao[letra] = distribuicao.get(letra, 0) + 1
+
+            return {
+                "metodo": "opencv",
+                "respostas": resultados,
+                "taxa_deteccao": float(taxa_deteccao),
+                "bolhas_detectadas": respostas_detectadas,
+                "total_questoes": num_questoes,
+                "distribuicao": distribuicao,
+                "qualidade_imagem": float(preproc_metadata.get('contrast', 0.0) / 255.0)
+            }
+
+        # === ETAPA 3: Se OpenCV falhou, tentar Claude Vision ===
+        print(f"⚠️ OpenCV baixo ({taxa_deteccao*100:.1f}%), tentando Claude Vision...")
+
+        try:
+            import base64
+            from anthropic import Anthropic
+
+            # Converter imagem para base64
+            _, img_encoded = cv2.imencode('.jpg', image)
+            img_base64 = base64.standard_b64encode(img_encoded).decode('utf-8')
+
+            # Montar prompt para Claude
+            prompt = f"""Analise esta imagem de cartão de respostas (folha OMR).
+
+Instruções:
+- Identifique cada questão numerada de 1 a {num_questoes}
+- Para cada questão, identifique qual alternativa (A, B, C, D ou E) foi marcada
+- Retorne em formato JSON: {{"1": "A", "2": "B", ...}}
+- Se uma questão não for marcada, use null: {{"1": null, ...}}
+- Se não conseguir ler, é melhor retornar null do que adivinhar
+
+Responda APENAS com o JSON, sem explicações."""
+
+            client = Anthropic()
+            response = client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=1024,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": "image/jpeg",
+                                    "data": img_base64
+                                }
+                            },
+                            {
+                                "type": "text",
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ]
+            )
+
+            # Parse resposta Claude
+            resposta_texto = response.content[0].text
+
+            # Tentar extrair JSON
+            import json
+            try:
+                # Se tiver markdown, remover
+                if "```json" in resposta_texto:
+                    resposta_texto = resposta_texto.split("```json")[1].split("```")[0]
+                elif "```" in resposta_texto:
+                    resposta_texto = resposta_texto.split("```")[1].split("```")[0]
+
+                resultados_claude = json.loads(resposta_texto)
+                # Converter para formato esperado
+                resultados_claude = {int(k) if k.isdigit() else int(k): v for k, v in resultados_claude.items()}
+
+                # Contar detectadas
+                respostas_claude = sum(1 for r in resultados_claude.values() if r is not None)
+                print(f"✅ Claude Vision: {respostas_claude}/{num_questoes} detectadas")
+
+                return {
+                    "metodo": "claude_vision",
+                    "respostas": resultados_claude,
+                    "taxa_deteccao": float(respostas_claude / max(num_questoes, 1)),
+                    "bolhas_detectadas": respostas_claude,
+                    "total_questoes": num_questoes,
+                    "modelo": "claude-3-5-sonnet-20241022"
+                }
+            except json.JSONDecodeError:
+                print(f"❌ Claude Vision: Não conseguiu retornar JSON válido")
+                return {
+                    "metodo": "falha",
+                    "erro": "Claude Vision não conseguiu processar",
+                    "resposta_bruta": resposta_texto
+                }
+
+        except Exception as e:
+            print(f"❌ Claude Vision fallback falhou: {e}")
+            return {
+                "metodo": "fallback_falha",
+                "erro": str(e),
+                "fallback_para_opencv": resultados,  # Retornar o que OpenCV conseguiu
+                "taxa_deteccao_opencv": float(taxa_deteccao)
+            }
+
+    except Exception as e:
+        import traceback
+        print(f"❌ ERRO: {str(e)}")
+        print(traceback.format_exc())
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
 @app.get("/diagnosticar")
 async def endpoint_diagnosticar():
     """
@@ -231,14 +399,15 @@ async def endpoint_diagnosticar():
     """
     return {
         "status": "ok",
-        "versao": "2.0",
+        "versao": "2.1",
         "features": [
             "pré-processamento_adaptativo",
             "correcao_perspectiva_robusta",
             "deteccao_hibrida_bolhas",
             "validacao_geometrica",
             "analise_avancada_preenchimento",
-            "multiplas_colunas"
+            "multiplas_colunas",
+            "fallback_claude_vision_automatico"
         ]
     }
 

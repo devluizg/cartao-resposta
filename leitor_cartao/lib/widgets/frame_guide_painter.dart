@@ -1,17 +1,34 @@
 // frame_guide_painter.dart
-// CustomPainter para desenhar guia de enquadramento avançado
+// CustomPainter para desenhar guia de enquadramento proporcional ao PDF
 import 'package:flutter/material.dart';
 import '../services/frame_alignment_analyzer.dart';
 
-/// Painter que desenha a moldura de guia com todos os indicadores
+/// Painter que desenha a moldura com proporções EXATAS do PDF A4
 class FrameGuidePainter extends CustomPainter {
   final Color frameColor;
   final FrameAlignmentState alignmentState;
   final double skewAngle; // ângulo em graus
   final bool showAdvancedGuides;
 
-  // Constantes de dimensões (em proporção da tela)
-  static const double CARTAO_ASPECT_RATIO = 210 / 297; // A4
+  // ✨ CONSTANTES A4 EM MM (do PDF Django)
+  static const double PAPER_WIDTH_MM = 210;
+  static const double PAPER_HEIGHT_MM = 297;
+  static const double CARTAO_ASPECT_RATIO = PAPER_WIDTH_MM / PAPER_HEIGHT_MM;
+
+  // Padding externo do PDF (wrapper)
+  static const double PADDING_MM = 8;
+
+  // Marcadores de canto (4 círculos sólidos pretos)
+  static const double MARKER_DIAMETER_MM = 14;
+  static const double MARKER_OFFSET_MM = 4; // distância do canto até o centro
+
+  // Bolhas de respostas
+  static const double BUBBLE_RESPONSE_MM = 6.5; // Alternativas A-E
+  static const double BUBBLE_TYPE_MM = 8;       // Tipo de prova
+
+  // Margens internas
+  static const double INNER_MARGIN_MM = 12; // Header, footer, laterais
+  static const double SAFETY_MARGIN_MM = 8; // Borda de segurança
 
   FrameGuidePainter({
     required this.frameColor,
@@ -22,11 +39,14 @@ class FrameGuidePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Calcular dimensões da moldura A4
-    final frameHeight = size.height * 0.85; // 85% da altura disponível
+    // Calcular altura da moldura (85% da tela)
+    final frameHeight = size.height * 0.85;
     final frameWidth = frameHeight * CARTAO_ASPECT_RATIO;
     final frameLeft = (size.width - frameWidth) / 2;
     final frameTop = (size.height - frameHeight) / 2;
+
+    // ✨ NOVA: Calcular escala mm → px
+    final pxPerMm = frameWidth / PAPER_WIDTH_MM;
 
     if (showAdvancedGuides) {
       _drawAdvancedGuides(
@@ -36,6 +56,7 @@ class FrameGuidePainter extends CustomPainter {
         frameTop,
         frameWidth,
         frameHeight,
+        pxPerMm,
       );
     } else {
       _drawSimpleFrame(
@@ -44,6 +65,7 @@ class FrameGuidePainter extends CustomPainter {
         frameTop,
         frameWidth,
         frameHeight,
+        pxPerMm,
       );
     }
   }
@@ -55,6 +77,7 @@ class FrameGuidePainter extends CustomPainter {
     double top,
     double width,
     double height,
+    double pxPerMm,
   ) {
     final paint = Paint()
       ..color = frameColor
@@ -65,12 +88,12 @@ class FrameGuidePainter extends CustomPainter {
     canvas.drawRect(Rect.fromLTWH(left, top, width, height), paint);
 
     // Cantos em L (guias visuais)
-    const cornerLen = 30.0;
-    const cornerThick = 3.0;
+    final cornerLen = 40 * pxPerMm;
+    final cornerThick = 4 * pxPerMm;
     _drawCorners(canvas, left, top, width, height, cornerLen, cornerThick);
   }
 
-  /// Desenha guias avançadas com múltiplos indicadores
+  /// Desenha guias avançadas com múltiplos indicadores proporciais
   void _drawAdvancedGuides(
     Canvas canvas,
     Size size,
@@ -78,28 +101,35 @@ class FrameGuidePainter extends CustomPainter {
     double top,
     double width,
     double height,
+    double pxPerMm,
   ) {
     // 1. Moldura principal
     _drawMainFrame(canvas, left, top, width, height);
 
     // 2. Área de segurança (não cortar conteúdo)
-    _drawSafetyArea(canvas, left, top, width, height);
+    _drawSafetyArea(canvas, left, top, width, height, pxPerMm);
 
-    // 3. Marcadores de canto esperados (4 círculos)
-    _drawExpectedCornerMarkers(canvas, left, top, width, height);
+    // 3. Marcadores de canto esperados (4 círculos PROPORCIONAIS)
+    _drawExpectedCornerMarkers(canvas, left, top, width, height, pxPerMm);
 
     // 4. Linhas de perspectiva (detecta inclinação)
     _drawPerspectiveLines(canvas, left, top, width, height);
 
-    // 5. Indicador de ângulo (no topo)
+    // 5. ✨ NOVO: Desenha bolhas de resposta demo (para visualização)
+    _drawResponseBubblesDemo(canvas, left, top, width, height, pxPerMm);
+
+    // 6. ✨ NOVO: Desenha bolhas de tipo demo
+    _drawTypeBubblesDemo(canvas, left, top, width, height, pxPerMm);
+
+    // 7. Indicador de ângulo (no topo)
     _drawAngleIndicator(canvas, size.width, 30);
 
-    // 6. Indicador de distância (no canto inferior)
+    // 8. Indicador de distância (no canto inferior)
     _drawDistanceIndicator(canvas, size.width, size.height);
 
-    // 7. Cantos em L (mais destacados)
-    const cornerLen = 40.0;
-    const cornerThick = 4.0;
+    // 9. Cantos em L (mais destacados)
+    final cornerLen = 40.0 * pxPerMm;
+    final cornerThick = 4.0 * pxPerMm;
     _drawCorners(canvas, left, top, width, height, cornerLen, cornerThick);
   }
 
@@ -114,25 +144,37 @@ class FrameGuidePainter extends CustomPainter {
     canvas.drawRect(Rect.fromLTWH(left, top, width, height), paint);
   }
 
-  /// Desenha a área de segurança (linha vermelha onde não cortar)
-  void _drawSafetyArea(Canvas canvas, double left, double top, double width,
-      double height) {
-    final safetyMargin = 15.0; // px
+  /// Desenha a área de segurança proporcional ao PDF
+  void _drawSafetyArea(
+    Canvas canvas,
+    double left,
+    double top,
+    double width,
+    double height,
+    double pxPerMm,
+  ) {
+    // Margem de segurança = padding (8mm) + margem interna (12mm) = 20mm total
+    final safetyMargin = SAFETY_MARGIN_MM * pxPerMm;
+
     final safetyPaint = Paint()
-      ..color = Colors.red.withOpacity(0.3)
+      ..color = Colors.red.withOpacity(0.2)
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 
     canvas.drawRect(
-      Rect.fromLTWH(left + safetyMargin, top + safetyMargin,
-          width - 2 * safetyMargin, height - 2 * safetyMargin),
+      Rect.fromLTWH(
+        left + safetyMargin,
+        top + safetyMargin,
+        width - 2 * safetyMargin,
+        height - 2 * safetyMargin,
+      ),
       safetyPaint,
     );
 
     // Texto de aviso
     final textPainter = TextPainter(
       text: const TextSpan(
-        text: '🚫 Não corte',
+        text: '🚫 Não corte aqui',
         style: TextStyle(
           color: Colors.red,
           fontSize: 10,
@@ -142,28 +184,52 @@ class FrameGuidePainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     );
     textPainter.layout();
-    textPainter.paint(canvas, Offset(left + 8, top + 5));
+    textPainter.paint(canvas, Offset(left + safetyMargin + 4, top + safetyMargin + 2));
   }
 
-  /// Desenha os 4 marcadores de canto esperados
-  void _drawExpectedCornerMarkers(Canvas canvas, double left, double top,
-      double width, double height) {
-    const markerSize = 12.0;
-    const offset = 8.0;
+  /// Desenha os 4 marcadores de canto COM TAMANHO PROPORCIONAL
+  void _drawExpectedCornerMarkers(
+    Canvas canvas,
+    double left,
+    double top,
+    double width,
+    double height,
+    double pxPerMm,
+  ) {
+    // ✨ CORRIGIDO: Usar dimensões do PDF
+    final markerDiameter = MARKER_DIAMETER_MM * pxPerMm;
+    final markerRadius = markerDiameter / 2;
+    final markerOffset = MARKER_OFFSET_MM * pxPerMm;
 
     final markerPaint = Paint()
-      ..color = Colors.green.withOpacity(0.6)
+      ..color = Colors.green
       ..style = PaintingStyle.fill;
 
+    final markerStrokePaint = Paint()
+      ..color = Colors.green
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
     final corners = [
-      (left + offset, top + offset), // TL
-      (left + width - offset, top + offset), // TR
-      (left + offset, top + height - offset), // BL
-      (left + width - offset, top + height - offset), // BR
+      (left + markerOffset, top + markerOffset), // TL
+      (left + width - markerOffset, top + markerOffset), // TR
+      (left + markerOffset, top + height - markerOffset), // BL
+      (left + width - markerOffset, top + height - markerOffset), // BR
     ];
 
+    // Desenhar círculos sólidos (como no PDF)
     for (final corner in corners) {
-      canvas.drawCircle(Offset(corner.$1, corner.$2), 4, markerPaint);
+      canvas.drawCircle(
+        Offset(corner.$1, corner.$2),
+        markerRadius,
+        markerPaint,
+      );
+      // Borda para melhor visibilidade
+      canvas.drawCircle(
+        Offset(corner.$1, corner.$2),
+        markerRadius,
+        markerStrokePaint,
+      );
     }
 
     // Texto identificando os marcadores
@@ -174,6 +240,125 @@ class FrameGuidePainter extends CustomPainter {
           text: markerLabel[i],
           style: const TextStyle(
             color: Colors.green,
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+
+      // Posicionar label fora do círculo
+      final offsetDistance = markerRadius + 12;
+      double labelX = corners[i].$1;
+      double labelY = corners[i].$2;
+
+      switch (i) {
+        case 0: // TL
+          labelX -= textPainter.width / 2;
+          labelY -= offsetDistance;
+          break;
+        case 1: // TR
+          labelX -= textPainter.width / 2;
+          labelY -= offsetDistance;
+          break;
+        case 2: // BL
+          labelX -= textPainter.width / 2;
+          labelY += offsetDistance;
+          break;
+        case 3: // BR
+          labelX -= textPainter.width / 2;
+          labelY += offsetDistance;
+          break;
+      }
+
+      textPainter.paint(canvas, Offset(labelX, labelY));
+    }
+  }
+
+  /// ✨ NOVO: Desenha bolhas de resposta demo para visualização
+  void _drawResponseBubblesDemo(
+    Canvas canvas,
+    double left,
+    double top,
+    double width,
+    double height,
+    double pxPerMm,
+  ) {
+    final bubbleDiameter = BUBBLE_RESPONSE_MM * pxPerMm;
+    final bubbleRadius = bubbleDiameter / 2;
+
+    final bubblePaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    final bubbleStrokePaint = Paint()
+      ..color = Colors.black
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+
+    // Calcular posição da primeira área de resposta
+    final contentLeft = left + (INNER_MARGIN_MM * pxPerMm);
+    final contentTop = top + (INNER_MARGIN_MM + 8) * pxPerMm; // Após header e tipo
+
+    // Desenhar grade de bolhas (5 colunas, 3 linhas para demo)
+    final colGap = (BUBBLE_RESPONSE_MM + 3) * pxPerMm; // 3px gap
+    final rowGap = (BUBBLE_RESPONSE_MM + 3.5) * pxPerMm; // 3.5px gap
+
+    for (int col = 0; col < 5; col++) {
+      for (int row = 0; row < 3; row++) {
+        final x = contentLeft + (col * colGap) + bubbleRadius;
+        final y = contentTop + (row * rowGap) + bubbleRadius;
+
+        // Desenhar bolha
+        canvas.drawCircle(Offset(x, y), bubbleRadius, bubblePaint);
+        canvas.drawCircle(Offset(x, y), bubbleRadius, bubbleStrokePaint);
+      }
+    }
+  }
+
+  /// ✨ NOVO: Desenha bolhas de tipo de prova demo
+  void _drawTypeBubblesDemo(
+    Canvas canvas,
+    double left,
+    double top,
+    double width,
+    double height,
+    double pxPerMm,
+  ) {
+    final bubbleDiameter = BUBBLE_TYPE_MM * pxPerMm;
+    final bubbleRadius = bubbleDiameter / 2;
+
+    final bubblePaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    final bubbleStrokePaint = Paint()
+      ..color = Colors.black
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    // Posicionar após o header (aproximadamente)
+    final contentLeft = left + (INNER_MARGIN_MM * pxPerMm);
+    final contentTop = top + (INNER_MARGIN_MM + 2) * pxPerMm;
+
+    // Desenhar 5 bolhas para tipos 1-5
+    final colGap = (BUBBLE_TYPE_MM + 6) * pxPerMm;
+
+    for (int i = 0; i < 5; i++) {
+      final x = contentLeft + (i * colGap) + bubbleRadius;
+      final y = contentTop + bubbleRadius;
+
+      // Desenhar bolha
+      canvas.drawCircle(Offset(x, y), bubbleRadius, bubblePaint);
+      canvas.drawCircle(Offset(x, y), bubbleRadius, bubbleStrokePaint);
+
+      // Texto com número
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: '${i + 1}',
+          style: const TextStyle(
+            color: Colors.black,
             fontSize: 8,
             fontWeight: FontWeight.bold,
           ),
@@ -183,7 +368,7 @@ class FrameGuidePainter extends CustomPainter {
       textPainter.layout();
       textPainter.paint(
         canvas,
-        Offset(corners[i].$1 + 8, corners[i].$2 + 8),
+        Offset(x - textPainter.width / 2, y - textPainter.height / 2),
       );
     }
   }
@@ -192,8 +377,8 @@ class FrameGuidePainter extends CustomPainter {
   void _drawPerspectiveLines(Canvas canvas, double left, double top,
       double width, double height) {
     final perspectivePaint = Paint()
-      ..color = Colors.blue.withOpacity(0.5)
-      ..strokeWidth = 1
+      ..color = Colors.blue.withOpacity(0.4)
+      ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
     // Linhas diagonais (X) para detectar perspectiva
@@ -206,7 +391,6 @@ class FrameGuidePainter extends CustomPainter {
     final verticalPaint = Paint()
       ..color = Colors.blue.withOpacity(0.3)
       ..strokeWidth = 1
-      ..dashPattern = [5, 5]
       ..style = PaintingStyle.stroke;
 
     canvas.drawLine(Offset(left, top), Offset(left, top + height),

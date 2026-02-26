@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'dart:io';
+import 'dart:async';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import '../services/image_quality_analyzer.dart';
@@ -42,7 +43,6 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
   LiveQualityState _liveQuality = LiveQualityState.analyzing;
   String _liveTip = 'Encaixe o cartão na moldura';
   bool _isAnalyzingLive = false;
-  StreamSubscription<CameraImage>? _imageStreamSubscription;
 
   // Estados para alinhamento
   FrameAlignmentState _frameAlignment = FrameAlignmentState.analyzing;
@@ -58,7 +58,6 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _imageStreamSubscription?.cancel();
     _controller?.stopImageStream().catchError((_) {});
     _controller?.dispose();
     super.dispose();
@@ -125,9 +124,9 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
     if (_controller == null || !_controller!.value.isInitialized) return;
 
     try {
-      _imageStreamSubscription?.cancel();
-      _imageStreamSubscription =
-          _controller!.startImageStream(_onFrameReceived);
+      _controller!.startImageStream(_onFrameReceived).catchError((e) {
+        print('❌ Erro ao iniciar stream: $e');
+      });
     } catch (e) {
       print('❌ Erro ao iniciar stream: $e');
     }
@@ -187,7 +186,6 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
     setState(() => _isCapturing = true);
 
     try {
-      await _imageStreamSubscription?.cancel();
       await _controller!.stopImageStream().catchError((_) {});
 
       final XFile foto = await _controller!.takePicture();

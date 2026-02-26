@@ -990,4 +990,55 @@ class ApiService {
       return null;
     }
   }
+
+  /// Carregar todos os simulados
+  Future<List<SimuladoModel>> getSimulados() async {
+    try {
+      developer.log('📚 Buscando todos os simulados...');
+      final response = await authorizedRequest('/api/simulados/');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final results = data is Map ? data['results'] as List? : data as List?;
+        final simulados = (results ?? [])
+            .map((s) => SimuladoModel.fromJson(s as Map<String, dynamic>))
+            .toList();
+
+        developer.log('📚 Simulados carregados: ${simulados.length}');
+        return simulados;
+      } else {
+        developer.log('📚 Falha ao obter simulados: ${response.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      developer.log('📚 Erro ao obter simulados: $e');
+      return [];
+    }
+  }
+
+  /// Carregar todos os estudantes
+  Future<List<StudentModel>> getStudents({String? turmaId}) async {
+    try {
+      developer.log('👥 Buscando estudantes...');
+      final endpoint = turmaId != null ? '/api/students/?class_id=$turmaId' : '/api/students/';
+      final response = await authorizedRequest(endpoint);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final results = data is Map ? data['results'] as List? : data as List?;
+        final students = (results ?? [])
+            .map((s) => StudentModel.fromJson(s as Map<String, dynamic>))
+            .toList();
+
+        developer.log('👥 Estudantes carregados: ${students.length}');
+        return students;
+      } else {
+        developer.log('👥 Falha ao obter estudantes: ${response.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      developer.log('👥 Erro ao obter estudantes: $e');
+      return [];
+    }
+  }
 }

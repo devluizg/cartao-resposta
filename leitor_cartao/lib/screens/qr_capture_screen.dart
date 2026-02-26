@@ -77,6 +77,7 @@ class _QRCaptureScreenState extends State<QRCaptureScreen> {
       if (!_isScanning) return;
 
       final code = scanData.code;
+      if (code == null) return;
       final result = _parseQRCode(code);
 
       if (result != null && result.tipo >= 1 && result.tipo <= 5) {

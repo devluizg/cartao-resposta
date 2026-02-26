@@ -1,0 +1,35 @@
+# Python
+venv/
+env/
+*.pyc
+__pycache__/
+*.egg-info/
+.Python
+build/
+dist/
+*.egg
+
+# Flutter/Dart
+leitor_cartao/build/
+leitor_cartao/.flutter-plugins*
+leitor_cartao/.packages
+leitor_cartao/.pub-cache/
+leitor_cartao/.pub/
+leitor_cartao/pubspec.lock
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+debug_runs/
+*.log
+.env
+.env.local
