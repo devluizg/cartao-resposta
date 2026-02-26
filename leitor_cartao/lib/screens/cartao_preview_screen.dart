@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../services/api_service.dart';
 import 'simulado_selection_screen.dart';
 import 'cartao_processing_screen.dart';
 import 'cartao_result_screen.dart' show CartaoResultData, CartaoResultScreen;
@@ -41,15 +42,18 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
 
       // Preparar requisição multipart
       // ✨ OMR Backend (FastAPI - Servidor Remoto Hetzner)
-      final omrBaseUrl = 'http://sokk4wsk8c4ok4sccswwwccg.65.108.245.193.sslip.io';  // Coolify Hetzner
+      final omrBaseUrl = 'http://sokk4wsk8c4ok4sccswwwccg.65.108.245.193.sslip.io';
 
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('$omrBaseUrl/processar_cartao_robusto'),
       );
 
+      // ✨ CORRIGIDO: Calcular num_colunas dinamicamente (era hardcoded '1'!)
+      final numColunas = widget.simulado.numQuestoes <= 23 ? 1
+          : widget.simulado.numQuestoes <= 45 ? 2 : 3;
       request.fields['num_questoes'] = widget.simulado.numQuestoes.toString();
-      request.fields['num_colunas'] = '1';
+      request.fields['num_colunas'] = numColunas.toString();
       request.fields['sensitivity'] = '0.3';
       request.fields['threshold'] = '150';
 
@@ -74,12 +78,28 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(responseBody);
 
+        // 🔬 DEBUG: Imprimir respostas brutas do servidor
+        print('🔬 RESPOSTAS BRUTAS DO SERVIDOR:');
+        print('🔬 $jsonData');
+
         // Extrair respostas
         final respostasJson = jsonData['respostas'] as Map<String, dynamic>;
         final List<String> respostas = List.generate(
           widget.simulado.numQuestoes,
           (i) => (respostasJson[(i + 1).toString()] as String?) ?? 'Não detectada',
         );
+
+        // 🔬 DEBUG: Salvar imagem capturada para teste local
+        try {
+          final debugDir = Directory('/storage/emulated/0/Download');
+          if (await debugDir.exists()) {
+            final debugPath = '${debugDir.path}/cartao_debug_${DateTime.now().millisecondsSinceEpoch}.jpg';
+            await widget.imageFile.copy(debugPath);
+            print('🔬 Imagem salva para debug em: $debugPath');
+          }
+        } catch (e) {
+          print('🔬 Não conseguiu salvar imagem de debug: $e');
+        }
 
         // Carregar gabarito do servidor
         final gabarito = await _carregarGabarito();
@@ -102,6 +122,41 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
 
         print('✅ Processamento concluído: $acertos acertos, $erros erros');
         print('📊 Método: $metodo | Taxa detecção: ${jsonData['taxa_deteccao']}');
+
+        // ═══════════════════════════════════════════════════════════════
+        // 🔬 DEBUG: Comparação com gabarito REAL da foto (hardcoded)
+        // Gabarito real marcado no cartão da foto de teste:
+        // ═══════════════════════════════════════════════════════════════
+        const List<String> gabaritoRealFoto = [
+          'A', 'B', 'C', 'D', 'E',  // Q1-Q5
+          'C', 'D', 'B', 'E', 'D',  // Q6-Q10
+          'C', 'D', 'A', 'B', 'C',  // Q11-Q15
+          'D', 'C', 'D', 'C', 'E',  // Q16-Q20
+          'D', 'E', 'D', 'C', 'C',  // Q21-Q25 (último C adicionado como placeholder)
+        ];
+        int omrAcertos = 0;
+        int omrErros = 0;
+        print('');
+        print('🔬══════════════════════════════════════════════════════');
+        print('🔬 VERIFICAÇÃO OMR: Detectado vs. Marcado na Foto');
+        print('🔬══════════════════════════════════════════════════════');
+        for (int i = 0; i < respostas.length && i < gabaritoRealFoto.length; i++) {
+          final detectado = respostas[i];
+          final real = gabaritoRealFoto[i];
+          final match = detectado.toUpperCase() == real.toUpperCase();
+          if (match) omrAcertos++;
+          else omrErros++;
+          print('  Q${(i + 1).toString().padLeft(2)}: '
+              'OMR=${detectado.padRight(3)} '
+              'Real=${real.padRight(3)} '
+              '${match ? "✅" : "❌ ERRO"}');
+        }
+        final omrPrecisao = (omrAcertos / respostas.length * 100);
+        print('🔬──────────────────────────────────────────────────────');
+        print('🔬 PRECISÃO OMR: $omrAcertos/${respostas.length} (${omrPrecisao.toStringAsFixed(1)}%)');
+        print('🔬 ERROS OMR: $omrErros questões lidas incorretamente');
+        print('🔬══════════════════════════════════════════════════════');
+        print('');
 
         final result = CartaoResultData(
           simulado: widget.simulado,
@@ -148,9 +203,46 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
   }
 
   Future<Map<int, String>> _carregarGabarito() async {
-    // ✨ TODO: Implementar carregamento do gabarito do servidor
-    // Por enquanto, retorna vazio (será implementado depois)
-    return {};
+    try {
+      final apiService = ApiService();
+
+      // Extract simulado ID (assuming it's stored in widget.simulado)
+      // If SimuladoData has an id field, use it; otherwise handle accordingly
+      final simuladoId = widget.simulado.id;
+      final tipo = widget.tipoProva.toString();
+
+      print('🔍 Carregando gabarito para simulado $simuladoId, tipo $tipo...');
+
+      final gabaritoString = await apiService.getGabarito(
+        simuladoId,
+        tipo: tipo,
+      );
+
+      if (gabaritoString == null || gabaritoString.isEmpty) {
+        print('⚠️ Gabarito vazio recebido do servidor');
+        return {};
+      }
+
+      // Convert Map<String, String> to Map<int, String>
+      // Keys come as strings like "1", "2", "3"
+      final Map<int, String> gabarito = {};
+      gabaritoString.forEach((key, value) {
+        try {
+          final questionNumber = int.parse(key);
+          gabarito[questionNumber] = value.toUpperCase();
+        } catch (e) {
+          print('⚠️ Erro ao converter chave de gabarito "$key": $e');
+        }
+      });
+
+      print('✅ Gabarito carregado: ${gabarito.length} questões');
+      print('📋 Gabarito: $gabarito');
+
+      return gabarito;
+    } catch (e) {
+      print('❌ Erro ao carregar gabarito: $e');
+      return {};
+    }
   }
 
   @override

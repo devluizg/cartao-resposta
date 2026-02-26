@@ -67,6 +67,15 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   double _skewAngle = 0.0;
   bool _showAdvancedGuides = true; // Mostra guias avançadas
 
+  // ✨ NOVO: Captura estabilizada
+  int _stableFrameCount = 0;
+  static const int _requiredStableFrames = 8; // ~2s com análise a cada ~250ms
+  bool _isStabilized = false;
+
+  // ✨ NOVO: Sugestão de flash
+  bool _flashSuggestionShown = false;
+  int _badFrameCount = 0;
+
   @override
   void initState() {
     super.initState();
@@ -203,10 +212,14 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   void _refazer() {
     setState(() {
       _capturedImage = null;
-      _qualityResult = null; // ✨ NOVO: Limpar resultado
+      _qualityResult = null;
       _screenState = _ScreenState.camera;
-      _liveQuality = LiveQualityState.analyzing; // ✨ NOVO: Reiniciar análise
+      _liveQuality = LiveQualityState.analyzing;
       _liveTip = 'Encaixe o cartão na moldura';
+      // ✨ NOVO: Reiniciar estabilização
+      _stableFrameCount = 0;
+      _isStabilized = false;
+      _badFrameCount = 0;
     });
     // ✨ NOVO: Reiniciar análise ao vivo
     _startLiveQualityAnalysis();
@@ -251,6 +264,29 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         setState(() {
           _liveQuality = liveState;
           _liveTip = ImageQualityAnalyzer.getTipForLiveQualityState(liveState);
+
+          // ✨ NOVO: Contar frames estáveis consecutivos
+          if (liveState == LiveQualityState.excellent ||
+              liveState == LiveQualityState.good) {
+            _stableFrameCount++;
+            if (_stableFrameCount >= _requiredStableFrames) {
+              _isStabilized = true;
+            }
+          } else {
+            _stableFrameCount = 0;
+            _isStabilized = false;
+          }
+
+          // ✨ NOVO: Sugerir flash se muitos frames ruins
+          if (liveState == LiveQualityState.bad) {
+            _badFrameCount++;
+            if (_badFrameCount >= 10 && !_flashSuggestionShown && _currentFlashMode == FlashMode.off) {
+              _flashSuggestionShown = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) => _suggestFlash());
+            }
+          } else {
+            _badFrameCount = 0;
+          }
         });
       }
     } catch (e) {
@@ -258,6 +294,43 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     } finally {
       _isAnalyzingLive = false;
     }
+  }
+
+  /// ✨ NOVO: Sugerir ativação do flash ao usuário
+  void _suggestFlash() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.flash_on_rounded, color: Colors.yellow, size: 20),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Ambiente escuro! Ative o flash para melhor leitura.',
+                style: TextStyle(fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF1E293B),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: 'ATIVAR',
+          textColor: Colors.yellow,
+          onPressed: () async {
+            if (_controller != null && _controller!.value.isInitialized) {
+              await _controller!.setFlashMode(FlashMode.torch);
+              setState(() {
+                _currentFlashMode = FlashMode.torch;
+                _badFrameCount = 0;
+              });
+            }
+          },
+        ),
+      ),
+    );
   }
 
   /// ✨ NOVO: Função estática para rodar em isolate

@@ -93,7 +93,7 @@ class FrameGuidePainter extends CustomPainter {
     _drawCorners(canvas, left, top, width, height, cornerLen, cornerThick);
   }
 
-  /// Desenha guias avançadas com múltiplos indicadores proporciais
+  /// Desenha guias avançadas com múltiplos indicadores proporcionais
   void _drawAdvancedGuides(
     Canvas canvas,
     Size size,
@@ -106,28 +106,16 @@ class FrameGuidePainter extends CustomPainter {
     // 1. Moldura principal
     _drawMainFrame(canvas, left, top, width, height);
 
-    // 2. Área de segurança (não cortar conteúdo)
-    _drawSafetyArea(canvas, left, top, width, height, pxPerMm);
-
-    // 3. Marcadores de canto esperados (4 círculos PROPORCIONAIS)
+    // 2. Marcadores de canto esperados (4 círculos PROPORCIONAIS)
     _drawExpectedCornerMarkers(canvas, left, top, width, height, pxPerMm);
 
-    // 4. Linhas de perspectiva (detecta inclinação)
-    _drawPerspectiveLines(canvas, left, top, width, height);
-
-    // 5. ✨ NOVO: Desenha bolhas de resposta demo (para visualização)
-    _drawResponseBubblesDemo(canvas, left, top, width, height, pxPerMm);
-
-    // 6. ✨ NOVO: Desenha bolhas de tipo demo
-    _drawTypeBubblesDemo(canvas, left, top, width, height, pxPerMm);
-
-    // 7. Indicador de ângulo (no topo)
+    // 3. Indicador de ângulo (no topo)
     _drawAngleIndicator(canvas, size.width, 30);
 
-    // 8. Indicador de distância (no canto inferior)
+    // 4. Indicador de distância (no canto inferior)
     _drawDistanceIndicator(canvas, size.width, size.height);
 
-    // 9. Cantos em L (mais destacados)
+    // 5. Cantos em L (mais destacados)
     final cornerLen = 40.0 * pxPerMm;
     final cornerThick = 4.0 * pxPerMm;
     _drawCorners(canvas, left, top, width, height, cornerLen, cornerThick);
@@ -144,48 +132,8 @@ class FrameGuidePainter extends CustomPainter {
     canvas.drawRect(Rect.fromLTWH(left, top, width, height), paint);
   }
 
-  /// Desenha a área de segurança proporcional ao PDF
-  void _drawSafetyArea(
-    Canvas canvas,
-    double left,
-    double top,
-    double width,
-    double height,
-    double pxPerMm,
-  ) {
-    // Margem de segurança = padding (8mm) + margem interna (12mm) = 20mm total
-    final safetyMargin = SAFETY_MARGIN_MM * pxPerMm;
 
-    final safetyPaint = Paint()
-      ..color = Colors.red.withOpacity(0.2)
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
 
-    canvas.drawRect(
-      Rect.fromLTWH(
-        left + safetyMargin,
-        top + safetyMargin,
-        width - 2 * safetyMargin,
-        height - 2 * safetyMargin,
-      ),
-      safetyPaint,
-    );
-
-    // Texto de aviso
-    final textPainter = TextPainter(
-      text: const TextSpan(
-        text: '🚫 Não corte aqui',
-        style: TextStyle(
-          color: Colors.red,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-    textPainter.paint(canvas, Offset(left + safetyMargin + 4, top + safetyMargin + 2));
-  }
 
   /// Desenha os 4 marcadores de canto COM TAMANHO PROPORCIONAL
   void _drawExpectedCornerMarkers(
@@ -232,12 +180,12 @@ class FrameGuidePainter extends CustomPainter {
       );
     }
 
-    // Texto identificando os marcadores
+    // Label "Marcadores" para a inst. visual
     const markerLabel = ['TL', 'TR', 'BL', 'BR'];
     for (int i = 0; i < corners.length; i++) {
       final textPainter = TextPainter(
         text: TextSpan(
-          text: markerLabel[i],
+          text: '■ ${markerLabel[i]}',
           style: const TextStyle(
             color: Colors.green,
             fontSize: 9,
@@ -255,20 +203,20 @@ class FrameGuidePainter extends CustomPainter {
 
       switch (i) {
         case 0: // TL
-          labelX -= textPainter.width / 2;
-          labelY -= offsetDistance;
+          labelX += offsetDistance;
+          labelY += 2;
           break;
         case 1: // TR
-          labelX -= textPainter.width / 2;
-          labelY -= offsetDistance;
+          labelX -= textPainter.width + offsetDistance;
+          labelY += 2;
           break;
         case 2: // BL
-          labelX -= textPainter.width / 2;
-          labelY += offsetDistance;
+          labelX += offsetDistance;
+          labelY -= textPainter.height;
           break;
         case 3: // BR
-          labelX -= textPainter.width / 2;
-          labelY += offsetDistance;
+          labelX -= textPainter.width + offsetDistance;
+          labelY -= textPainter.height;
           break;
       }
 
@@ -276,128 +224,8 @@ class FrameGuidePainter extends CustomPainter {
     }
   }
 
-  /// ✨ NOVO: Desenha bolhas de resposta demo para visualização
-  void _drawResponseBubblesDemo(
-    Canvas canvas,
-    double left,
-    double top,
-    double width,
-    double height,
-    double pxPerMm,
-  ) {
-    final bubbleDiameter = BUBBLE_RESPONSE_MM * pxPerMm;
-    final bubbleRadius = bubbleDiameter / 2;
 
-    final bubblePaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
 
-    final bubbleStrokePaint = Paint()
-      ..color = Colors.black
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke;
-
-    // Calcular posição da primeira área de resposta
-    final contentLeft = left + (INNER_MARGIN_MM * pxPerMm);
-    final contentTop = top + (INNER_MARGIN_MM + 8) * pxPerMm; // Após header e tipo
-
-    // Desenhar grade de bolhas (5 colunas, 3 linhas para demo)
-    final colGap = (BUBBLE_RESPONSE_MM + 3) * pxPerMm; // 3px gap
-    final rowGap = (BUBBLE_RESPONSE_MM + 3.5) * pxPerMm; // 3.5px gap
-
-    for (int col = 0; col < 5; col++) {
-      for (int row = 0; row < 3; row++) {
-        final x = contentLeft + (col * colGap) + bubbleRadius;
-        final y = contentTop + (row * rowGap) + bubbleRadius;
-
-        // Desenhar bolha
-        canvas.drawCircle(Offset(x, y), bubbleRadius, bubblePaint);
-        canvas.drawCircle(Offset(x, y), bubbleRadius, bubbleStrokePaint);
-      }
-    }
-  }
-
-  /// ✨ NOVO: Desenha bolhas de tipo de prova demo
-  void _drawTypeBubblesDemo(
-    Canvas canvas,
-    double left,
-    double top,
-    double width,
-    double height,
-    double pxPerMm,
-  ) {
-    final bubbleDiameter = BUBBLE_TYPE_MM * pxPerMm;
-    final bubbleRadius = bubbleDiameter / 2;
-
-    final bubblePaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-
-    final bubbleStrokePaint = Paint()
-      ..color = Colors.black
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    // Posicionar após o header (aproximadamente)
-    final contentLeft = left + (INNER_MARGIN_MM * pxPerMm);
-    final contentTop = top + (INNER_MARGIN_MM + 2) * pxPerMm;
-
-    // Desenhar 5 bolhas para tipos 1-5
-    final colGap = (BUBBLE_TYPE_MM + 6) * pxPerMm;
-
-    for (int i = 0; i < 5; i++) {
-      final x = contentLeft + (i * colGap) + bubbleRadius;
-      final y = contentTop + bubbleRadius;
-
-      // Desenhar bolha
-      canvas.drawCircle(Offset(x, y), bubbleRadius, bubblePaint);
-      canvas.drawCircle(Offset(x, y), bubbleRadius, bubbleStrokePaint);
-
-      // Texto com número
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: '${i + 1}',
-          style: const TextStyle(
-            color: Colors.black,
-            fontSize: 8,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(x - textPainter.width / 2, y - textPainter.height / 2),
-      );
-    }
-  }
-
-  /// Desenha linhas de perspectiva (detecta inclinação)
-  void _drawPerspectiveLines(Canvas canvas, double left, double top,
-      double width, double height) {
-    final perspectivePaint = Paint()
-      ..color = Colors.blue.withOpacity(0.4)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    // Linhas diagonais (X) para detectar perspectiva
-    canvas.drawLine(Offset(left, top), Offset(left + width, top + height),
-        perspectivePaint);
-    canvas.drawLine(Offset(left + width, top), Offset(left, top + height),
-        perspectivePaint);
-
-    // Linhas verticais (detecta inclinação)
-    final verticalPaint = Paint()
-      ..color = Colors.blue.withOpacity(0.3)
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke;
-
-    canvas.drawLine(Offset(left, top), Offset(left, top + height),
-        verticalPaint); // Esquerda
-    canvas.drawLine(Offset(left + width, top), Offset(left + width, top + height),
-        verticalPaint); // Direita
-  }
 
   /// Desenha indicador de ângulo (topo da câmera)
   void _drawAngleIndicator(Canvas canvas, double screenWidth, double y) {
