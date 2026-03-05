@@ -1,121 +1,126 @@
 // capture_tips_screen.dart
-// Tela de dicas visuais antes de abrir a câmera
 import 'package:flutter/material.dart';
 
-/// Tela com 3 dicas rápidas antes de abrir a câmera
 class CaptureTipsScreen extends StatelessWidget {
   final VoidCallback onContinue;
 
   const CaptureTipsScreen({super.key, required this.onContinue});
 
+  static const Color primary     = Color(0xFF0DA6F2);
+  static const Color primaryDark = Color(0xFF003D5C);
+  static const Color bgLight     = Color(0xFFF8FAFC);
+  static const Color textMain    = Color(0xFF003D5C);
+  static const Color textSub     = Color(0xFF475569);
+  static const Color borderLight = Color(0xFFDBE2E6);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: bgLight,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: primaryDark, size: 20),
+        ),
+        title: RichText(
+          text: const TextSpan(
+            children: [
+              TextSpan(
+                text: 'SIMULADO',
+                style: TextStyle(color: primaryDark, fontSize: 15, fontWeight: FontWeight.w900),
+              ),
+              TextSpan(
+                text: 'APP',
+                style: TextStyle(color: primary, fontSize: 15, fontWeight: FontWeight.w900),
+              ),
+            ],
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: borderLight),
+        ),
+      ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 24),
-
-              // Título
-              const Icon(
-                Icons.camera_alt_rounded,
-                color: Color(0xFF0DA6F2),
-                size: 56,
-              ),
-              const SizedBox(height: 16),
+              const Icon(Icons.camera_alt_rounded, color: primary, size: 48),
+              const SizedBox(height: 14),
               const Text(
-                'Dicas para a melhor foto',
+                'Dicas para melhor leitura',
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
+                  color: textMain,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               const Text(
-                'Siga estas dicas para garantir 100% de precisão na leitura',
-                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                'Siga estas dicas para garantir 100% de precisão',
                 textAlign: TextAlign.center,
+                style: TextStyle(color: textSub, fontSize: 13),
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 28),
 
-              // Dica 1
-              _buildTip(
+              _tip(
                 icon: Icons.wb_sunny_rounded,
                 color: const Color(0xFFF59E0B),
                 title: 'Boa iluminação',
-                description:
-                    'Use um local bem iluminado. Evite sombras sobre o cartão. Se necessário, ative o flash.',
+                desc: 'Use local bem iluminado. Evite sombras sobre o cartão. Se necessário, ative o flash.',
               ),
-
-              const SizedBox(height: 20),
-
-              // Dica 2
-              _buildTip(
+              const SizedBox(height: 14),
+              _tip(
                 icon: Icons.crop_free_rounded,
                 color: const Color(0xFF22C55E),
-                title: 'Folha reta e plana',
-                description:
-                    'Coloque o cartão sobre uma superfície plana e clara. Encaixe os 4 quadrados pretos nos cantos da moldura.',
+                title: 'Alinhe os marcadores',
+                desc: 'Encaixe os 4 círculos pretos do cartão dentro dos círculos verdes da moldura.',
               ),
-
-              const SizedBox(height: 20),
-
-              // Dica 3
-              _buildTip(
+              const SizedBox(height: 14),
+              _tip(
                 icon: Icons.phone_android_rounded,
-                color: const Color(0xFF0DA6F2),
+                color: primary,
                 title: 'Mantenha firme',
-                description:
-                    'Segure o celular paralelo ao cartão, a ~25cm de distância. Aguarde o indicador ficar verde antes de capturar.',
+                desc: 'Segure o celular paralelo ao cartão, a ~25 cm. Aguarde o indicador ficar verde.',
               ),
 
               const Spacer(),
 
-              // Botão continuar
               SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
+                height: 56,
+                child: ElevatedButton.icon(
                   onPressed: onContinue,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0DA6F2),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                  icon: const Icon(Icons.camera_alt_rounded, size: 20),
+                  label: const Text(
+                    'Abrir câmera',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Abrir câmera',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Icon(Icons.arrow_forward_rounded, color: Colors.white),
-                    ],
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
                   ),
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
 
-              // Skip
               TextButton(
                 onPressed: onContinue,
                 child: const Text(
                   'Pular dicas',
-                  style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                  style: TextStyle(color: textSub, fontSize: 13),
                 ),
               ),
+
+              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -123,53 +128,46 @@ class CaptureTipsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTip({
+  Widget _tip({
     required IconData icon,
     required Color color,
     required String title,
-    required String description,
+    required String desc,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: borderLight),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: color, size: 22),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text(title,
+                    style: TextStyle(
+                        color: color, fontSize: 14, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: const TextStyle(
-                    color: Color(0xFFCBD5E1),
-                    fontSize: 13,
-                    height: 1.4,
-                  ),
-                ),
+                Text(desc,
+                    style: const TextStyle(
+                        color: textSub, fontSize: 13, height: 1.4)),
               ],
             ),
           ),

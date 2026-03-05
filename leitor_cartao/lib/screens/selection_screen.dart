@@ -1,17 +1,12 @@
-// ignore_for_file: unused_local_variable
-
 import 'package:flutter/material.dart';
-import '../widgets/custom_app_bar.dart';
-import 'package:leitor_cartao/screens/login_screen.dart';
+import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
-import '../main.dart';
-import 'dart:developer' as developer;
-import 'package:leitor_cartao/services/models/class_model.dart';
-import 'package:leitor_cartao/services/models/student_model.dart';
-import 'package:leitor_cartao/services/models/simulado_model.dart';
-import 'simulado_selection_screen.dart';
-import 'qr_capture_screen.dart';
+import '../services/models/class_model.dart';
+import '../services/models/simulado_model.dart';
+import '../widgets/custom_app_bar.dart';
+import 'login_screen.dart';
+import 'quick_selection_screen.dart';
 
 class SelectionScreen extends StatefulWidget {
   const SelectionScreen({super.key});
@@ -22,966 +17,407 @@ class SelectionScreen extends StatefulWidget {
 
 class _SelectionScreenState extends State<SelectionScreen> {
   final ApiService _apiService = ApiService();
-  bool _isLoading = true;
-  String _errorMessage = '';
-  String userName = 'Usuário';
 
+  String _userName = 'Professor';
+  int _creditos = 0;
+  bool _carregandoCreditos = true;
+  bool _carregandoQR = false;
   List<ClassModel> _turmas = [];
-  List<SimuladoModel> _simulados = [];
-  List<StudentModel> _alunos = [];
 
-  int? _turmaId;
-  int? _simuladoId;
-  int? _alunoId;
-
-  // Design System - Nova Paleta de Cores (Página de Vendas)
-  static const Color primary = Color(0xFF0DA6F2);       // Azul claro/primário
-  static const Color primaryMedium = Color(0xFF0A8CCB); // Azul médio
-  static const Color primaryDark = Color(0xFF003D5C);   // Azul escuro
-  
-  static const Color bgLight = Color(0xFFF8FAFC);       // Cinza super claro (fundo)
-  static const Color surfaceLight = Color(0xFFFFFFFF);  // Superfície branca
-  static const Color textMain = Color(0xFF003D5C);      // Texto principal (Azul Escuro)
-  static const Color textSub = Color(0xFF475569);       // Texto secundário (Slate 600)
-  static const Color borderLight = Color(0xFFDBE2E6);   // Bordas gerais
-  
-  static const Color errorColor = Color(0xFFDC2626);    // Vermelho 600
-  static const Color warningColor = Color(0xFFEA580C);  // Laranja (speed icon color)
+  static const Color primary     = Color(0xFF0DA6F2);
+  static const Color primaryDark = Color(0xFF003D5C);
+  static const Color bgLight     = Color(0xFFF8FAFC);
+  static const Color textMain    = Color(0xFF003D5C);
+  static const Color textSub     = Color(0xFF475569);
+  static const Color borderLight = Color(0xFFDBE2E6);
+  static const Color errorColor  = Color(0xFFDC2626);
+  static const Color warnColor   = Color(0xFFEA580C);
 
   @override
   void initState() {
     super.initState();
-    _iniciarApp();
+    _iniciar();
   }
 
-  Future<void> _iniciarApp() async {
-    await _carregarNomeUsuario();
-    await _verificarConexao();
+  Future<void> _iniciar() async {
+    await _carregarNome();
+    _carregarCreditos();
+    _carregarTurmas();
   }
 
-  Future<void> _verificarConexao() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+  Future<void> _carregarNome() async {
+    final prefs = await SharedPreferences.getInstance();
+    final nome = prefs.getString('user_name');
+    if (nome != null && mounted) setState(() => _userName = nome);
+  }
 
+  Future<void> _carregarCreditos() async {
+    setState(() => _carregandoCreditos = true);
     try {
-      final token = await _apiService.getAccessToken();
-      if (token == null) {
-        developer.log('Token de autenticação ausente');
-        setState(() {
-          _errorMessage = 'Sessão expirada. Por favor, faça login novamente.';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      bool conectado = await _apiService.testConnection();
-      if (conectado) {
-        developer.log('Conexão com a API estabelecida com sucesso');
-        await _carregarTurmas();
-      } else {
-        setState(() {
-          _errorMessage =
-              'Não foi possível conectar ao servidor. Verifique sua conexão.';
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      developer.log('Erro ao verificar conexão: $e');
-      setState(() {
-        _errorMessage = 'Erro ao verificar conexão com o servidor: $e';
-        _isLoading = false;
+      final c = await _apiService.getUserCredits();
+      if (mounted) setState(() {
+        _creditos = c?['available_credits'] ?? 0;
+        _carregandoCreditos = false;
       });
-    }
-  }
-
-  Future<void> _carregarNomeUsuario() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final nome = prefs.getString('user_name');
-      if (nome != null && mounted) {
-        setState(() {
-          userName = nome;
-        });
-      } else {
-        final userInfo = await _apiService.getUserInfo();
-        if (userInfo != null && mounted) {
-          setState(() {
-            userName = userInfo['name'] ?? 'Usuário';
-          });
-        }
-      }
-    } catch (e) {
-      developer.log('Erro ao carregar nome do usuário: $e');
+    } catch (_) {
+      if (mounted) setState(() => _carregandoCreditos = false);
     }
   }
 
   Future<void> _carregarTurmas() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
-
     try {
-      developer.log('Solicitando turmas da API...');
       final turmas = await _apiService.getClasses();
-      developer.log('Turmas recebidas: ${turmas.length}');
-
-      if (mounted) {
-        setState(() {
-          _turmas = turmas;
-          _isLoading = false;
-
-          if (turmas.isEmpty) {
-            _errorMessage =
-                'Nenhuma turma encontrada. Verifique se existem turmas cadastradas no sistema.';
-          }
-        });
-      }
-    } catch (e) {
-      developer.log('Erro ao carregar turmas: $e');
-      if (mounted) {
-        if (e.toString().contains('401')) {
-          try {
-            bool tokenRenovado = await _apiService.refreshToken();
-            if (tokenRenovado) {
-              return _carregarTurmas();
-            } else {
-              _logout();
-              return;
-            }
-          } catch (_) {
-            _logout();
-            return;
-          }
-        }
-
-        setState(() {
-          _errorMessage = 'Erro ao carregar turmas: $e';
-          _isLoading = false;
-        });
-      }
-    }
+      if (mounted) setState(() => _turmas = turmas);
+    } catch (_) {}
   }
 
-  Future<void> _carregarSimulados(int turmaId) async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-      _simulados = [];
-      _simuladoId = null;
-    });
-
-    try {
-      developer.log('Solicitando simulados para a turma ID: $turmaId');
-      final simulados = await _apiService.getSimuladosByClass(turmaId);
-      developer.log('Simulados recebidos: ${simulados.length}');
-
-      if (mounted) {
-        setState(() {
-          _simulados = simulados;
-          _isLoading = false;
-
-          if (simulados.isEmpty) {
-            _errorMessage = 'Nenhum simulado encontrado para esta turma.';
-          }
-        });
-      }
-    } catch (e) {
-      developer.log('Erro ao carregar simulados: $e');
-      if (mounted) {
-        if (e.toString().contains('401')) {
-          try {
-            bool tokenRenovado = await _apiService.refreshToken();
-            if (tokenRenovado) {
-              return _carregarSimulados(turmaId);
-            }
-          } catch (_) {}
-        }
-
-        setState(() {
-          _errorMessage = 'Erro ao carregar simulados: $e';
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _carregarAlunos(int turmaId) async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-      _alunos = [];
-      _alunoId = null;
-    });
-
-    try {
-      developer.log('Solicitando alunos para a turma ID: $turmaId');
-      final alunos = await _apiService.getStudentsByClass(turmaId);
-      developer.log('Alunos recebidos: ${alunos.length}');
-
-      if (mounted) {
-        setState(() {
-          _alunos = alunos;
-          _isLoading = false;
-
-          if (alunos.isEmpty) {
-            _errorMessage = 'Nenhum aluno encontrado para esta turma.';
-          }
-        });
-      }
-    } catch (e) {
-      developer.log('Erro ao carregar alunos: $e');
-      if (mounted) {
-        if (e.toString().contains('401')) {
-          try {
-            bool tokenRenovado = await _apiService.refreshToken();
-            if (tokenRenovado) {
-              return _carregarAlunos(turmaId);
-            }
-          } catch (_) {}
-        }
-
-        setState(() {
-          _errorMessage = 'Erro ao carregar alunos: $e';
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  void _onTurmaChanged(int? value) {
-    if (value != null && value != _turmaId) {
-      setState(() {
-        _turmaId = value;
-        _simuladoId = null;
-        _alunoId = null;
-        _simulados = [];
-        _alunos = [];
-      });
-      developer.log('Turma selecionada: $value');
-      _carregarSimulados(value);
-      _carregarAlunos(value);
-    }
-  }
-
-  void _onSimuladoChanged(int? value) {
-    setState(() {
-      _simuladoId = value;
-    });
-    developer.log('Simulado selecionado: $value');
-  }
-
-  void _onAlunoChanged(int? value) {
-    setState(() {
-      _alunoId = value;
-    });
-    developer.log('Aluno selecionado: $value');
-  }
-
-  void _continuarParaLeitor() {
-    if (_turmaId == null || _simuladoId == null || _alunoId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.white),
-              SizedBox(width: 8),
-              Text('Por favor, selecione todos os campos'),
-            ],
-          ),
-          backgroundColor: warningColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
+  Future<void> _escanearQR() async {
+    if (_creditos <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Sem créditos disponíveis. Adquira mais para continuar.'),
+        backgroundColor: errorColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
       return;
     }
 
-    // ✨ NOVO: Usar o novo fluxo de 5 telas ao invés de TelaInicial
-    final alunoSelecionado = _alunos.firstWhere(
-      (aluno) => aluno.id == _alunoId,
-      orElse: () => StudentModel(
-        id: _alunoId!,
-        name: 'Desconhecido',
-        email: '',
-        studentId: '',
-        classes: [],
-      ),
-    );
-
-    final simuladoSelecionado = _simulados.firstWhere(
-      (simulado) => simulado.id == _simuladoId,
-      orElse: () => SimuladoModel(
-        id: _simuladoId!,
-        titulo: 'Desconhecido',
-        descricao: '',
-        questoes: [],
-        dataCriacao: DateTime.now(),
-        ultimaModificacao: DateTime.now(),
-        classes: [_turmaId!],
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-    );
-
-    developer.log(
-        'Navegando para novo fluxo OMR: Simulado=$_simuladoId (${simuladoSelecionado.titulo}), Aluno=$_alunoId (${alunoSelecionado.name})');
-
-    // Converter para SimuladoData e AlunoData (classes do novo fluxo)
-    final simuladoData = SimuladoData(
-      id: simuladoSelecionado.id ?? 0,
-      nome: simuladoSelecionado.titulo ?? 'Simulado',
-      numQuestoes: simuladoSelecionado.questoes?.length ?? 0,
-      dataCriacao: simuladoSelecionado.dataCriacao ?? DateTime.now(),
-    );
-
-    final alunoData = AlunoData(
-      id: alunoSelecionado.id ?? 0,
-      nome: alunoSelecionado.name ?? 'Aluno',
-      matricula: alunoSelecionado.studentId ?? 'N/A',
-    );
-
-    // ✨ NOVO: Ir direto para QRCaptureScreen (Passo 2 do novo fluxo)
-    // Pulamos SimuladoSelectionScreen pois já selecionamos simulado/aluno aqui
-    Navigator.push(
+    final Map<String, dynamic>? qrData = await Navigator.push<Map<String, dynamic>>(
       context,
-      MaterialPageRoute(
-        builder: (context) => QRCaptureScreen(
-          simulado: simuladoData,
-          aluno: alunoData,
-        ),
-      ),
+      MaterialPageRoute(builder: (_) => const _QRSimuladoScannerScreen()),
     );
-  }
 
-  Future<void> _logout() async {
+    if (qrData == null || !mounted) return;
+
+    final int? simuladoId = qrData['simuladoId'] as int?;
+    if (simuladoId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('QR sem dados do simulado. Regenere o PDF.'),
+        backgroundColor: warnColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+      return;
+    }
+
+    setState(() => _carregandoQR = true);
+
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('access_token');
-      await prefs.remove('refresh_token');
-      await prefs.remove('user_name');
-      await prefs.remove('user_email');
-
+      final simulado = await _apiService.getSimulado(simuladoId);
       if (!mounted) return;
 
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false,
+      if (simulado == null) {
+        setState(() => _carregandoQR = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Simulado #$simuladoId não encontrado'),
+          backgroundColor: errorColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+        return;
+      }
+
+      final turmasFiltradas = _turmas
+          .where((t) => simulado.classes.contains(t.id))
+          .toList();
+
+      setState(() => _carregandoQR = false);
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => QuickSelectionScreen(
+            simulado: simulado,
+            turmas: turmasFiltradas,
+            tipoProva: qrData['tipo'] as int? ?? 1,
+            versionCode: qrData['versionCode'] as String?,
+          ),
+        ),
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 8),
-                Text('Erro ao fazer logout: $e'),
-              ],
-            ),
-            backgroundColor: errorColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
+        setState(() => _carregandoQR = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Erro: $e'),
+          backgroundColor: errorColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
       }
     }
   }
 
-  Future<void> _recarregarDados() async {
-    _resetSelections();
-    await _verificarConexao();
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('access_token');
+    await prefs.remove('refresh_token');
+    await prefs.remove('user_name');
+    await prefs.remove('user_email');
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    }
   }
-
-  void _resetSelections() {
-    setState(() {
-      _turmaId = null;
-      _simuladoId = null;
-      _alunoId = null;
-      _simulados = [];
-      _alunos = [];
-    });
-  }
-
-  bool get _canContinue =>
-      !_isLoading &&
-      _turmaId != null &&
-      _simuladoId != null &&
-      _alunoId != null;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgLight,
-      appBar: CustomAppBar(
-        onReload: _recarregarDados,
-        onExit: _logout,
-      ),
-
-      body: _isLoading
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 3,
-                      valueColor: AlwaysStoppedAnimation<Color>(primary),
-                      backgroundColor: borderLight,
-                    ),
-                  ),
-                  SizedBox(height: 24),
-                  Text(
-                    'Carregando dados...',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: textSub,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+      appBar: CustomAppBar(onExit: _logout),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Saudação
+              Text(
+                'Bem-vindo(a), $_userName!',
+                style: const TextStyle(
+                  color: textMain,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            )
-          : RefreshIndicator(
-              onRefresh: _recarregarDados,
-              color: primary,
-              backgroundColor: surfaceLight,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20.0, vertical: 24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Header boas-vindas com logo e gradiente
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [primaryDark, primaryMedium],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: primaryDark,
-                              blurRadius: 20,
-                              offset: Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            // Avatar do usuário
-                            Container(
-                              width: 56,
-                              height: 56,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.25),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.4),
-                                  width: 2,
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.person_rounded,
-                                color: Colors.white,
-                                size: 30,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Bem-vindo(a)!',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    userName,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(20),
+              const SizedBox(height: 12),
 
-                                    ),
-                                    child: const Text(
-                                      'Professor',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 28),
-
-                      // ✨ Info: Use o fluxo tradicional abaixo para selecionar turma/simulado/aluno
-                      // Ou use "Novo Cartão" para selecionar apenas simulado/aluno
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: primary.withOpacity(0.2)),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.info_rounded, color: primary, size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Selecione turma+simulado+aluno abaixo, ou use "Novo Cartão" para modo rápido',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: primary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // ✨ NOVO: Card para fluxo OMR rápido
-                      Container(
-                        decoration: BoxDecoration(
-                          color: surfaceLight,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: primary.withOpacity(0.3)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: primary.withOpacity(0.1),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => SimuladoSelectionScreen(
-                                    turmaId: _turmaId,
-                                  ),
-                                ),
-                              );
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 56,
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      color: primary.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(
-                                      Icons.qr_code_2_rounded,
-                                      color: primary,
-                                      size: 28,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Novo Cartão (Modo Rápido)',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                            color: textMain,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Selecione simulado+aluno e leia QR Code',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: textSub.withOpacity(0.7),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Icon(
-                                    Icons.arrow_forward_ios_rounded,
-                                    color: primary.withOpacity(0.6),
-                                    size: 16,
-                                  ),
-                                ],
-                              ),
+              // Badge de créditos
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: _creditos > 0
+                      ? primary.withOpacity(0.07)
+                      : errorColor.withOpacity(0.07),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _creditos > 0
+                        ? primary.withOpacity(0.3)
+                        : errorColor.withOpacity(0.4),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.bolt_rounded,
+                        color: _creditos > 0 ? primary : errorColor, size: 20),
+                    const SizedBox(width: 8),
+                    _carregandoCreditos
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: primary),
+                          )
+                        : Text(
+                            _creditos > 0
+                                ? '$_creditos crédito${_creditos != 1 ? 's' : ''} disponíveis'
+                                : 'Sem créditos — adquira mais para corrigir',
+                            style: TextStyle(
+                              color: _creditos > 0 ? primary : errorColor,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                        ),
+                  ],
+                ),
+              ),
+
+              const Spacer(),
+
+              // Ícone central
+              Center(
+                child: Container(
+                  width: 116,
+                  height: 116,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [primaryDark, primary],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(32),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primary.withOpacity(0.3),
+                        blurRadius: 28,
+                        offset: const Offset(0, 10),
                       ),
-
-                      const SizedBox(height: 28),
-
-                      // Título da seção
-                      const Text(
-                        'Configurar Correção',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: textMain,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Selecione a turma, o simulado e o aluno para iniciar',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: textSub,
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Card com formulário de seleção
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: surfaceLight,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: primary.withOpacity(0.15),
-                              blurRadius: 20,
-                              offset: const Offset(0, 6),
-                            ),
-                            BoxShadow(
-                              color: primary.withOpacity(0.08),
-                              blurRadius: 40,
-                              offset: const Offset(0, 12),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Dropdown Turma
-                            _buildDropdownLabel(
-                                'Turma', Icons.groups_rounded),
-                            const SizedBox(height: 8),
-                            _buildDropdown(
-                              hint: 'Selecione uma turma',
-                              value: _turmaId,
-                              icon: Icons.groups_rounded,
-                              items: _turmas.map((turma) {
-                                return DropdownMenuItem<int>(
-                                  value: turma.id,
-                                  child: Text(
-                                    turma.name,
-                                    style: const TextStyle(color: textMain),
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: _onTurmaChanged,
-                            ),
-
-                            const SizedBox(height: 20),
-
-                            // Dropdown Simulado
-                            _buildDropdownLabel(
-                                'Simulado', Icons.quiz_rounded),
-                            const SizedBox(height: 8),
-                            _buildDropdown(
-                              hint: _turmaId == null
-                                  ? 'Selecione uma turma primeiro'
-                                  : 'Selecione um simulado',
-                              value: _simuladoId,
-                              icon: Icons.quiz_rounded,
-                              items: _simulados.map((simulado) {
-                                return DropdownMenuItem<int>(
-                                  value: simulado.id,
-                                  child: Text(
-                                    simulado.titulo,
-                                    style: const TextStyle(color: textMain),
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: _simulados.isEmpty
-                                  ? null
-                                  : _onSimuladoChanged,
-                              disabledHint: _turmaId == null
-                                  ? 'Selecione uma turma primeiro'
-                                  : _isLoading
-                                      ? 'Carregando simulados...'
-                                      : 'Nenhum simulado disponível',
-                            ),
-
-                            const SizedBox(height: 20),
-
-                            // Dropdown Aluno
-                            _buildDropdownLabel(
-                                'Aluno', Icons.person_search_rounded),
-                            const SizedBox(height: 8),
-                            _buildDropdown(
-                              hint: _turmaId == null
-                                  ? 'Selecione uma turma primeiro'
-                                  : 'Selecione um aluno',
-                              value: _alunoId,
-                              icon: Icons.person_search_rounded,
-                              items: _alunos.map((aluno) {
-                                return DropdownMenuItem<int>(
-                                  value: aluno.id,
-                                  child: Text(
-                                    aluno.name,
-                                    style: const TextStyle(color: textMain),
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged:
-                                  _alunos.isEmpty ? null : _onAlunoChanged,
-                              disabledHint: _turmaId == null
-                                  ? 'Selecione uma turma primeiro'
-                                  : _isLoading
-                                      ? 'Carregando alunos...'
-                                      : 'Nenhum aluno disponível',
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Mensagem de erro
-                      if (_errorMessage.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: errorColor.withOpacity(0.07),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                                color: errorColor.withOpacity(0.4), width: 1),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Row(
-                                children: [
-                                  Icon(Icons.error_outline_rounded,
-                                      color: errorColor, size: 18),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Atenção',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: errorColor,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                _errorMessage,
-                                style: TextStyle(
-                                  color: errorColor.withOpacity(0.85),
-                                  fontSize: 13,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                child: OutlinedButton.icon(
-                                  onPressed: _recarregarDados,
-                                  icon: const Icon(Icons.refresh_rounded,
-                                      size: 18),
-                                  label: const Text('Tentar Novamente'),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: errorColor,
-                                    side: BorderSide(
-                                        color: errorColor.withOpacity(0.5)),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 10),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-
-                      const SizedBox(height: 28),
-
-                      // Botão continuar
-                      SizedBox(
-                        height: 56,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: _canContinue
-                                ? const LinearGradient(
-                                    colors: [primaryMedium, primaryDark],
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerRight,
-                                  )
-                                : null,
-                            color: _canContinue ? null : borderLight,
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: _canContinue
-                                ? [
-                                    BoxShadow(
-                                      color: primary.withOpacity(0.4),
-                                      blurRadius: 16,
-                                      offset: const Offset(0, 6),
-                                    ),
-                                  ]
-                                : [],
-                          ),
-                          child: ElevatedButton.icon(
-                            onPressed: _canContinue ? _continuarParaLeitor : null,
-                            icon: Icon(
-                              Icons.camera_alt_rounded,
-                              size: 20,
-                              color: _canContinue ? Colors.white : textSub,
-                            ),
-                            label: Text(
-                              'Iniciar Leitura',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: _canContinue ? Colors.white : textSub,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              disabledBackgroundColor: Colors.transparent,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
                     ],
+                  ),
+                  child: const Icon(Icons.qr_code_scanner_rounded,
+                      color: Colors.white, size: 52),
+                ),
+              ),
+
+              const SizedBox(height: 28),
+
+              const Text(
+                'Pronto para corrigir?',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: textMain, fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Escaneie o QR code no cartão-resposta para identificar o simulado e iniciar a correção.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: textSub, fontSize: 14, height: 1.5),
+              ),
+
+              const Spacer(),
+
+              // Botão principal
+              SizedBox(
+                height: 58,
+                child: ElevatedButton.icon(
+                  onPressed: _carregandoQR ? null : _escanearQR,
+                  icon: _carregandoQR
+                      ? const SizedBox(
+                          width: 20, height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                        )
+                      : const Icon(Icons.qr_code_scanner_rounded, size: 24),
+                  label: Text(
+                    _carregandoQR ? 'Identificando simulado...' : 'Escanear QR do cartão',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primary,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: borderLight,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
                   ),
                 ),
               ),
-            ),
-    );
-  }
 
-  Widget _buildDropdownLabel(String label, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, color: primary, size: 18),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: textMain,
+              const SizedBox(height: 16),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
+}
 
-  Widget _buildDropdown({
-    required String hint,
-    required int? value,
-    required IconData icon,
-    required List<DropdownMenuItem<int>> items,
-    required void Function(int?)? onChanged,
-    String? disabledHint,
-  }) {
-    final bool isEnabled = onChanged != null;
+// ─── Scanner de QR para identificar o simulado ───────────────────────────────
 
-    return DropdownButtonFormField<int>(
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: textSub.withOpacity(0.7), fontSize: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: borderLight, width: 1.5),
+class _QRSimuladoScannerScreen extends StatefulWidget {
+  const _QRSimuladoScannerScreen();
+
+  @override
+  State<_QRSimuladoScannerScreen> createState() =>
+      _QRSimuladoScannerScreenState();
+}
+
+class _QRSimuladoScannerScreenState extends State<_QRSimuladoScannerScreen> {
+  final GlobalKey _qrKey = GlobalKey(debugLabel: 'QRSimulado');
+  QRViewController? _controller;
+  bool _scanned = false;
+
+  static const Color primary = Color(0xFF0DA6F2);
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  void _onQRViewCreated(QRViewController controller) {
+    _controller = controller;
+    controller.scannedDataStream.listen((scanData) {
+      if (_scanned) return;
+      final code = scanData.code;
+      if (code == null) return;
+
+      final simuladoMatch = RegExp(r'\|S:(\d+)').firstMatch(code);
+      final tipoMatch    = RegExp(r'\|T:(\d+)|\bT:(\d+)').firstMatch(code);
+      final versionMatch = RegExp(r'ID:([^\|]+)').firstMatch(code);
+      final pontuacaoMatch = RegExp(r'\|P:([\d.]+)').firstMatch(code);
+
+      if (simuladoMatch != null && tipoMatch != null) {
+        _scanned = true;
+        _controller?.pauseCamera();
+        final tipoStr = tipoMatch.group(1) ?? tipoMatch.group(2);
+        Navigator.pop(context, {
+          'simuladoId':    int.tryParse(simuladoMatch.group(1)!),
+          'tipo':          int.tryParse(tipoStr ?? '1') ?? 1,
+          'versionCode':   versionMatch?.group(1),
+          'pontuacaoTotal': pontuacaoMatch != null
+              ? double.tryParse(pontuacaoMatch.group(1)!)
+              : null,
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: Color(0xFF1A1A2E), size: 20),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: borderLight, width: 1.5),
+        title: const Text(
+          'Escanear cartão-resposta',
+          style: TextStyle(
+              color: Color(0xFF1A1A2E),
+              fontSize: 16,
+              fontWeight: FontWeight.w700),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: primary, width: 2),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: const Color(0xFFE5E7EB)),
         ),
-        disabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: borderLight.withOpacity(0.5), width: 1),
-        ),
-        filled: true,
-        fillColor: isEnabled ? bgLight : borderLight.withOpacity(0.3),
-        prefixIcon: Icon(icon,
-            color: isEnabled ? primary : textSub.withOpacity(0.5), size: 20),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
-      value: value,
-      isExpanded: true,
-      icon: Icon(Icons.keyboard_arrow_down_rounded,
-          color: isEnabled ? primary : textSub.withOpacity(0.4)),
-      style: const TextStyle(color: textMain, fontSize: 14),
-      dropdownColor: surfaceLight,
-      borderRadius: BorderRadius.circular(14),
-      items: items,
-      onChanged: onChanged,
-      disabledHint: disabledHint != null
-          ? Text(disabledHint,
-              style: TextStyle(
-                  color: textSub.withOpacity(0.6),
-                  fontSize: 14))
-          : null,
+      body: Stack(
+        children: [
+          QRView(
+            key: _qrKey,
+            onQRViewCreated: _onQRViewCreated,
+            overlay: QrScannerOverlayShape(
+              borderColor: primary,
+              borderRadius: 10,
+              borderLength: 30,
+              borderWidth: 8,
+              cutOutSize: 260,
+            ),
+          ),
+          Positioned(
+            bottom: 48,
+            left: 24,
+            right: 24,
+            child: Column(
+              children: [
+                const Text(
+                  'Aponte para o QR code',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'No topo do cartão-resposta',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

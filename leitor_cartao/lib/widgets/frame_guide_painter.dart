@@ -19,8 +19,8 @@ class FrameGuidePainter extends CustomPainter {
   static const double PADDING_MM = 8;
 
   // Marcadores de canto (4 círculos sólidos pretos)
-  static const double MARKER_DIAMETER_MM = 14;
-  static const double MARKER_OFFSET_MM = 4; // distância do canto até o centro
+  static const double MARKER_DIAMETER_MM = 12;  // CORRIGIDO: diâmetro real do PDF (raio 6mm × 2)
+  static const double MARKER_OFFSET_MM = 12;    // CORRIGIDO: centro do marcador a 12mm do canto
 
   // Bolhas de respostas
   static const double BUBBLE_RESPONSE_MM = 6.5; // Alternativas A-E
@@ -39,9 +39,17 @@ class FrameGuidePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Calcular altura da moldura (85% da tela)
-    final frameHeight = size.height * 0.85;
-    final frameWidth = frameHeight * CARTAO_ASPECT_RATIO;
+    // ✨ CORRIGIDO: frame com largura como constraint primária
+    // A4 retrato tem largura < altura, então a tela limita pela largura
+    final double maxByWidth = size.width * 0.92;
+    final double maxByHeight = size.height * 0.85;
+    double frameWidth = maxByWidth;
+    double frameHeight = frameWidth / CARTAO_ASPECT_RATIO; // ÷ (210/297) → × (297/210)
+    // Caso raro de tela quadrada: se altura ultrapassar, recalcular pela altura
+    if (frameHeight > maxByHeight) {
+      frameHeight = maxByHeight;
+      frameWidth = frameHeight * CARTAO_ASPECT_RATIO;
+    }
     final frameLeft = (size.width - frameWidth) / 2;
     final frameTop = (size.height - frameHeight) / 2;
 

@@ -54,7 +54,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   File? _capturedImage;
   ImageQualityResult? _qualityResult; // ✨ NOVO: Resultado de qualidade
   bool _isAnalyzingQuality = false; // ✨ NOVO: Flag de análise
-  FlashMode _currentFlashMode = FlashMode.off; // ✨ NOVO: Rastrear modo de flash
+  FlashMode _currentFlashMode = FlashMode.torch; // ✨ Flash LIGADO por padrão
   _ScreenState _screenState = _ScreenState.camera; // começa na câmera ao vivo
 
   // ✨ NOVO: Estados para feedback ao vivo
@@ -127,7 +127,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
       _controller = CameraController(
         backCamera,
-        ResolutionPreset.high, // 1280x720 — bom equilíbrio qualidade/performance
+        ResolutionPreset.max, // ✨ CORRIGIDO: era 'high' (720p) — muito baixo para OMR
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
@@ -398,7 +398,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     }
   }
 
-  void _confirmarImagem() {
+  Future<void> _confirmarImagem() async {
     if (_capturedImage == null) return;
 
     // ✨ NOVO: Bloquear se qualidade < 60
@@ -413,6 +413,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       return;
     }
 
+    // Desligar flash antes de sair da tela
+    if (_controller != null && _controller!.value.isInitialized) {
+      await _controller!.setFlashMode(FlashMode.off);
+    }
+
+    if (!mounted) return;
     Navigator.pop(
       context,
       CaptureResult(

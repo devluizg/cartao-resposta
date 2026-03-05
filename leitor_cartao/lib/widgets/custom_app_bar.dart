@@ -3,107 +3,91 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/login_screen.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final VoidCallback? onReload;
   final VoidCallback? onExit;
+  final bool showBack;
 
   const CustomAppBar({
     super.key,
-    this.onReload,
     this.onExit,
+    this.showBack = false,
   });
 
   Future<void> _handleExit(BuildContext context) async {
     if (onExit != null) {
       onExit!();
-    } else {
-      // Comportamento padrão de logout
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('access_token');
-        await prefs.remove('refresh_token');
-        await prefs.remove('user_name');
-        await prefs.remove('user_email');
-
-        if (!context.mounted) return;
-
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-          (route) => false,
-        );
-      } catch (e) {
-        // Silenciar erros
-      }
+      return;
     }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('access_token');
+      await prefs.remove('refresh_token');
+      await prefs.remove('user_name');
+      await prefs.remove('user_email');
+      if (!context.mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
-    // Cores extraídas de selection_screen.dart / AppColors
-    const Color primaryColor = Color(0xFF0DA6F2);
-    const Color secondaryColor = Color(0xFF003D5C);
-    const Color borderColor = Color(0xFFDBE2E6);
-    const Color textSub = Color(0xFF475569);
+    const Color primary      = Color(0xFF0DA6F2);
+    const Color primaryDark  = Color(0xFF003D5C);
+    const Color borderColor  = Color(0xFFDBE2E6);
+    const Color textSub      = Color(0xFF475569);
 
     return AppBar(
       elevation: 0,
       backgroundColor: Colors.white,
-      foregroundColor: secondaryColor,
-      automaticallyImplyLeading: false, // Remove o botão de voltar padrão
+      automaticallyImplyLeading: false,
+      leading: showBack
+          ? IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: primaryDark, size: 20),
+              onPressed: () => Navigator.of(context).pop(),
+            )
+          : null,
       title: Row(
         children: [
-          // Logo
+          // Logo SimuladoApp
           Image.asset(
             'assets/images/nova_logo.png',
-            height: 32,
             width: 32,
-            errorBuilder: (context, error, stackTrace) {
-              // Fallback se a imagem não carregar
-              return Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [primaryColor, secondaryColor],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.check_circle_outline,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              );
-            },
+            height: 32,
+            fit: BoxFit.contain,
           ),
-          const SizedBox(width: 12),
-          const Text(
-            'SimuladoApp',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-              color: secondaryColor,
+          const SizedBox(width: 10),
+          RichText(
+            text: const TextSpan(
+              children: [
+                TextSpan(
+                  text: 'SIMULADO',
+                  style: TextStyle(
+                    color: primaryDark,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                TextSpan(
+                  text: 'APP',
+                  style: TextStyle(
+                    color: primary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
       actions: [
-        // Botão Recarregar
-        IconButton(
-          icon: const Icon(Icons.refresh_rounded),
-          tooltip: 'Recarregar',
-          onPressed: onReload,
-          color: textSub,
-        ),
-        // Botão Sair
-        TextButton.icon(
+        TextButton(
           onPressed: () => _handleExit(context),
-          icon: const Icon(
-            Icons.logout_rounded,
-            color: textSub,
-            size: 20,
-          ),
-          label: const Text(
+          child: const Text(
             'Sair',
             style: TextStyle(
               color: textSub,
@@ -112,14 +96,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 4),
       ],
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(1),
-        child: Container(
-          height: 1,
-          color: borderColor,
-        ),
+        child: Container(height: 1, color: borderColor),
       ),
     );
   }

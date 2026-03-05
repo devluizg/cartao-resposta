@@ -51,7 +51,7 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
   double _skewAngle = 0.0;
 
   // ✨ NOVO: Flash
-  FlashMode _currentFlashMode = FlashMode.off;
+  FlashMode _currentFlashMode = FlashMode.torch; // ✨ Flash LIGADO por padrão para eliminar sombras
 
   // ✨ NOVO: Captura estabilizada
   int _stableFrameCount = 0;
@@ -107,7 +107,7 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
 
       _controller = CameraController(
         backCamera,
-        ResolutionPreset.high,
+        ResolutionPreset.max, // ✨ CORRIGIDO: era 'high' (720p) — muito baixo para OMR
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
@@ -332,6 +332,10 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
 
       final XFile foto = await _controller!.takePicture();
 
+      // Desligar flash imediatamente após a foto
+      await _controller!.setFlashMode(FlashMode.off);
+      setState(() => _currentFlashMode = FlashMode.off);
+
       final dir = await getTemporaryDirectory();
       final String novoPath = path.join(
         dir.path,
@@ -382,21 +386,33 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text(
-          'Passo 3: Fotografar Cartão',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1A1A2E), size: 20),
         ),
-        // ✨ NOVO: Ações no AppBar
+        title: RichText(
+          text: const TextSpan(
+            children: [
+              TextSpan(
+                text: 'SIMULADO',
+                style: TextStyle(color: Color(0xFF1A1A2E), fontSize: 16, fontWeight: FontWeight.w900),
+              ),
+              TextSpan(
+                text: 'APP',
+                style: TextStyle(color: Color(0xFF0DA6F2), fontSize: 16, fontWeight: FontWeight.w900),
+              ),
+            ],
+          ),
+        ),
         actions: [
-          // Botão de flash
           _buildFlashButton(),
         ],
-        elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: const Color(0xFFE5E7EB)),
+        ),
       ),
       body: SafeArea(
         child: _hasError
@@ -410,6 +426,7 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
 
   /// ✨ NOVO: Botão de flash no AppBar
   Widget _buildFlashButton() {
+    final isOn = _currentFlashMode != FlashMode.off;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: GestureDetector(
@@ -418,31 +435,27 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: _currentFlashMode == FlashMode.off
-                ? Colors.white.withOpacity(0.1)
-                : Colors.yellow.withOpacity(0.2),
+            color: isOn
+                ? const Color(0xFFFEF9C3)
+                : const Color(0xFFF3F4F6),
             borderRadius: BorderRadius.circular(20),
-            border: _currentFlashMode != FlashMode.off
-                ? Border.all(color: Colors.yellow.shade300, width: 1)
-                : null,
+            border: Border.all(
+              color: isOn ? const Color(0xFFFBBF24) : const Color(0xFFE5E7EB),
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 _getFlashIcon(),
-                color: _currentFlashMode == FlashMode.off
-                    ? Colors.white54
-                    : Colors.yellow,
+                color: isOn ? const Color(0xFFF59E0B) : const Color(0xFF9CA3AF),
                 size: 18,
               ),
               const SizedBox(width: 4),
               Text(
                 _getFlashLabel(),
                 style: TextStyle(
-                  color: _currentFlashMode == FlashMode.off
-                      ? Colors.white54
-                      : Colors.yellow,
+                  color: isOn ? const Color(0xFFF59E0B) : const Color(0xFF9CA3AF),
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                 ),
@@ -455,49 +468,60 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
   }
 
   Widget _buildLoadingView() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(color: Color(0xFF0DA6F2)),
-          SizedBox(height: 16),
-          Text(
-            'Iniciando câmera...',
-            style: TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-        ],
+    return Container(
+      color: const Color(0xFFF5F7FA),
+      child: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: Color(0xFF0DA6F2)),
+            SizedBox(height: 16),
+            Text(
+              'Iniciando câmera...',
+              style: TextStyle(color: Color(0xFF6B7280), fontSize: 14),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildErrorView() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
-          const SizedBox(height: 12),
-          Text(
-            _errorMessage,
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
-            textAlign: TextAlign.center,
+    return Container(
+      color: const Color(0xFFF5F7FA),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444), size: 48),
+              const SizedBox(height: 12),
+              Text(
+                _errorMessage,
+                style: const TextStyle(color: Color(0xFF6B7280), fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _hasError = false;
+                    _isCameraReady = false;
+                  });
+                  _initCamera();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0DA6F2),
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                child: const Text('Tentar novamente', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _hasError = false;
-                _isCameraReady = false;
-              });
-              _initCamera();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0DA6F2),
-            ),
-            child: const Text('Tentar novamente',
-                style: TextStyle(color: Colors.white)),
-          ),
-        ],
+        ),
       ),
     );
   }

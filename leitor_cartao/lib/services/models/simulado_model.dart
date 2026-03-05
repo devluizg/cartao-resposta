@@ -97,6 +97,7 @@ class SimuladoModel {
   final List<int> classes;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final double notaMaxima;
 
   SimuladoModel({
     required this.id,
@@ -110,6 +111,7 @@ class SimuladoModel {
     required this.classes,
     required this.createdAt,
     required this.updatedAt,
+    this.notaMaxima = 10.0,
   });
 
   // Método para decodificar especificamente títulos como "1ªav"
@@ -155,6 +157,7 @@ class SimuladoModel {
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)
           : ultimaModificacao,
+      notaMaxima: (json['pontuacao_total'] as num?)?.toDouble() ?? 10.0,
     );
   }
 

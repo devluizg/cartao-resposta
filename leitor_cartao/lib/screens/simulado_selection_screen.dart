@@ -12,12 +12,14 @@ class SimuladoData {
   final String nome;
   final int numQuestoes;
   final DateTime dataCriacao;
+  final double notaMaxima;
 
   SimuladoData({
     required this.id,
     required this.nome,
     required this.numQuestoes,
     required this.dataCriacao,
+    this.notaMaxima = 10.0,
   });
 
   factory SimuladoData.fromApiModel(SimuladoModel model) {
@@ -26,6 +28,7 @@ class SimuladoData {
       nome: model.titulo,
       numQuestoes: model.questoes.length,
       dataCriacao: model.dataCriacao,
+      notaMaxima: model.notaMaxima,
     );
   }
 }
@@ -34,11 +37,13 @@ class AlunoData {
   final int id;
   final String nome;
   final String matricula;
+  final String? turmaNome;
 
   AlunoData({
     required this.id,
     required this.nome,
     required this.matricula,
+    this.turmaNome,
   });
 
   factory AlunoData.fromApiModel(StudentModel model) {

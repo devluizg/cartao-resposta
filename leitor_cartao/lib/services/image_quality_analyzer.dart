@@ -156,11 +156,19 @@ class ImageQualityAnalyzer {
       double illumination =
           _calculateIlluminationFromBytes(lumaBytes, width, height);
 
+      // ✨ NOVO: Verificar se há papel branco na área central da moldura
+      final hasPaper = _hasPaperInFrameRegion(lumaBytes, width, height);
+
       // Determinar estado baseado em brightness e illumination
       if (brightness < 100) {
         return LiveQualityState.bad; // Muito escuro
       } else if (brightness > 240) {
         return LiveQualityState.bad; // Muito claro
+      }
+
+      // ✨ NOVO: Se não há papel na moldura, avisar usuário
+      if (!hasPaper) {
+        return LiveQualityState.warning; // Cartão fora da moldura
       }
 
       // Se iluminação ruim, warning
@@ -184,6 +192,28 @@ class ImageQualityAnalyzer {
     }
   }
 
+  /// ✨ NOVO: Verificar se há papel branco na área central da moldura
+  /// Amostra a região central (15-85% largura, 20-80% altura) e checa brilho > 170
+  static bool _hasPaperInFrameRegion(List<int> luma, int w, int h) {
+    final left = (w * 0.15).round();
+    final right = (w * 0.85).round();
+    final top = (h * 0.20).round();
+    final bottom = (h * 0.80).round();
+    int sum = 0;
+    int count = 0;
+    for (int y = top; y < bottom; y += 4) {
+      for (int x = left; x < right; x += 4) {
+        final idx = y * w + x;
+        if (idx < luma.length) {
+          sum += luma[idx];
+          count++;
+        }
+      }
+    }
+    // Papel branco tem brilho tipicamente > 170 no canal Y
+    return count > 0 && (sum / count) > 170;
+  }
+
   /// Extrair dica textual baseada no estado ao vivo
   static String getTipForLiveQualityState(LiveQualityState state) {
     switch (state) {
@@ -194,7 +224,7 @@ class ImageQualityAnalyzer {
       case LiveQualityState.good:
         return '✅ Boa iluminação • Pode fotografar';
       case LiveQualityState.warning:
-        return '⚠️ Sombra detectada • Mude o ângulo';
+        return '⚠️ Encaixe o cartão na moldura ou mude o ângulo';
       case LiveQualityState.bad:
         return '🔦 Muito escuro • Acenda o flash';
     }

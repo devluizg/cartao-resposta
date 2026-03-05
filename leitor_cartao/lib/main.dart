@@ -21,6 +21,9 @@ import 'widgets/custom_app_bar.dart';
 final Logger _logger = Logger('CartaoRespostaApp');
 final ApiService _apiService = ApiService();
 
+/// RouteObserver global — permite que telas saibam quando voltam ao foco
+final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
+
 // ✨ NOVO: Classe para resultado do QR code (tipo + versão)
 class QrScanResult {
   final int tipo;
@@ -282,6 +285,7 @@ class _CartaoRespostaAppState extends State<CartaoRespostaApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SimuladoApp',
+      navigatorObservers: [routeObserver],
       theme: ThemeData(
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
@@ -962,7 +966,6 @@ class _TelaInicialState extends State<TelaInicial> {
     return Scaffold(
       backgroundColor: AppColors.bgLight,
       appBar: CustomAppBar(
-        onReload: _carregarDadosSimulado,
         onExit: _logout,
       ),
       body: _carregandoSimulado
