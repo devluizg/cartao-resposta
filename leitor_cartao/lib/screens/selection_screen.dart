@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/models/class_model.dart';
@@ -123,7 +123,7 @@ class _SelectionScreenState extends State<SelectionScreen> {
 
       setState(() => _carregandoQR = false);
 
-      Navigator.push(
+      await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => QuickSelectionScreen(
@@ -134,6 +134,8 @@ class _SelectionScreenState extends State<SelectionScreen> {
           ),
         ),
       );
+
+      if (mounted) _carregarCreditos();
     } catch (e) {
       if (mounted) {
         setState(() => _carregandoQR = false);
@@ -310,24 +312,22 @@ class _QRSimuladoScannerScreen extends StatefulWidget {
 }
 
 class _QRSimuladoScannerScreenState extends State<_QRSimuladoScannerScreen> {
-  final GlobalKey _qrKey = GlobalKey(debugLabel: 'QRSimulado');
-  QRViewController? _controller;
+  final MobileScannerController _controller = MobileScannerController();
   bool _scanned = false;
 
   static const Color primary = Color(0xFF0DA6F2);
 
   @override
   void dispose() {
-    _controller?.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
-  void _onQRViewCreated(QRViewController controller) {
-    _controller = controller;
-    controller.scannedDataStream.listen((scanData) {
-      if (_scanned) return;
-      final code = scanData.code;
-      if (code == null) return;
+  void _onDetect(BarcodeCapture capture) {
+    if (_scanned) return;
+    for (final barcode in capture.barcodes) {
+      final code = barcode.rawValue;
+      if (code == null) continue;
 
       final simuladoMatch = RegExp(r'\|S:(\d+)').firstMatch(code);
       final tipoMatch    = RegExp(r'\|T:(\d+)|\bT:(\d+)').firstMatch(code);
@@ -336,7 +336,7 @@ class _QRSimuladoScannerScreenState extends State<_QRSimuladoScannerScreen> {
 
       if (simuladoMatch != null && tipoMatch != null) {
         _scanned = true;
-        _controller?.pauseCamera();
+        _controller.stop();
         final tipoStr = tipoMatch.group(1) ?? tipoMatch.group(2);
         Navigator.pop(context, {
           'simuladoId':    int.tryParse(simuladoMatch.group(1)!),
@@ -346,8 +346,9 @@ class _QRSimuladoScannerScreenState extends State<_QRSimuladoScannerScreen> {
               ? double.tryParse(pontuacaoMatch.group(1)!)
               : null,
         });
+        break;
       }
-    });
+    }
   }
 
   @override
@@ -376,15 +377,18 @@ class _QRSimuladoScannerScreenState extends State<_QRSimuladoScannerScreen> {
       ),
       body: Stack(
         children: [
-          QRView(
-            key: _qrKey,
-            onQRViewCreated: _onQRViewCreated,
-            overlay: QrScannerOverlayShape(
-              borderColor: primary,
-              borderRadius: 10,
-              borderLength: 30,
-              borderWidth: 8,
-              cutOutSize: 260,
+          MobileScanner(
+            controller: _controller,
+            onDetect: _onDetect,
+          ),
+          Center(
+            child: Container(
+              width: 260,
+              height: 260,
+              decoration: BoxDecoration(
+                border: Border.all(color: primary, width: 3),
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           ),
           Positioned(

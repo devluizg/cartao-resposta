@@ -1,8 +1,7 @@
 // qr_capture_screen.dart
 // Tela 2: Leitura de QR Code apenas
 import 'package:flutter/material.dart';
-import 'package:qr_code_scanner/qr_code_scanner.dart';
-import 'dart:io';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'simulado_selection_screen.dart';
 import 'cartao_processing_screen.dart';
 
@@ -31,30 +30,19 @@ class QRCaptureScreen extends StatefulWidget {
 }
 
 class _QRCaptureScreenState extends State<QRCaptureScreen> {
-  QRViewController? _controller;
-  final GlobalKey _qrKey = GlobalKey(debugLabel: 'QR');
+  final MobileScannerController _controller = MobileScannerController();
   bool _isScanning = true;
   String? _lastScannedCode;
   QRScanResult? _scannedResult;
 
   @override
-  void reassemble() {
-    super.reassemble();
-    if (Platform.isAndroid) {
-      _controller?.pauseCamera();
-    }
-    _controller?.resumeCamera();
-  }
-
-  @override
   void dispose() {
-    _controller?.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
   QRScanResult? _parseQRCode(String rawData) {
     try {
-      // Procura por T:X no QR code
       final tipoMatch = RegExp(r'\|T:(\d+)|\bT:(\d+)').firstMatch(rawData);
       if (tipoMatch == null) return null;
 
@@ -62,15 +50,12 @@ class _QRCaptureScreenState extends State<QRCaptureScreen> {
       final tipo = int.tryParse(tipoStr ?? '');
       if (tipo == null || tipo < 1) return null;
 
-      // Extrai versão (opcional)
       final versionMatch = RegExp(r'ID:([^\|]+)').firstMatch(rawData);
       final versionCode = versionMatch?.group(1);
 
-      // Extrai simulado ID (opcional)
       final simuladoMatch = RegExp(r'\|S:(\d+)').firstMatch(rawData);
       final simuladoId = simuladoMatch != null ? int.tryParse(simuladoMatch.group(1)!) : null;
 
-      // Extrai pontuação total (opcional)
       final pontuacaoMatch = RegExp(r'\|P:([\d.]+)').firstMatch(rawData);
       final pontuacaoTotal = pontuacaoMatch != null ? double.tryParse(pontuacaoMatch.group(1)!) : null;
 
@@ -80,33 +65,29 @@ class _QRCaptureScreenState extends State<QRCaptureScreen> {
     }
   }
 
-  void _onQRViewCreated(QRViewController controller) {
-    _controller = controller;
+  void _onDetect(BarcodeCapture capture) {
+    if (!_isScanning) return;
 
-    controller.scannedDataStream.listen((scanData) {
-      if (!_isScanning) return;
+    for (final barcode in capture.barcodes) {
+      final code = barcode.rawValue;
+      if (code == null) continue;
 
-      final code = scanData.code;
-      if (code == null) return;
       final result = _parseQRCode(code);
-
       if (result != null && result.tipo >= 1 && result.tipo <= 5) {
         _isScanning = false;
-        _controller?.pauseCamera();
+        _controller.stop();
 
         setState(() {
           _lastScannedCode = code;
           _scannedResult = result;
         });
 
-        // Avança automaticamente após 1s
         Future.delayed(const Duration(seconds: 1), () {
-          if (mounted) {
-            _avancar();
-          }
+          if (mounted) _avancar();
         });
+        break;
       }
-    });
+    }
   }
 
   void _avancar() {
@@ -158,22 +139,27 @@ class _QRCaptureScreenState extends State<QRCaptureScreen> {
       body: Stack(
         children: [
           // QR SCANNER
-          QRView(
-            key: _qrKey,
-            onQRViewCreated: _onQRViewCreated,
-            overlay: QrScannerOverlayShape(
-              borderColor: const Color(0xFF0DA6F2),
-              borderRadius: 10,
-              borderLength: 30,
-              borderWidth: 8,
-              cutOutSize: 280,
+          MobileScanner(
+            controller: _controller,
+            onDetect: _onDetect,
+          ),
+
+          // OVERLAY: moldura de escaneamento
+          Center(
+            child: Container(
+              width: 280,
+              height: 280,
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFF0DA6F2), width: 3),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
 
-          // INSTRUÇÃO CENTRAL (sobre câmera — mantém texto branco)
+          // INSTRUÇÃO CENTRAL
           if (_scannedResult == null)
             Positioned(
-              bottom: 40,
+              bottom: 40 + MediaQuery.of(context).padding.bottom,
               left: 20,
               right: 20,
               child: Column(
@@ -219,7 +205,7 @@ class _QRCaptureScreenState extends State<QRCaptureScreen> {
           // SUCESSO: QR CODE DETECTADO
           if (_scannedResult != null)
             Positioned(
-              bottom: 24,
+              bottom: 24 + MediaQuery.of(context).padding.bottom,
               left: 16,
               right: 16,
               child: Container(

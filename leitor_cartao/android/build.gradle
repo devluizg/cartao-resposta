@@ -13,25 +13,6 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
-subprojects {
-    if (project.name == "qr_code_scanner") {
-        project.plugins.withId("com.android.library") {
-            def androidExt = project.extensions.findByName("android")
-            if (androidExt != null && androidExt.hasProperty("namespace")) {
-                androidExt.namespace = "net.touchcapture.qr.flutterqr"
-            }
-        }
-
-        project.plugins.withId("org.jetbrains.kotlin.android") {
-            project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-                kotlinOptions {
-                    jvmTarget = "1.8"
-                }
-            }
-        }
-    }
-}
-
 
 tasks.register("clean", Delete) {
     delete rootProject.buildDir

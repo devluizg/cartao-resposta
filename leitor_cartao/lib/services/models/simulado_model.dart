@@ -31,7 +31,7 @@ class QuestaoModel {
     return QuestaoModel(
       id: json['id'] as int,
       disciplina: StringDecoder.decode(json['disciplina'] as String),
-      conteudo: StringDecoder.decode(json['conteudo'] as String),
+      conteudo: StringDecoder.decode(json['assunto'] as String),
       enunciado: StringDecoder.decode(json['enunciado'] as String),
       alternativaA: StringDecoder.decode(json['alternativa_a'] as String),
       alternativaB: StringDecoder.decode(json['alternativa_b'] as String),
@@ -48,7 +48,7 @@ class QuestaoModel {
     return {
       'id': id,
       'disciplina': disciplina,
-      'conteudo': conteudo,
+      'assunto': conteudo,
       'enunciado': enunciado,
       'alternativa_a': alternativaA,
       'alternativa_b': alternativaB,

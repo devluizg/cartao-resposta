@@ -774,6 +774,47 @@ class ApiService {
     }
   }
 
+  // Process card image via Django backend (Claude Vision + OpenCV fallback)
+  Future<Map<String, dynamic>?> processCardImageViaBackend({
+    required String imageFilePath,
+    required int numQuestoes,
+  }) async {
+    try {
+      final token = await getAccessToken();
+      final uri = Uri.parse('$baseUrl/api/processar-imagem-cartao/');
+
+      final request = http.MultipartRequest('POST', uri);
+      request.headers['Authorization'] = 'Bearer $token';
+
+      request.files.add(await http.MultipartFile.fromPath(
+        'file',
+        imageFilePath,
+      ));
+      request.fields['num_questoes'] = numQuestoes.toString();
+
+      print('📤 Enviando imagem para backend Django (Claude Vision + OpenCV)...');
+
+      final streamedResponse = await request.send().timeout(
+        const Duration(seconds: 60),
+        onTimeout: () => throw TimeoutException('Backend timeout (>60s)'),
+      );
+
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('✅ Backend respondeu via método: ${data['metodo']}');
+        return data;
+      } else {
+        debugPrint('❌ Backend falhou: ${response.statusCode} - ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('❌ Exceção ao processar via backend: $e');
+      return null;
+    }
+  }
+
   // Send student results back to the Django website
   Future<bool> submitStudentResults({
     required int studentId,

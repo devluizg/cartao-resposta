@@ -44,6 +44,8 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
     _processarComClaudeVision();
   }
 
+  String _metodoUsado = '';
+
   Future<void> _processarComClaudeVision() async {
     setState(() {
       _isProcessingVision = true;
@@ -51,12 +53,37 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
     });
 
     try {
-      final jsonData = await ClaudeVisionService.processarCartao(
-        imageFile: widget.imageFile,
-        numQuestoes: widget.simulado.numQuestoes,
-      );
+      Map<String, dynamic>? jsonData;
 
-      final respostasJson = jsonData['respostas'] as Map<String, dynamic>;
+      // === PRIMÁRIO: Backend Django (Claude Vision + OpenCV fallback) ===
+      // try {
+      //   final apiService = ApiService();
+      //   jsonData = await apiService.processCardImageViaBackend(
+      //     imageFilePath: widget.imageFile.path,
+      //     numQuestoes: widget.simulado.numQuestoes,
+      //   );
+      //   if (jsonData != null) {
+      //     _metodoUsado = jsonData['metodo'] as String? ?? 'backend';
+      //   }
+      // } catch (e) {
+      //   print('⚠️ Backend Django falhou: $e');
+      // }
+
+      // === Claude Vision direto ===
+      // if (jsonData == null) {
+      try {
+        jsonData = await ClaudeVisionService.processarCartao(
+          imageFile: widget.imageFile,
+          numQuestoes: widget.simulado.numQuestoes,
+        );
+        _metodoUsado = 'claude_vision_direto';
+      } catch (e) {
+        print('⚠️ Claude Vision direto falhou: $e');
+        rethrow;
+      }
+      // }
+
+      final respostasJson = jsonData!['respostas'] as Map<String, dynamic>;
       final List<String> respostas = List.generate(
         widget.simulado.numQuestoes,
         (i) => (respostasJson[(i + 1).toString()] as String?) ?? '',
@@ -85,7 +112,7 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro Claude Vision: $e'),
+            content: Text('Erro ao processar cartão: $e'),
             backgroundColor: Colors.deepPurple,
             duration: const Duration(seconds: 6),
           ),
@@ -138,8 +165,8 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
       erros: _erros,
       score: _score,
       respostasMarcadas: _respostasDetectadas!,
-      tempoProcessamento: 'Claude Vision',
-      qualidade: 'Claude Vision',
+      tempoProcessamento: _metodoUsado,
+      qualidade: _metodoUsado,
       gabarito: _gabaritoCarregado ?? {},
       versionCode: widget.versionCode,
     );
@@ -214,11 +241,13 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
             child: Container(height: 1, color: const Color(0xFFE5E7EB)),
           ),
         ),
-        body: _isProcessingVision
-            ? _buildLoadingLayout()
-            : _respostasDetectadas != null
-                ? _buildResultsLayout()
-                : _buildErrorLayout(),
+        body: SafeArea(
+          child: _isProcessingVision
+              ? _buildLoadingLayout()
+              : _respostasDetectadas != null
+                  ? _buildResultsLayout()
+                  : _buildErrorLayout(),
+        ),
       ),
     );
   }

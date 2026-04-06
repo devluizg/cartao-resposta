@@ -41,11 +41,24 @@ class ClaudeVisionService {
 
     String q(int n) => n.toString().padLeft(2, '0');
 
-    final String descricaoBlocos = numBlocos == 1
-        ? '1 bloco retangular com questões ${q(1)} a ${q(numQuestoes)}'
-        : '2 blocos retangulares separados:\n'
-            '  • Bloco 1: questões ${q(1)} a ${q(bloco1Fim)}\n'
-            '  • Bloco 2: questões ${q(bloco1Fim + 1)} a ${q(numQuestoes)}';
+    final String descricaoBlocos;
+    final String avisoColuna;
+    if (numBlocos == 1) {
+      descricaoBlocos = '1 bloco retangular com questões ${q(1)} a ${q(numQuestoes)}';
+      avisoColuna = '';
+    } else {
+      descricaoBlocos =
+          '2 blocos retangulares LADO A LADO (separados por espaço de ~18mm):\n'
+          '  • Bloco ESQUERDO: questões ${q(1)} a ${q(bloco1Fim)} (lidas de cima para baixo)\n'
+          '  • Bloco DIREITO:  questões ${q(bloco1Fim + 1)} a ${q(numQuestoes)} (lidas de cima para baixo)\n'
+          'ATENÇÃO: cada bloco tem seu PRÓPRIO cabeçalho "A B C D E". '
+          'NÃO leia da esquerda para direita atravessando os dois blocos. '
+          'Leia cada bloco de forma completamente INDEPENDENTE, de cima para baixo.';
+      avisoColuna =
+          '\n⚠️ CUIDADO COM 2 COLUNAS: Os dois blocos ficam lado a lado. '
+          'A questão ${q(bloco1Fim + 1)} está no BLOCO DIREITO, primeira linha, NÃO é continuação do bloco esquerdo. '
+          'Cada bloco tem seus próprios 5 círculos de bolhas referenciados pelo cabeçalho A-B-C-D-E daquele bloco.';
+    }
 
     final prompt =
         '''TAREFA: Ler um cartão-resposta do SimuladoApp com $numQuestoes questões.
@@ -58,11 +71,12 @@ Dentro de cada bloco retangular com borda escura:
   - O NÚMERO da questão está impresso em negrito À ESQUERDA da linha (ex: "01", "09", "14")
   - Linhas com fundo alternado branco / azul-claro (zebra)
   - O cartão pode estar rotacionado na foto — leia os números independente da orientação
+$avisoColuna
 
 MÉTODO DE LEITURA (siga obrigatoriamente):
 Para cada questão de 1 a $numQuestoes:
   1. Localize o número impresso no cartão (formato "${q(1)}", "${q(2)}", ... "${q(numQuestoes)}")
-  2. Encontre as 5 bolhas circulares da linha desse número
+  2. Encontre as 5 bolhas circulares da linha desse número (dentro do bloco desse número)
   3. Identifique qual bolha está COMPLETAMENTE PREENCHIDA (preta = marcada pelo aluno)
   4. A posição da bolha preta determina a resposta: 1ª=A, 2ª=B, 3ª=C, 4ª=D, 5ª=E
 

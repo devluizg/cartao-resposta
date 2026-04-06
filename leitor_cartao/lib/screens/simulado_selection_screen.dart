@@ -151,7 +151,7 @@ class _SimuladoSelectionScreenState extends State<SimuladoSelectionScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: _isLoading
+      body: SafeArea(child: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: primary),
             )
@@ -230,7 +230,7 @@ class _SimuladoSelectionScreenState extends State<SimuladoSelectionScreen> {
                     ),
                   ),
                 ),
-    );
+    ));
   }
 
   Widget _buildErrorView() {

@@ -7,6 +7,7 @@ import 'dart:io';
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/image_quality_analyzer.dart';
 import '../services/frame_alignment_analyzer.dart';
 import '../widgets/frame_guide_painter.dart';
@@ -69,6 +70,16 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _checkTips();
+  }
+
+  Future<void> _checkTips() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jaViu = prefs.getBool('capture_tips_seen') ?? false;
+    if (jaViu) {
+      if (mounted) setState(() => _showTips = false);
+      _initCamera();
+    }
   }
 
   @override
@@ -368,8 +379,11 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
     }
   }
 
-  /// ✨ NOVO: Callback quando dicas são fechadas → iniciar câmera
+  /// ✨ NOVO: Callback quando dicas são fechadas → salvar flag + iniciar câmera
   void _onTipsClosed() {
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setBool('capture_tips_seen', true);
+    });
     setState(() {
       _showTips = false;
     });

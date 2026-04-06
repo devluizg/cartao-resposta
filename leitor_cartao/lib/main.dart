@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert' show utf8, latin1, jsonDecode, json, base64Decode;
 import 'package:logging/logging.dart' show Logger;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'screens/cartao_resposta_preview_screen.dart';
 import 'screens/camera_capture_screen.dart';
 import 'screens/selection_screen.dart';
@@ -103,45 +103,34 @@ class QrScanScreen extends StatefulWidget {
 }
 
 class _QrScanScreenState extends State<QrScanScreen> {
-  final GlobalKey _qrKey = GlobalKey(debugLabel: 'QR');
-  QRViewController? _controller;
+  final MobileScannerController _controller = MobileScannerController();
   bool _found = false;
   String? _lastCode;
   String? _errorMessage;
 
   @override
-  void reassemble() {
-    super.reassemble();
-    if (Platform.isAndroid) {
-      _controller?.pauseCamera();
-    }
-    _controller?.resumeCamera();
-  }
-
-  @override
   void dispose() {
-    _controller?.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
-  void _onQRViewCreated(QRViewController controller) {
-    _controller = controller;
-    controller.scannedDataStream.listen((scanData) {
-      if (_found) return;
-      final code = scanData.code;
-      // ✨ NOVO: Usar a função melhorada que retorna tipo + versão
+  void _onDetect(BarcodeCapture capture) {
+    if (_found) return;
+    for (final barcode in capture.barcodes) {
+      final code = barcode.rawValue;
       final qrResult = _parseQrCodeCompleto(code);
       if (qrResult != null && qrResult.tipo >= 1 && qrResult.tipo <= 5) {
         _found = true;
-        _controller?.pauseCamera();
+        _controller.stop();
         Navigator.pop(context, qrResult);
+        return;
       } else {
         setState(() {
           _lastCode = code;
           _errorMessage = 'QR lido, mas não contém o tipo da prova.';
         });
       }
-    });
+    }
   }
 
   @override
@@ -187,15 +176,22 @@ class _QrScanScreenState extends State<QrScanScreen> {
             Expanded(
               child: Stack(
                 children: [
-                  QRView(
-                    key: _qrKey,
-                    onQRViewCreated: _onQRViewCreated,
-                    overlay: QrScannerOverlayShape(
-                      borderColor: AppColors.primaryColor,
-                      borderRadius: 8,
-                      borderLength: 24,
-                      borderWidth: 4,
-                      cutOutSize: 240,
+                  MobileScanner(
+                    controller: _controller,
+                    onDetect: _onDetect,
+                  ),
+                  const Center(
+                    child: SizedBox(
+                      width: 240,
+                      height: 240,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          border: Border.fromBorderSide(
+                            BorderSide(color: AppColors.primaryColor, width: 3),
+                          ),
+                          borderRadius: BorderRadius.all(Radius.circular(8)),
+                        ),
+                      ),
                     ),
                   ),
                   Positioned(

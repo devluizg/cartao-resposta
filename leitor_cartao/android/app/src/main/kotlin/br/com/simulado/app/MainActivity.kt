@@ -1,4 +1,4 @@
-package com.example.leitor_cartao
+package br.com.simulado.app
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -124,7 +124,8 @@ class _QuickSelectionScreenState extends State<QuickSelectionScreen> {
     return Scaffold(
       backgroundColor: bgLight,
       appBar: CustomAppBar(showBack: true),
-      body: Padding(
+      body: SafeArea(
+        child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -281,6 +282,7 @@ class _QuickSelectionScreenState extends State<QuickSelectionScreen> {
             const SizedBox(height: 8),
           ],
         ),
+      ),
       ),
     );
   }
