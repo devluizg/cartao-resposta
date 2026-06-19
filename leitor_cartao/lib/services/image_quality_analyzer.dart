@@ -1,9 +1,25 @@
 // image_quality_analyzer.dart
 // Serviço para análise de qualidade de imagem em tempo real durante captura
 import 'dart:math';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:camera/camera.dart';
 import 'package:image/image.dart' as img;
+
+/// Resultado da detecção dos 4 fiduciais (círculos pretos da borda do cartão).
+/// É o gatilho ideal do auto-disparo: só captura quando o cartão está bem
+/// enquadrado (4 fiduciais formando o retângulo A4 na distância certa).
+class FiducialResult {
+  final bool ok;          // 4 fiduciais formando o retângulo do cartão na posição certa
+  final int blobs;        // nº de blobs escuros candidatos (para calibração via log)
+  final double preenche;  // fração do frame coberta pelo retângulo dos fiduciais
+
+  const FiducialResult({
+    required this.ok,
+    required this.blobs,
+    required this.preenche,
+  });
+}
 
 /// Estado de qualidade ao vivo para feedback em tempo real
 enum LiveQualityState { analyzing, excellent, good, warning, bad }
@@ -17,6 +33,8 @@ class LiveFrameMetrics {
   final bool hasPaper;         // papel branco detectado na região central da moldura
   final int cornersFound;      // 0-4 fiduciais escuros detectados nos cantos do cartão
   final double coberturaPapel; // 0-1, fração do frame ocupada por papel (proxy de distância)
+  final bool fiduciaisOk;      // 4 fiduciais formando o retângulo do cartão na posição certa
+  final int blobsEscuros;      // nº de blobs escuros candidatos (para calibração via log)
 
   const LiveFrameMetrics({
     required this.state,
@@ -25,6 +43,8 @@ class LiveFrameMetrics {
     required this.hasPaper,
     required this.cornersFound,
     required this.coberturaPapel,
+    required this.fiduciaisOk,
+    required this.blobsEscuros,
   });
 
   @override
@@ -32,8 +52,8 @@ class LiveFrameMetrics {
       'brilho=${brightness.toStringAsFixed(0)} '
       'luz_uniforme=${illumination.toStringAsFixed(2)} '
       'papel=${hasPaper ? "sim" : "nao"} '
-      'cantos=$cornersFound/4 '
       'cobertura=${coberturaPapel.toStringAsFixed(2)} '
+      'fiduciais=${fiduciaisOk ? "OK" : "nao"}(blobs=$blobsEscuros) '
       '=> ${state.name}';
 }
 
@@ -192,6 +212,8 @@ class ImageQualityAnalyzer {
           hasPaper: false,
           cornersFound: 0,
           coberturaPapel: 0,
+          fiduciaisOk: false,
+          blobsEscuros: 0,
         );
       }
 
@@ -214,29 +236,25 @@ class ImageQualityAnalyzer {
       final int corners = _detectCornerFiducials(lumaBytes, width, height);
 
       // Cobertura de papel no frame inteiro = proxy de DISTÂNCIA.
-      // Longe → cartão pequeno → cobertura baixa. Perto/ideal → cobertura alta.
-      // Será calibrado contra as fotos que dão ~100% para definir a faixa ideal.
       final double cobertura = _brightFraction(lumaBytes, 150);
+
+      // Detecção dos 4 fiduciais (círculos pretos da borda) — gatilho ideal.
+      final FiducialResult fid = _detectarFiduciais(lumaBytes, width, height);
 
       LiveQualityState state;
       if (brightness < 100) {
         state = LiveQualityState.bad; // Muito escuro
       } else if (brightness > 240) {
         state = LiveQualityState.bad; // Muito claro
-      } else if (!hasPaper) {
-        state = LiveQualityState.warning; // Cartão fora da moldura
       } else if (illumination < 0.55) {
         state = LiveQualityState.warning; // Sombra detectada
-      } else if (brightness >= 150 &&
-          brightness <= 220 &&
-          illumination > 0.75) {
+      } else if (fid.ok) {
+        // Cartão bem enquadrado (4 fiduciais na posição certa) + luz boa = ideal.
         state = LiveQualityState.excellent;
-      } else if (brightness >= 120 &&
-          brightness <= 230 &&
-          illumination > 0.65) {
-        state = LiveQualityState.good;
+      } else if (hasPaper) {
+        state = LiveQualityState.good; // tem papel, mas fiduciais ainda não alinhados
       } else {
-        state = LiveQualityState.warning;
+        state = LiveQualityState.warning; // sem cartão na moldura
       }
 
       return LiveFrameMetrics(
@@ -246,6 +264,8 @@ class ImageQualityAnalyzer {
         hasPaper: hasPaper,
         cornersFound: corners,
         coberturaPapel: cobertura,
+        fiduciaisOk: fid.ok,
+        blobsEscuros: fid.blobs,
       );
     } catch (e) {
       print('❌ Erro na análise rápida: $e');
@@ -256,8 +276,161 @@ class ImageQualityAnalyzer {
         hasPaper: false,
         cornersFound: 0,
         coberturaPapel: 0,
+        fiduciaisOk: false,
+        blobsEscuros: 0,
       );
     }
+  }
+
+  /// Detecta os 4 fiduciais (círculos pretos sólidos da borda) no frame ao vivo.
+  ///
+  /// É ORIENTAÇÃO-AGNÓSTICO: acha todos os blobs escuros sólidos e verifica se 4
+  /// deles formam um retângulo com a proporção do cartão (fiduciais a 186x273mm →
+  /// razão 0.681), grande o bastante (distância certa). Assim o auto-disparo só
+  /// acontece quando o cartão está realmente bem enquadrado.
+  static FiducialResult _detectarFiduciais(List<int> luma, int w, int h) {
+    const int sc = 4; // downsample p/ velocidade
+    final int sw = w ~/ sc;
+    final int sh = h ~/ sc;
+    if (sw < 40 || sh < 40) {
+      return const FiducialResult(ok: false, blobs: 0, preenche: 0);
+    }
+
+    // Limiar adaptativo: fiduciais são bem mais escuros que o resto.
+    int sum = 0, cnt = 0;
+    for (int i = 0; i < luma.length; i += 17) {
+      sum += luma[i];
+      cnt++;
+    }
+    final double mean = cnt > 0 ? sum / cnt : 128;
+    final int thr = (mean * 0.45).clamp(40, 110).toInt();
+
+    // Máscara de pixels escuros (downsampled)
+    final dark = Uint8List(sw * sh);
+    for (int y = 0; y < sh; y++) {
+      final int rowBase = (y * sc) * w;
+      final int outBase = y * sw;
+      for (int x = 0; x < sw; x++) {
+        final int idx = rowBase + x * sc;
+        if (idx < luma.length && luma[idx] < thr) dark[outBase + x] = 1;
+      }
+    }
+
+    // Componentes conexas (4-conn) por flood fill; coleta centróides de blobs sólidos.
+    final Uint8List seen = Uint8List(sw * sh);
+    final List<double> cx = [];
+    final List<double> cy = [];
+    final List<int> stack = [];
+    final double frameArea = (sw * sh).toDouble();
+    final double minArea = frameArea * 0.0004;
+    final double maxArea = frameArea * 0.03;
+
+    for (int start = 0; start < sw * sh; start++) {
+      if (dark[start] == 0 || seen[start] != 0) continue;
+      stack
+        ..clear()
+        ..add(start);
+      seen[start] = 1;
+      int area = 0, sx = 0, sy = 0;
+      int minx = sw, maxx = 0, miny = sh, maxy = 0;
+      while (stack.isNotEmpty) {
+        final int p = stack.removeLast();
+        final int px = p % sw;
+        final int py = p ~/ sw;
+        area++;
+        sx += px;
+        sy += py;
+        if (px < minx) minx = px;
+        if (px > maxx) maxx = px;
+        if (py < miny) miny = py;
+        if (py > maxy) maxy = py;
+        if (px > 0) {
+          final q = p - 1;
+          if (dark[q] == 1 && seen[q] == 0) { seen[q] = 1; stack.add(q); }
+        }
+        if (px < sw - 1) {
+          final q = p + 1;
+          if (dark[q] == 1 && seen[q] == 0) { seen[q] = 1; stack.add(q); }
+        }
+        if (py > 0) {
+          final q = p - sw;
+          if (dark[q] == 1 && seen[q] == 0) { seen[q] = 1; stack.add(q); }
+        }
+        if (py < sh - 1) {
+          final q = p + sw;
+          if (dark[q] == 1 && seen[q] == 0) { seen[q] = 1; stack.add(q); }
+        }
+      }
+      if (area < minArea || area > maxArea) continue;
+      final double bw = (maxx - minx + 1).toDouble();
+      final double bh = (maxy - miny + 1).toDouble();
+      final double aspect = bw / bh;
+      if (aspect < 0.55 || aspect > 1.8) continue;   // ~ redondo
+      if (area / (bw * bh) < 0.55) continue;          // sólido (disco cheio)
+      cx.add(sx / area);
+      cy.add(sy / area);
+    }
+
+    final int blobs = cx.length;
+    if (blobs < 4) return FiducialResult(ok: false, blobs: blobs, preenche: 0);
+
+    // 4 cantos pelos extremos das diagonais (robusto a rotação moderada)
+    int iTL = 0, iBR = 0, iTR = 0, iBL = 0;
+    double sMin = 1e9, sMax = -1e9, dMin = 1e9, dMax = -1e9;
+    for (int i = 0; i < blobs; i++) {
+      final double s = cx[i] + cy[i];
+      final double d = cx[i] - cy[i];
+      if (s < sMin) { sMin = s; iTL = i; }
+      if (s > sMax) { sMax = s; iBR = i; }
+      if (d > dMax) { dMax = d; iTR = i; }
+      if (d < dMin) { dMin = d; iBL = i; }
+    }
+    if ({iTL, iTR, iBR, iBL}.length < 4) {
+      return FiducialResult(ok: false, blobs: blobs, preenche: 0);
+    }
+
+    double dist(int a, int b) => sqrt((cx[a] - cx[b]) * (cx[a] - cx[b]) +
+        (cy[a] - cy[b]) * (cy[a] - cy[b]));
+    final double top = dist(iTL, iTR);
+    final double bottom = dist(iBL, iBR);
+    final double left = dist(iTL, iBL);
+    final double right = dist(iTR, iBR);
+
+    // Lados opostos quase iguais (retângulo de verdade, NÃO trapézio/inclinado).
+    // Apertado de propósito: cartão inclinado vira cisalhamento na leitura.
+    if ((top - bottom).abs() > 0.12 * max(top, bottom)) {
+      return FiducialResult(ok: false, blobs: blobs, preenche: 0);
+    }
+    if ((left - right).abs() > 0.12 * max(left, right)) {
+      return FiducialResult(ok: false, blobs: blobs, preenche: 0);
+    }
+
+    final double wAvg = (top + bottom) / 2;
+    final double hAvg = (left + right) / 2;
+    if (wAvg < 5 || hAvg < 5) {
+      return FiducialResult(ok: false, blobs: blobs, preenche: 0);
+    }
+
+    // Proporção do retângulo dos fiduciais do A4: 186x273mm => 0.681
+    final double ratio = min(wAvg, hAvg) / max(wAvg, hAvg);
+    if ((ratio - 0.681).abs() > 0.11) {
+      return FiducialResult(ok: false, blobs: blobs, preenche: 0);
+    }
+
+    // Centralização: o cartão deve estar no centro do quadro (alinhado à moldura).
+    final double centroX = (cx[iTL] + cx[iTR] + cx[iBL] + cx[iBR]) / 4;
+    final double centroY = (cy[iTL] + cy[iTR] + cy[iBL] + cy[iBR]) / 4;
+    if (centroX < 0.32 * sw || centroX > 0.68 * sw ||
+        centroY < 0.32 * sh || centroY > 0.68 * sh) {
+      return FiducialResult(ok: false, blobs: blobs, preenche: 0);
+    }
+
+    // Distância: o retângulo precisa preencher boa parte do frame (nem longe, nem perto demais)
+    final double lado = max(wAvg, hAvg) / max(sw, sh);
+    final bool distanciaOk = lado > 0.58 && lado < 0.95;
+    final double preenche = (wAvg * hAvg) / frameArea;
+
+    return FiducialResult(ok: distanciaOk, blobs: blobs, preenche: preenche);
   }
 
   /// Fração do frame inteiro com brilho acima de [threshold] (papel claro).

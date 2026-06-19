@@ -101,7 +101,9 @@ class FrameGuidePainter extends CustomPainter {
     _drawCorners(canvas, left, top, width, height, cornerLen, cornerThick);
   }
 
-  /// Desenha guias avançadas com múltiplos indicadores proporcionais
+  /// Guia simplificada: APENAS os 4 círculos de canto (alvos de alinhamento).
+  /// Sem retângulo, sem cantos em L, sem indicadores — o usuário sobrepõe cada
+  /// bolinha preta do cartão exatamente em cima do círculo da moldura.
   void _drawAdvancedGuides(
     Canvas canvas,
     Size size,
@@ -111,22 +113,7 @@ class FrameGuidePainter extends CustomPainter {
     double height,
     double pxPerMm,
   ) {
-    // 1. Moldura principal
-    _drawMainFrame(canvas, left, top, width, height);
-
-    // 2. Marcadores de canto esperados (4 círculos PROPORCIONAIS)
     _drawExpectedCornerMarkers(canvas, left, top, width, height, pxPerMm);
-
-    // 3. Indicador de ângulo (no topo)
-    _drawAngleIndicator(canvas, size.width, 30);
-
-    // 4. Indicador de distância (no canto inferior)
-    _drawDistanceIndicator(canvas, size.width, size.height);
-
-    // 5. Cantos em L (mais destacados)
-    final cornerLen = 40.0 * pxPerMm;
-    final cornerThick = 4.0 * pxPerMm;
-    _drawCorners(canvas, left, top, width, height, cornerLen, cornerThick);
   }
 
   /// Desenha a moldura principal A4
@@ -143,7 +130,9 @@ class FrameGuidePainter extends CustomPainter {
 
 
 
-  /// Desenha os 4 marcadores de canto COM TAMANHO PROPORCIONAL
+  /// Desenha os 4 círculos-alvo de canto (onde encaixar as bolinhas pretas).
+  /// São ANÉIS (sem preenchimento) coloridos pelo estado: o usuário centraliza
+  /// cada fiducial do cartão dentro do anel; vira verde quando alinhado.
   void _drawExpectedCornerMarkers(
     Canvas canvas,
     double left,
@@ -152,83 +141,29 @@ class FrameGuidePainter extends CustomPainter {
     double height,
     double pxPerMm,
   ) {
-    // ✨ CORRIGIDO: Usar dimensões do PDF
-    final markerDiameter = MARKER_DIAMETER_MM * pxPerMm;
-    final markerRadius = markerDiameter / 2;
-    final markerOffset = MARKER_OFFSET_MM * pxPerMm;
+    // Anel um pouco maior que o fiducial (12mm) p/ a bolinha preta caber dentro.
+    final double markerRadius = (MARKER_DIAMETER_MM / 2) * pxPerMm * 1.25;
+    final double markerOffset = MARKER_OFFSET_MM * pxPerMm;
 
-    final markerPaint = Paint()
-      ..color = Colors.green
+    final ring = Paint()
+      ..color = frameColor
+      ..strokeWidth = 3.5
+      ..style = PaintingStyle.stroke;
+    final centerDot = Paint()
+      ..color = frameColor
       ..style = PaintingStyle.fill;
 
-    final markerStrokePaint = Paint()
-      ..color = Colors.green
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
     final corners = [
-      (left + markerOffset, top + markerOffset), // TL
-      (left + width - markerOffset, top + markerOffset), // TR
-      (left + markerOffset, top + height - markerOffset), // BL
-      (left + width - markerOffset, top + height - markerOffset), // BR
+      (left + markerOffset, top + markerOffset),                    // TL
+      (left + width - markerOffset, top + markerOffset),            // TR
+      (left + markerOffset, top + height - markerOffset),           // BL
+      (left + width - markerOffset, top + height - markerOffset),   // BR
     ];
 
-    // Desenhar círculos sólidos (como no PDF)
-    for (final corner in corners) {
-      canvas.drawCircle(
-        Offset(corner.$1, corner.$2),
-        markerRadius,
-        markerPaint,
-      );
-      // Borda para melhor visibilidade
-      canvas.drawCircle(
-        Offset(corner.$1, corner.$2),
-        markerRadius,
-        markerStrokePaint,
-      );
-    }
-
-    // Label "Marcadores" para a inst. visual
-    const markerLabel = ['TL', 'TR', 'BL', 'BR'];
-    for (int i = 0; i < corners.length; i++) {
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: '■ ${markerLabel[i]}',
-          style: const TextStyle(
-            color: Colors.green,
-            fontSize: 9,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      textPainter.layout();
-
-      // Posicionar label fora do círculo
-      final offsetDistance = markerRadius + 12;
-      double labelX = corners[i].$1;
-      double labelY = corners[i].$2;
-
-      switch (i) {
-        case 0: // TL
-          labelX += offsetDistance;
-          labelY += 2;
-          break;
-        case 1: // TR
-          labelX -= textPainter.width + offsetDistance;
-          labelY += 2;
-          break;
-        case 2: // BL
-          labelX += offsetDistance;
-          labelY -= textPainter.height;
-          break;
-        case 3: // BR
-          labelX -= textPainter.width + offsetDistance;
-          labelY -= textPainter.height;
-          break;
-      }
-
-      textPainter.paint(canvas, Offset(labelX, labelY));
+    for (final c in corners) {
+      final center = Offset(c.$1, c.$2);
+      canvas.drawCircle(center, markerRadius, ring);
+      canvas.drawCircle(center, 2.0, centerDot); // pontinho central p/ mirar
     }
   }
 

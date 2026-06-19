@@ -72,6 +72,12 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
   // Última cobertura de papel medida (proxy de distância) — p/ calibração
   double _liveCobertura = 0;
 
+  // Auto-disparo por FIDUCIAIS: dispara quando os 4 fiduciais estão na posição
+  // certa (cartão bem enquadrado) por alguns frames seguidos. Dispara uma vez só.
+  bool _autoCaptureDone = false;
+  bool _liveFiduciaisOk = false;
+  int _fiducialOkFrames = 0;
+
   @override
   void initState() {
     super.initState();
@@ -192,9 +198,17 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
             '| flash=${_currentFlashMode.name}');
       }
 
+      // Contador de frames consecutivos com fiduciais na posição certa
+      if (metrics.fiduciaisOk) {
+        _fiducialOkFrames++;
+      } else {
+        _fiducialOkFrames = 0;
+      }
+
       if (mounted) {
         setState(() {
           _liveCobertura = metrics.coberturaPapel;
+          _liveFiduciaisOk = metrics.fiduciaisOk;
           _liveQuality = liveState;
           _liveTip =
               ImageQualityAnalyzer.getTipForLiveQualityState(liveState);
@@ -222,6 +236,20 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
             _badFrameCount = 0;
           }
         });
+      }
+
+      // ✨ AUTO-DISPARO POR FIDUCIAIS: dispara quando os 4 fiduciais ficam na
+      // posição certa (cartão bem enquadrado, distância certa) por alguns frames
+      // seguidos. É o gatilho ideal — não depende de tempo, mas de enquadramento.
+      const int framesFiducialParaAuto = 8; // ~2s assentado/reto antes de disparar
+      if (_fiducialOkFrames >= framesFiducialParaAuto &&
+          _currentFlashMode != FlashMode.off &&
+          !_isCapturing &&
+          !_autoCaptureDone) {
+        _autoCaptureDone = true;
+        print('🤖 [AUTO] 4 fiduciais na posição (${_fiducialOkFrames} frames) — '
+            'disparando (cobertura=${_liveCobertura.toStringAsFixed(2)})');
+        _capturarFoto();
       }
     } catch (e) {
       print('❌ Erro ao analisar frame: $e');
@@ -329,26 +357,23 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
     }
   }
 
+  // Cor da moldura, simples e estável:
+  // VERDE só quando os 4 fiduciais estão alinhados (= vai disparar);
+  // VERMELHO quando está escuro demais; LARANJA enquanto posiciona.
+  // (Antes, "good" também era verde → ficava verde "do nada" antes de alinhar.)
   Color get _frameColor {
-    switch (_liveQuality) {
-      case LiveQualityState.analyzing:
-        return const Color(0xFFF59E0B);
-      case LiveQualityState.excellent:
-        return const Color(0xFF22C55E);
-      case LiveQualityState.good:
-        return const Color(0xFF22C55E);
-      case LiveQualityState.warning:
-        return const Color(0xFFF97316);
-      case LiveQualityState.bad:
-        return const Color(0xFFEF4444);
+    if (_liveQuality == LiveQualityState.bad) {
+      return const Color(0xFFEF4444); // vermelho — muito escuro
     }
+    if (_fiducialOkFrames >= 2 && _currentFlashMode != FlashMode.off) {
+      return const Color(0xFF22C55E); // verde — 4 cantos alinhados
+    }
+    return const Color(0xFFF59E0B); // laranja — posicionando
   }
 
+  // PRONTO = 4 fiduciais na posição certa (cartão bem enquadrado) + flash ligado.
   bool get _isReadyToCapture =>
-      _isStabilized &&
-      _currentFlashMode != FlashMode.off && // 100% só com flash (confirmado em teste)
-      (_liveQuality == LiveQualityState.excellent ||
-          _liveQuality == LiveQualityState.good);
+      _liveFiduciaisOk && _currentFlashMode != FlashMode.off;
 
   Future<void> _capturarFoto() async {
     if (_controller == null ||
@@ -356,6 +381,9 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
         _isCapturing) return;
 
     setState(() => _isCapturing = true);
+
+    // Estado do flash NO MOMENTO do disparo (antes de desligar) — p/ log correto
+    final String flashNoDisparo = _currentFlashMode.name;
 
     try {
       await _controller!.stopImageStream().catchError((_) {});
@@ -378,7 +406,7 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
       print('📸 [CAPTURA] foto salva: ${(tamBytes / 1024).toStringAsFixed(0)}KB '
           '| qualidade_ultima_moldura=${_liveQuality.name} '
           '| cobertura=${_liveCobertura.toStringAsFixed(2)} '
-          '| estabilizada=$_isStabilized | flash=${_currentFlashMode.name} '
+          '| estabilizada=$_isStabilized | flash=$flashNoDisparo '
           '| path=$novoPath');
 
       if (mounted) {
@@ -696,14 +724,12 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
               const SizedBox(width: 6),
               Text(
                 _isReadyToCapture
-                    ? '✅ PRONTO — Pode fotografar!'
+                    ? '✅ Cartão alinhado — disparando...'
                     : _currentFlashMode == FlashMode.off
                         ? '🔦 Ligue o flash para leitura perfeita'
-                        : _stableFrameCount > 0
-                            ? 'Estabilizando... mantenha firme'
-                            : _liveQuality == LiveQualityState.bad
-                                ? '🔦 Ative o flash ou melhore a luz'
-                                : 'Encaixe o cartão na moldura',
+                        : _liveQuality == LiveQualityState.bad
+                            ? '🔦 Ative o flash ou melhore a luz'
+                            : 'Encaixe os 4 cantos do cartão na moldura',
                 style: TextStyle(
                   color: badgeColor,
                   fontSize: 11,
