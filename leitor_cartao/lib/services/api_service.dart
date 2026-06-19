@@ -15,11 +15,33 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
-  String baseUrl = 'https://simuladoapp.com.br';
+  static const String prodUrl  = 'https://simuladoapp.com.br';
+  static const String _serverKey = 'server_url';
+
+  String baseUrl = prodUrl;
   final Duration timeoutDuration = const Duration(seconds: 30);
 
   void setBaseUrl(String url) {
     baseUrl = url;
+  }
+
+  /// Carrega a URL salva pelo usuário (ou usa produção como padrão).
+  Future<void> loadSavedUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    baseUrl = prefs.getString(_serverKey) ?? prodUrl;
+  }
+
+  /// Persiste a URL atual para sobreviver a reinicializações do app.
+  Future<void> saveCurrentUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_serverKey, baseUrl);
+  }
+
+  /// Remove a URL salva e volta para produção.
+  Future<void> resetToProduction() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_serverKey);
+    baseUrl = prodUrl;
   }
 
   // Get the stored access token
@@ -662,15 +684,17 @@ class ApiService {
 
   // Get the answer key (gabarito) for a simulado
   Future<Map<String, String>?> getGabarito(int simuladoId,
-      {required String tipo}) async {
+      {required String tipo, String? versionCode}) async {
     try {
-      // Certifique-se de que 'tipo' está sendo enviado corretamente
       debugPrint(
-          '🔍 Solicitando gabarito para simulado $simuladoId, tipo: $tipo');
+          '🔍 Solicitando gabarito para simulado $simuladoId, tipo: $tipo, versao_id: $versionCode');
 
-      final response = await authorizedRequest(
-        '/api/simulados/$simuladoId/gabarito/?versao=versao$tipo&tipo=$tipo',
-      );
+      var url = '/api/simulados/$simuladoId/gabarito/?versao=versao$tipo&tipo=$tipo';
+      if (versionCode != null && versionCode.isNotEmpty) {
+        url += '&versao_id=$versionCode';
+      }
+
+      final response = await authorizedRequest(url);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -823,6 +847,7 @@ class ApiService {
     required double nota,
     required Map<String, String> respostasAluno,
     required Map<String, String> gabarito,
+    String? versionCode,
   }) async {
     try {
       final requestBody = {
@@ -833,6 +858,8 @@ class ApiService {
         'respostas_aluno': respostasAluno,
         'gabarito': gabarito,
         'percentual_acerto': (nota / 10 * 100).toStringAsFixed(1),
+        if (versionCode != null && versionCode.isNotEmpty)
+          'versao_gabarito_code': versionCode,
       };
 
       print('🚀 DEBUG: Enviando submissão de resultado para o site!');

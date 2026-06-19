@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0DA6F2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CartãoApp">
+<link rel="manifest" href="manifest.json">
+<title>SimuladoApp</title>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#0DA6F2;
+  --dark:#1A1A2E;
+  --dark2:#003D5C;
+  --bg:#F5F7FA;
+  --white:#FFFFFF;
+  --border:#E5E7EB;
+  --muted:#6B7280;
+  --green:#22C55E;
+  --red:#EF4444;
+  --amber:#F59E0B;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bot:env(safe-area-inset-bottom,0px);
+}
+html,body{height:100%;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:var(--dark);overflow:hidden}
+
+/* ── SCREENS ── */
+.sc{display:none;flex-direction:column;height:100dvh;overflow:hidden;position:absolute;inset:0}
+.sc.on{display:flex}
+
+/* ── TOP BAR ── */
+.topbar{
+  background:#fff;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+  padding:calc(var(--safe-top) + 10px) 16px 10px;
+  flex-shrink:0;
+}
+.topbar-logo{font-size:15px;font-weight:900;letter-spacing:-.3px}
+.topbar-logo span{color:var(--blue)}
+.topbar-back{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1;padding:0 4px}
+.topbar-title{flex:1;font-size:15px;font-weight:700;color:var(--dark)}
+
+/* ── SCROLL BODY ── */
+.body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.pad{padding:16px}
+
+/* ── BUTTONS ── */
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 20px;border-radius:10px;border:none;font-size:15px;font-weight:700;cursor:pointer;width:100%;transition:opacity .15s;text-align:center}
+.btn:active{opacity:.82}
+.btn-blue{background:linear-gradient(135deg,var(--dark2),var(--blue));color:#fff}
+.btn-outline{background:transparent;border:1.5px solid var(--blue);color:var(--blue)}
+.btn-gray{background:var(--bg);border:1.5px solid var(--border);color:var(--muted)}
+.btn-sm{padding:8px 16px;font-size:13px;border-radius:8px;width:auto}
+.btn-disabled{opacity:.45;pointer-events:none}
+
+/* ── INPUTS ── */
+.inp{width:100%;padding:13px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;background:#fff;color:var(--dark);outline:none}
+.inp:focus{border-color:var(--blue)}
+.lbl{font-size:13px;font-weight:600;margin-bottom:6px;display:block;color:var(--dark)}
+.fgrp{margin-bottom:16px}
+
+/* ── CARDS ── */
+.card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
+.card-grad{background:linear-gradient(135deg,var(--dark2),var(--blue));color:#fff;border:none}
+
+/* ── ALERTS ── */
+.alert{border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:12px;line-height:1.5}
+.alert-r{background:#FEF2F2;border:1px solid #FECACA;color:#991B1B}
+.alert-g{background:#F0FDF4;border:1px solid #BBF7D0;color:#166534}
+.alert-y{background:#FFFBEB;border:1px solid #FDE68A;color:#92400E}
+.alert-b{background:#EFF6FF;border:1px solid #BFDBFE;color:#1E40AF}
+
+/* ── SPINNER ── */
+.spin{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:rot .7s linear infinite;flex-shrink:0;display:inline-block}
+.spin-b{border-color:rgba(13,166,242,.25);border-top-color:var(--blue)}
+@keyframes rot{to{transform:rotate(360deg)}}
+.loading{display:flex;flex-direction:column;align-items:center;gap:14px;padding:48px 20px;color:var(--muted);font-size:14px}
+
+/* ── SNACK ── */
+#snack{position:fixed;bottom:calc(var(--safe-bot) + 16px);left:16px;right:16px;background:#1f2937;color:#fff;border-radius:10px;padding:12px 16px;font-size:14px;font-weight:500;text-align:center;z-index:9999;transform:translateY(80px);transition:transform .28s;pointer-events:none}
+#snack.on{transform:translateY(0)}
+#snack.g{background:#166534}
+#snack.r{background:#991B1B}
+
+/* ════════════════════
+   SCREEN 1: LOGIN
+════════════════════ */
+#s-login{background:linear-gradient(160deg,var(--dark2) 0%,var(--blue) 100%)}
+.login-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;padding:24px;overflow-y:auto}
+.login-card{background:#fff;border-radius:20px;padding:28px 24px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.login-top{text-align:center;margin-bottom:24px}
+.login-icon{font-size:52px;margin-bottom:8px}
+.login-h{font-size:20px;font-weight:900;color:var(--dark)}
+.login-sub{font-size:13px;color:var(--muted);margin-top:4px}
+
+/* ════════════════════
+   SCREEN 2: HOME
+════════════════════ */
+.home-header{
+  background:linear-gradient(135deg,var(--dark2),var(--blue));
+  color:#fff;
+  padding:calc(var(--safe-top) + 20px) 20px 24px;
+  flex-shrink:0;
+}
+.home-greeting{font-size:13px;opacity:.75;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.home-name{font-size:22px;font-weight:900;margin-top:2px}
+.credits-chip{
+  display:flex;align-items:center;gap:10px;
+  background:rgba(255,255,255,.15);
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:12px;padding:12px 14px;margin-top:16px;
+}
+.credits-num{font-size:22px;font-weight:900;line-height:1}
+.credits-lbl{font-size:12px;opacity:.8}
+.credits-buy{margin-left:auto;background:#fff;color:var(--dark2);border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.home-body{flex:1;overflow-y:auto;padding:20px 16px}
+.scan-card{
+  background:linear-gradient(135deg,var(--dark2),var(--blue));
+  border-radius:16px;padding:24px;text-align:center;cursor:pointer;
+  box-shadow:0 8px 32px rgba(13,166,242,.35);
+  transition:transform .15s;
+  margin-bottom:12px;
+}
+.scan-card:active{transform:scale(.97)}
+.scan-icon{font-size:48px;margin-bottom:10px}
+.scan-title{color:#fff;font-size:18px;font-weight:900;margin-bottom:4px}
+.scan-sub{color:rgba(255,255,255,.75);font-size:13px}
+.tip-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:8px}
+.tip-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:13px;color:var(--muted)}
+.tip-row:last-child{margin-bottom:0}
+.tip-step{width:24px;height:24px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* ════════════════════
+   SCREEN 3: QR SCAN
+════════════════════ */
+#s-qr{background:#000}
+.qr-topbar{background:#000;padding:calc(var(--safe-top) + 10px) 16px 10px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.qr-topbar-btn{background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer}
+.qr-topbar-title{flex:1;color:#fff;font-size:14px;font-weight:700;text-align:center}
+.cam-area{position:relative;flex:1;overflow:hidden}
+.cam-area video{width:100%;height:100%;object-fit:cover;display:block}
+.cam-area canvas{display:none}
+.scan-frame{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.scan-box{border:3px solid var(--blue);border-radius:14px;box-shadow:0 0 0 9999px rgba(0,0,0,.52)}
+.scan-box-qr{width:62%;aspect-ratio:1}
+.scan-box-cam{width:90%;aspect-ratio:1.45}
+.cam-hint{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.72));padding:16px;color:#fff;font-size:13px;text-align:center;line-height:1.5}
+.cam-hint b{color:var(--blue)}
+/* QR success panel */
+.qr-success{position:absolute;bottom:12px;left:12px;right:12px;background:#fff;border-radius:16px;padding:16px;box-shadow:0 8px 32px rgba(0,0,0,.3);animation:slideUp .25s ease}
+@keyframes slideUp{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+.qr-success-title{font-size:13px;font-weight:800;color:var(--dark);display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.qr-info-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.qr-info-box{background:var(--bg);border-radius:8px;padding:8px 10px}
+.qr-info-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
+.qr-info-val{font-size:13px;font-weight:800;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qr-progress{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+
+/* ════════════════════
+   SCREEN 4: CAMERA
+════════════════════ */
+#s-cam{background:#000}
+.cam-topbar{background:#000;padding:calc(var(--safe-top) + 10px) 16px 10px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.cam-topbar-btn{background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer}
+.cam-info{flex:1;text-align:center}
+.cam-info-title{color:#fff;font-size:13px;font-weight:700}
+.cam-info-sub{color:rgba(255,255,255,.6);font-size:11px;margin-top:2px}
+.cam-controls{background:#111;border-top:1px solid #333;padding:calc(12px) 20px calc(var(--safe-bot) + 12px);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.shutter{width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,var(--dark2),var(--blue));border:4px solid #fff;box-shadow:0 4px 18px rgba(13,166,242,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:28px;transition:transform .1s}
+.shutter:active{transform:scale(.9)}
+.cam-side-btn{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.12);border:none;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+/* ════════════════════
+   SCREEN 5: PREVIEW (Bubbles)
+════════════════════ */
+#s-preview{background:var(--bg)}
+.preview-photo-strip{
+  background:#fff;border-bottom:1px solid var(--border);
+  padding:8px 12px;display:flex;align-items:center;gap:12px;flex-shrink:0;
+}
+.preview-thumb{width:60px;height:50px;object-fit:cover;border-radius:6px;flex-shrink:0}
+.preview-strip-info{flex:1}
+.preview-strip-title{font-size:13px;font-weight:700;color:var(--dark)}
+.preview-strip-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.summary-bar{background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-evenly;padding:8px 0;flex-shrink:0}
+.summary-chip{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700}
+/* Bubble grid */
+.bubble-wrap{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:6px}
+.bubble-cols{display:flex;gap:6px}
+.bubble-col-card{background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden;flex:1;min-width:0}
+.bub-head{background:var(--bg);border-bottom:1px solid var(--border);display:grid;grid-template-columns:28px repeat(5,1fr);padding:5px 6px}
+.bub-head-cell{text-align:center;font-size:10px;font-weight:700;color:var(--muted)}
+.bub-row{display:grid;grid-template-columns:28px repeat(5,1fr);padding:3px 6px;align-items:center;border-bottom:1px solid #f3f4f6}
+.bub-row:last-child{border-bottom:none}
+.bub-row.even{background:#f9fafb}
+.bub-num{font-size:10px;font-weight:600;color:var(--muted);text-align:right;padding-right:2px}
+.bub{
+  width:20px;height:20px;border-radius:50%;border:1.5px solid #D1D5DB;
+  background:transparent;color:#9CA3AF;font-size:7px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  margin:4px auto;transition:transform .1s;
+  -webkit-tap-highlight-color:transparent;
+}
+.bub:active{transform:scale(.85)}
+.bub.hit-g{background:var(--green);border-color:#16A34A;color:#fff}
+.bub.hit-r{background:var(--red);border-color:#DC2626;color:#fff}
+.bub.hit-n{background:#9CA3AF;border-color:#6B7280;color:#fff}
+.bub.edited-dot{outline:2px solid var(--amber);outline-offset:1px}
+/* Preview bottom panel */
+.preview-panel{background:#fff;border-top:1px solid var(--border);padding:12px 16px calc(var(--safe-bot) + 12px);flex-shrink:0}
+.preview-panel-row{display:flex;gap:10px}
+
+/* ════════════════════
+   SCREEN 6: RESULT
+════════════════════ */
+/* ── RESULT SCREEN (PREMIUM) ── */
+#s-result { background: #f8fafc; }
+.result-header {
+  background: linear-gradient(165deg, #001F2F 0%, #003D5C 40%, #0DA6F2 100%);
+  padding: calc(var(--safe-top) + 20px) 20px 40px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 0 0 32px 32px;
+  box-shadow: 0 10px 30px rgba(13,166,242,0.15);
+}
+/* Efeito de brilho de fundo */
+.result-header::before {
+  content: ''; position: absolute; top: -50px; right: -50px;
+  width: 200px; height: 200px; background: rgba(13,166,242,0.2);
+  filter: blur(60px); border-radius: 50%;
+}
+
+.result-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; position: relative; z-index: 2; }
+.result-nav-btn {
+  background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.2); color: #fff;
+  border-radius: 12px; padding: 10px 16px; font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; gap: 6px; cursor: pointer;
+}
+
+.score-display {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  color: #fff; position: relative; z-index: 2;
+}
+.score-circle-main {
+  width: 130px; height: 130px; border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  border: 8px solid rgba(255,255,255,0.1);
+  box-shadow: 0 0 20px rgba(0,0,0,0.2);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  margin-bottom: 20px; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.score-circle-main:active { transform: scale(0.95); }
+.score-val { font-size: 42px; font-weight: 900; line-height: 1; text-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+.score-total { font-size: 14px; opacity: 0.7; font-weight: 700; margin-top: 4px; }
+
+.aluno-info { width: 100%; margin-top: 10px; }
+.aluno-name { font-size: 20px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 4px; }
+.aluno-exam { font-size: 13px; opacity: 0.8; font-weight: 500; }
+
+.stats-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  width: 100%; max-width: 340px; margin-top: 24px;
+}
+.stat-card {
+  background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.15); border-radius: 16px;
+  padding: 12px 8px; display: flex; flex-direction: column; gap: 4px;
+}
+.stat-card-val { font-size: 16px; font-weight: 900; }
+.stat-card-lbl { font-size: 10px; font-weight: 700; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.result-body { padding: 24px 20px; flex: 1; overflow-y: auto; }
+.result-card {
+  background: #fff; border-radius: 20px; padding: 20px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #eff6ff;
+  margin-bottom: 24px;
+}
+.result-card-title { font-size: 15px; font-weight: 800; color: #1e293b; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.result-card-title::before { content: '📊'; font-size: 18px; }
+/* Question list in result */
+.q-list-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6}
+.q-list-row:last-child{border-bottom:none}
+.q-list-num{width:30px;height:30px;border-radius:8px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--muted);flex-shrink:0}
+.q-list-aluno{font-size:15px;font-weight:800;flex:1}
+.q-list-correct{color:var(--green)}
+.q-list-wrong{color:var(--red)}
+.q-list-gab{font-size:12px;color:var(--muted)}
+.q-list-icon{font-size:16px}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════
+  S1: LOGIN
+═══════════════════════════════════ -->
+<div id="s-login" class="sc on">
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-top">
+        <div class="login-icon">📋</div>
+        <div class="login-h">SIMULADO<span style="color:var(--blue)">APP</span></div>
+        <div class="login-sub">Leitor de Cartão-Resposta</div>
+      </div>
+      <div id="err-login" class="alert alert-r" style="display:none"></div>
+      <div class="fgrp">
+        <label class="lbl">E-mail</label>
+        <input id="inp-email" class="inp" type="email" placeholder="professor@escola.com" autocomplete="email">
+      </div>
+      <div class="fgrp">
+        <label class="lbl">Senha</label>
+        <input id="inp-pass" class="inp" type="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button id="btn-login" class="btn btn-blue" onclick="doLogin()">
+        <span id="login-label">Entrar</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+  S2: HOME
+═══════════════════════════════════ -->
+<div id="s-home" class="sc">
+  <div class="home-header">
+    <div class="home-greeting">Bem-vindo</div>
+    <div id="home-name" class="home-name">Professor</div>
+    <div class="credits-chip">
+      <div style="font-size:22px">💳</div>
+      <div>
+        <div id="home-credits" class="credits-num">—</div>
+        <div class="credits-lbl">correções disponíveis</div>
+      </div>
+      <button class="credits-buy" onclick="snack('Acesse simuladoapp.com.br para comprar créditos.')">+ Créditos</button>
+    </div>
+  </div>
+  <div class="home-body">
+    <div class="scan-card" onclick="goQR()">
+      <div class="scan-icon">📷</div>
+      <div class="scan-title">Corrigir Cartão-Resposta</div>
+      <div class="scan-sub">Escanear QR Code do cartão</div>
+    </div>
+    <div class="tip-card">
+      <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">Como funciona</div>
+      <div class="tip-row"><div class="tip-step">1</div>Escaneie o QR Code no topo do cartão-resposta</div>
+      <div class="tip-row"><div class="tip-step">2</div>Fotografe o cartão inteiro com boa iluminação</div>
+      <div class="tip-row"><div class="tip-step">3</div>Confira as respostas detectadas e corrija se necessário</div>
+      <div class="tip-row"><div class="tip-step">4</div>Confirme para enviar o resultado ao sistema</div>
+    </div>
+    <button class="btn btn-gray" style="font-size:13px" onclick="doLogout()">Sair da conta</button>
+  </div>
+</div>
+
+<!-- inputs ocultos para fallback sem HTTPS -->
+<input id="file-qr"  type="file" accept="image/*" capture="environment" style="display:none" onchange="onFileQR(event)">
+<input id="file-cam" type="file" accept="image/*" capture="environment" style="display:none" onchange="onFileCam(event)">
+
+<!-- ═══════════════════════════════════
+  S3: QR SCAN
+═══════════════════════════════════ -->
+<div id="s-qr" class="sc">
+  <div class="qr-topbar">
+    <button class="qr-topbar-btn" onclick="stopQR(true)">✕</button>
+    <div class="qr-topbar-title">Ler QR do Cartão-Resposta</div>
+    <div style="width:44px"></div>
+  </div>
+  <div class="cam-area" id="qr-area">
+    <video id="qr-vid" playsinline muted autoplay></video>
+    <canvas id="qr-cv"></canvas>
+    <div class="scan-frame">
+      <div class="scan-box scan-box-qr"></div>
+    </div>
+    <div id="qr-hint" class="cam-hint">
+      Aponte para o <b>QR Code</b> no topo do cartão-resposta
+    </div>
+    <!-- fallback: sem câmera ao vivo — toca para abrir câmera nativa -->
+    <div id="qr-fallback" onclick="document.getElementById('file-qr').click()" style="display:none;position:absolute;inset:0;background:#111;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:32px 24px;cursor:pointer">
+      <!-- instrução no topo -->
+      <div style="color:#fff;font-size:15px;font-weight:600;text-align:center;line-height:1.5;opacity:.9">Aponte a câmera para o QR Code<br>no topo do cartão-resposta</div>
+      <!-- quadro visual de scan -->
+      <div style="position:relative;width:230px;height:230px;flex-shrink:0">
+        <div style="position:absolute;inset:0;border:2px solid rgba(255,255,255,.1);border-radius:16px"></div>
+        <div style="position:absolute;top:0;left:0;width:40px;height:40px;border-top:3.5px solid var(--blue);border-left:3.5px solid var(--blue);border-radius:8px 0 0 0"></div>
+        <div style="position:absolute;top:0;right:0;width:40px;height:40px;border-top:3.5px solid var(--blue);border-right:3.5px solid var(--blue);border-radius:0 8px 0 0"></div>
+        <div style="position:absolute;bottom:0;left:0;width:40px;height:40px;border-bottom:3.5px solid var(--blue);border-left:3.5px solid var(--blue);border-radius:0 0 0 8px"></div>
+        <div style="position:absolute;bottom:0;right:0;width:40px;height:40px;border-bottom:3.5px solid var(--blue);border-right:3.5px solid var(--blue);border-radius:0 0 8px 0"></div>
+        <div style="position:absolute;left:10px;right:10px;height:2px;background:linear-gradient(90deg,transparent,var(--blue),transparent);animation:scanline 2s linear infinite"></div>
+        <style>@keyframes scanline{0%{top:10%}50%{top:88%}100%{top:10%}}</style>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px;opacity:.15">▣</div>
+      </div>
+      <!-- dica de toque -->
+      <div style="color:rgba(255,255,255,.45);font-size:12px;text-align:center">Toque em qualquer lugar para abrir a câmera</div>
+    </div>
+    <div id="qr-panel" class="qr-success" style="display:none">
+      <div class="qr-success-title">
+        <span style="color:var(--green);font-size:20px">✓</span> QR Code detectado!
+      </div>
+      <div class="qr-info-row" id="qr-info-grid"></div>
+      <div class="qr-progress">
+        <div class="spin spin-b"></div>
+        Encaminhando para fotografia…
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+  S4: CAMERA CAPTURE
+═══════════════════════════════════ -->
+<div id="s-cam" class="sc">
+  <div class="cam-topbar">
+    <button class="cam-topbar-btn" onclick="stopCam(true)">✕</button>
+    <div class="cam-info">
+      <div id="cam-title" class="cam-info-title">Fotografar Cartão</div>
+      <div id="cam-sub" class="cam-info-sub">Tipo —</div>
+    </div>
+    <button class="cam-side-btn" onclick="toggleTorch()" title="Lanterna">💡</button>
+  </div>
+  <div class="cam-area" id="cam-area">
+    <video id="cam-vid" playsinline muted autoplay></video>
+    <canvas id="cam-cv" style="display:none"></canvas>
+    <div class="cam-hint">Fotografe o cartão inteiro com boa iluminação</div>
+  </div>
+  <div class="cam-controls">
+    <div style="width:44px"></div>
+    <button class="shutter" id="btn-shutter" onclick="capturePhoto()">📷</button>
+    <button class="cam-side-btn" onclick="toggleTorch()">🔦</button>
+  </div>
+  <!-- fallback sem HTTPS: abre câmera nativa via input -->
+  <div id="cam-fallback" style="display:none;position:absolute;inset:0;background:#111;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px">
+    <div style="font-size:56px">📸</div>
+    <div style="color:#fff;font-size:16px;font-weight:700;text-align:center">Fotografar Cartão-Resposta</div>
+    <div id="cam-fallback-tipo" style="color:rgba(255,255,255,.6);font-size:13px;text-align:center">Tipo de prova: —</div>
+    <button onclick="document.getElementById('file-cam').click()" style="background:linear-gradient(135deg,var(--dark2),var(--blue));color:#fff;border:none;border-radius:12px;padding:16px 28px;font-size:16px;font-weight:700;cursor:pointer;width:100%;max-width:280px">
+      📷 Abrir câmera
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+  S5: PREVIEW (Bubbles)
+═══════════════════════════════════ -->
+<div id="s-preview" class="sc">
+  <div class="topbar">
+    <button class="topbar-back" onclick="stopCam(true)">‹</button>
+    <div class="topbar-logo">SIMULADO<span>APP</span></div>
+  </div>
+  <!-- Photo strip -->
+  <div class="preview-photo-strip">
+    <img id="prev-thumb" class="preview-thumb" alt="Cartão">
+    <div class="preview-strip-info">
+      <div id="prev-title" class="preview-strip-title">Respostas detectadas</div>
+      <div class="preview-strip-sub">Toque em uma bolinha para corrigir</div>
+    </div>
+    <span style="color:var(--blue);font-size:20px">⊞</span>
+  </div>
+  <!-- Loading state -->
+  <div id="prev-loading" class="loading">
+    <div class="spin spin-b"></div>
+    <span>Identificando respostas…</span>
+  </div>
+  <!-- Summary bar (hidden while loading) -->
+  <div id="prev-summary" class="summary-bar" style="display:none">
+    <div class="summary-chip" style="color:var(--green)">
+      <span id="sum-acertos">0</span> acertos
+    </div>
+    <div class="summary-chip" style="color:var(--red)">
+      <span id="sum-erros">0</span> erros
+    </div>
+    <div class="summary-chip" style="color:var(--blue)">
+      <span id="sum-pct">0</span>%
+    </div>
+  </div>
+  <!-- Bubble diagram -->
+  <div id="prev-bubbles" class="bubble-wrap" style="display:none"></div>
+  <!-- Bottom panel -->
+  <div class="preview-panel">
+    <div class="preview-panel-row">
+      <button class="btn btn-gray" style="flex:1" onclick="refazer()">↻ Refazer</button>
+      <button id="btn-confirm" class="btn btn-blue" style="flex:2" onclick="confirmar()">
+        Confirmar →
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+  S6: RESULT
+═══════════════════════════════════ -->
+<div id="s-result" class="sc">
+  <div class="result-header">
+    <div class="result-nav">
+      <button class="result-nav-btn" onclick="goHome()">‹ Início</button>
+      <button class="result-nav-btn" onclick="proxCorrecao()">Próximo ›</button>
+    </div>
+
+    <div class="score-display">
+      <div class="score-circle-main">
+        <div id="res-score" class="score-val">—</div>
+        <div id="res-denom" class="score-total">de 10</div>
+      </div>
+      
+      <div class="aluno-info">
+        <div id="res-name" class="aluno-name">Carregando...</div>
+        <div id="res-sim" class="aluno-exam">Simulado do Aluno</div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div id="res-acertos" class="stat-card-val">—</div>
+          <div class="stat-card-lbl">Acertos</div>
+        </div>
+        <div class="stat-card">
+          <div id="res-erros" class="stat-card-val">—</div>
+          <div class="stat-card-lbl">Erros</div>
+        </div>
+        <div class="stat-card">
+          <div id="res-pct" class="stat-card-val">—%</div>
+          <div class="stat-card-lbl">Nota %</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="result-body">
+    <div id="res-submit-status"></div>
+    
+    <div class="result-card">
+      <div class="result-card-title">Resumo por Questão</div>
+      <div id="res-q-list"></div>
+    </div>
+
+    <button id="btn-nova" class="btn btn-blue" onclick="novaCorrecao()">
+      <span>📷 Nova correção</span>
+    </button>
+    <div style="height:12px"></div>
+    <button class="btn btn-outline" onclick="goHome()">← Ver menu inicial</button>
+    <div style="height:32px"></div>
+  </div>
+</div>
+
+<div id="snack"></div>
+
+<script>
+// ══════════════════════════════════
+// CONFIG
+// ══════════════════════════════════
+const BASE = 'https://simuladoapp.com.br';
+const OMR  = 'http://sokk4wsk8c4ok4sccswwwccg.65.108.245.193.sslip.io/processar_cartao';
+const LETTERS = ['A','B','C','D','E'];
+
+// ══════════════════════════════════
+// STATE
+// ══════════════════════════════════
+const S = {
+  token: null, refresh: null, user: null, credits: null, // null = não carregado ainda
+  qr: null,            // parsed QR data
+  simulado: null,      // { id, nome, numQuestoes, notaMaxima }
+  aluno: null,         // { id, nome }
+  camStream: null, torchOn: false,
+  capturedBlob: null, capturedUrl: null,
+  respostas: [],       // string[] length = numQuestoes
+  gabarito: {},        // { "1":"A", "2":"B", ... }
+  editadas: new Set(),
+  confirmando: false,
+};
+
+// Detecta suporte a getUserMedia (requer HTTPS ou localhost)
+function hasCamera() {
+  return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+}
+
+// ══════════════════════════════════
+// SCREENS
+// ══════════════════════════════════
+function show(id) {
+  document.querySelectorAll('.sc').forEach(e => e.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+}
+
+// ══════════════════════════════════
+// SNACK
+// ══════════════════════════════════
+let _st;
+function snack(msg, cls='') {
+  const el = document.getElementById('snack');
+  el.textContent = msg; el.className = 'on ' + cls;
+  clearTimeout(_st); _st = setTimeout(() => el.className = '', 3000);
+}
+
+// ══════════════════════════════════
+// AUTH
+// ══════════════════════════════════
+function saveAuth(t, r) { S.token=t; S.refresh=r; localStorage.setItem('_t',t); localStorage.setItem('_r',r||''); }
+function loadAuth() { S.token=localStorage.getItem('_t'); S.refresh=localStorage.getItem('_r'); }
+function clearAuth() { S.token=null; S.refresh=null; localStorage.removeItem('_t'); localStorage.removeItem('_r'); localStorage.removeItem('_u'); }
+async function doRefresh() {
+  try {
+    const r = await fetch(BASE+'/api/token/refresh/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh:S.refresh})});
+    if(r.ok){const d=await r.json();saveAuth(d.access,S.refresh);return true;}
+  } catch{}
+  clearAuth(); show('s-login'); return false;
+}
+async function api(ep, opts={}) {
+  const h = {'Content-Type':'application/json',...(opts.headers||{})};
+  if(S.token) h['Authorization']='Bearer '+S.token;
+  let res = await fetch(BASE+ep,{...opts,headers:h});
+  if(res.status===401&&S.refresh){const ok=await doRefresh();if(ok){h['Authorization']='Bearer '+S.token;res=await fetch(BASE+ep,{...opts,headers:h});}}
+  return res;
+}
+
+// ══════════════════════════════════
+// LOGIN
+// ══════════════════════════════════
+async function doLogin() {
+  const email = document.getElementById('inp-email').value.trim();
+  const pass  = document.getElementById('inp-pass').value;
+  const errEl = document.getElementById('err-login');
+  const lbl   = document.getElementById('login-label');
+  errEl.style.display='none';
+  if(!email||!pass){errEl.textContent='Preencha e-mail e senha.';errEl.style.display='block';return;}
+  lbl.innerHTML='<span class="spin"></span> Entrando…';
+  document.getElementById('btn-login').disabled=true;
+  try {
+    const r = await fetch(BASE+'/api/token/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})});
+    if(r.ok) {
+      const d = await r.json();
+      saveAuth(d.access,d.refresh);
+      await loadUserInfo();
+      show('s-home');
+      loadCredits();
+    } else {
+      const e = await r.json().catch(()=>({}));
+      errEl.textContent = e.detail||'E-mail ou senha inválidos.';
+      errEl.style.display='block';
+    }
+  } catch { errEl.textContent='Erro de conexão.'; errEl.style.display='block'; }
+  finally { lbl.textContent='Entrar'; document.getElementById('btn-login').disabled=false; }
+}
+document.getElementById('inp-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('inp-email').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('inp-pass').focus();});
+
+async function loadUserInfo() {
+  try {
+    const r = await api('/api/user-info/');
+    if(r.ok){const d=await r.json();S.user=d;localStorage.setItem('_u',JSON.stringify(d));updateHomeUser();}
+  } catch {}
+}
+
+async function loadCredits() {
+  try {
+    const r = await api('/api/user_credits/');
+    if(r.ok){const d=await r.json();S.credits=d.available_credits??0;document.getElementById('home-credits').textContent=S.credits;}
+    else { S.credits=0; document.getElementById('home-credits').textContent='?'; }
+  } catch { S.credits=0; document.getElementById('home-credits').textContent='?'; }
+}
+
+function updateHomeUser() {
+  const u = S.user || JSON.parse(localStorage.getItem('_u')||'{}');
+  if(u.name||u.email) document.getElementById('home-name').textContent=u.name||u.email;
+}
+
+function doLogout() { clearAuth(); S.user=null; S.credits=0; show('s-login'); }
+function goHome() { stopQR(false); stopCam(false); show('s-home'); }
+
+// ══════════════════════════════════
+// QR SCAN
+// ══════════════════════════════════
+let _qrTimer=null, _qrStream=null;
+
+async function goQR() {
+  // Só bloqueia se créditos já foram carregados E são 0
+  if(S.credits !== null && S.credits <= 0){
+    snack('Sem créditos. Compre no site para continuar.','r'); return;
+  }
+  show('s-qr');
+  document.getElementById('qr-panel').style.display='none';
+  document.getElementById('qr-fallback').style.display='none';
+  document.getElementById('qr-hint').style.display='block';
+
+  if(!hasCamera()) {
+    document.getElementById('qr-hint').style.display='none';
+    document.getElementById('qr-fallback').style.display='flex';
+    document.getElementById('qr-fallback').innerHTML = `
+      <div style="color:#fff;font-size:15px;font-weight:600;text-align:center;line-height:1.5;opacity:.9">
+        Acesso direto à câmera indisponível.<br><br>
+        <span style="font-size:13px;opacity:.7">Para usar a câmera direto no navegador, é necessário acessar o site com <b>HTTPS</b> (conexão segura) ou estar em localhost.</span>
+      </div>
+      <button onclick="document.getElementById('file-qr').click()" style="margin-top:24px;padding:12px 20px;border-radius:10px;background:var(--blue);color:#fff;border:none;font-weight:bold;font-size:14px;cursor:pointer">
+        Abrir Câmera do Celular Manualmente
+      </button>
+    `;
+    return;
+  }
+
+  try {
+    _qrStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+    const vid = document.getElementById('qr-vid');
+    vid.srcObject = _qrStream; await vid.play();
+    startQRLoop();
+  } catch(e) {
+    document.getElementById('qr-hint').style.display='none';
+    document.getElementById('qr-fallback').style.display='flex';
+    document.getElementById('qr-fallback').innerHTML = `
+      <div style="color:#fff;font-size:15px;font-weight:600;text-align:center;line-height:1.5;opacity:.9">
+        Não foi possível acessar a câmera no navegador.<br><br>
+        <span style="color:var(--amber);font-size:13px">Erro: `+e.message+`</span><br><br>
+        <span style="font-size:13px;opacity:.7">Verifique se você <b>permitiu</b> o acesso à câmera nas configurações do seu navegador para este site.</span>
+      </div>
+      <button onclick="document.getElementById('file-qr').click()" style="margin-top:24px;padding:12px 20px;border-radius:10px;background:var(--blue);color:#fff;border:none;font-weight:bold;font-size:14px;cursor:pointer">
+        Abrir Câmera do Celular Manualmente
+      </button>
+    `;
+  }
+}
+
+// Processa QR a partir de foto (fallback)
+function onFileQR(e) {
+  const file = e.target.files[0]; if(!file) return;
+  e.target.value='';
+  const img = new Image();
+  img.onload = () => {
+    const cv = document.createElement('canvas');
+    cv.width=img.width; cv.height=img.height;
+    cv.getContext('2d').drawImage(img,0,0);
+    const id = cv.getContext('2d').getImageData(0,0,cv.width,cv.height);
+    const code = jsQR(id.data,id.width,id.height,{inversionAttempts:'attemptBoth'});
+    if(code) { onQRDetected(code.data); }
+    else { snack('QR não encontrado na imagem. Tente com melhor iluminação.','r'); }
+  };
+  img.src=URL.createObjectURL(file);
+}
+
+// Foto do cartão via input file (fallback)
+function onFileCam(e) {
+  const file = e.target.files[0]; if(!file) return;
+  e.target.value='';
+  S.capturedBlob = file;
+  S.capturedUrl  = URL.createObjectURL(file);
+  stopCam(false);
+  startPreview();
+}
+
+function startQRLoop() {
+  const vid = document.getElementById('qr-vid');
+  const cv  = document.getElementById('qr-cv');
+  const ctx = cv.getContext('2d',{willReadFrequently:true});
+  _qrTimer = setInterval(()=>{
+    if(vid.readyState<2) return;
+    cv.width=vid.videoWidth; cv.height=vid.videoHeight;
+    ctx.drawImage(vid,0,0);
+    const id = ctx.getImageData(0,0,cv.width,cv.height);
+    const code = jsQR(id.data,id.width,id.height,{inversionAttempts:'dontInvert'});
+    if(code) onQRDetected(code.data);
+  },220);
+}
+
+function onQRDetected(raw) {
+  const parsed = parseQR(raw);
+  if(!parsed) {
+    document.getElementById('qr-hint').innerHTML='<span style="color:var(--amber)">⚠️ QR lido mas sem tipo de prova válido</span>';
+    return;
+  }
+  clearInterval(_qrTimer); _qrTimer=null;
+  stopStream(_qrStream); _qrStream=null;
+  S.qr = parsed;
+  showQRPanel(parsed);
+  setTimeout(()=>goCamera(), 1400);
+}
+
+function parseQR(raw) {
+  if(!raw) return null;
+  const mT = raw.match(/\|T:(\d+)|\bT:(\d+)/i);
+  if(!mT) return null;
+  const tipo = parseInt(mT[1]||mT[2]);
+  if(!tipo||tipo<1) return null;
+  const mId  = raw.match(/ID:([^|]+)/i);
+  const mS   = raw.match(/\|S:(\d+)/i);
+  const mP   = raw.match(/\|P:([\d.]+)/i);
+  const mA   = raw.match(/\|A:(\d+)/i);
+  const mC   = raw.match(/\|C:(\d+)/i);
+  return {
+    tipo, versionCode: mId?mId[1].trim():null,
+    simuladoId: mS?parseInt(mS[1]):null,
+    pontuacaoTotal: mP?parseFloat(mP[1]):null,
+    alunoId: mA?parseInt(mA[1]):null,
+    turmaId: mC?parseInt(mC[1]):null,
+  };
+}
+
+function showQRPanel(qr) {
+  const panel = document.getElementById('qr-panel');
+  document.getElementById('qr-hint').style.display='none';
+  const items = [
+    ['Tipo de prova', 'TIPO '+qr.tipo],
+    qr.simuladoId ? ['Simulado','#'+qr.simuladoId] : null,
+    qr.alunoId ? ['Aluno','#'+qr.alunoId] : null,
+    qr.pontuacaoTotal ? ['Pontuação',qr.pontuacaoTotal+' pts'] : null,
+    qr.versionCode ? ['Versão',qr.versionCode] : null,
+  ].filter(Boolean);
+  document.getElementById('qr-info-grid').innerHTML = items.map(([l,v])=>`
+    <div class="qr-info-box"><div class="qr-info-lbl">${l}</div><div class="qr-info-val">${v}</div></div>
+  `).join('');
+  panel.style.display='block';
+}
+
+function stopQR(backHome) {
+  clearInterval(_qrTimer); _qrTimer=null;
+  stopStream(_qrStream); _qrStream=null;
+  if(backHome) show('s-home');
+}
+
+function skipQR() {
+  stopQR(false);
+  S.qr = {tipo:1,versionCode:null,simuladoId:null,pontuacaoTotal:null,alunoId:null,turmaId:null};
+  goCamera();
+}
+
+// ══════════════════════════════════
+// CAMERA
+// ══════════════════════════════════
+async function goCamera() {
+  show('s-cam');
+  const tipo = S.qr?.tipo || 1;
+  document.getElementById('cam-sub').textContent = 'Tipo de prova: '+tipo;
+  document.getElementById('cam-fallback').style.display='none';
+  document.getElementById('cam-fallback-tipo').textContent='Tipo de prova: '+tipo;
+  S.torchOn=false;
+
+  if(!hasCamera()) {
+    // Fallback: abre câmera nativa via input
+    document.getElementById('cam-fallback').style.display='flex';
+    document.getElementById('btn-shutter').style.display='none';
+    return;
+  }
+
+  try {
+    S.camStream = await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080}},audio:false
+    });
+    const vid = document.getElementById('cam-vid');
+    vid.srcObject=S.camStream; await vid.play();
+    document.getElementById('btn-shutter').style.display='flex';
+  } catch(e) {
+    // Fallback se permissão negada
+    document.getElementById('cam-fallback').style.display='flex';
+    document.getElementById('btn-shutter').style.display='none';
+  }
+}
+
+async function toggleTorch() {
+  const track = S.camStream?.getVideoTracks()[0];
+  if(!track) return;
+  
+  // Verifica se o hardware suporta lanterna
+  const caps = track.getCapabilities?.() || {};
+  if(!caps.torch) {
+    snack('Lanterna não disponível ou não suportada pelo seu navegador.');
+    return;
+  }
+
+  try { 
+    S.torchOn = !S.torchOn; 
+    await track.applyConstraints({advanced:[{torch: S.torchOn}]}); 
+  } catch(e) { 
+    console.error(e);
+    snack('Erro ao acessar lanterna.'); 
+    S.torchOn = false; 
+  }
+}
+
+async function capturePhoto() {
+  const vid = document.getElementById('cam-vid');
+  const cv  = document.getElementById('cam-cv');
+  cv.width=vid.videoWidth||1280; cv.height=vid.videoHeight||720;
+  cv.getContext('2d').drawImage(vid,0,0);
+  cv.toBlob(blob=>{
+    S.capturedBlob=blob;
+    S.capturedUrl=URL.createObjectURL(blob);
+    stopCam(false);
+    startPreview();
+  },'image/jpeg',0.93);
+}
+
+function stopCam(backHome) {
+  stopStream(S.camStream); S.camStream=null;
+  if(backHome) show('s-home');
+}
+
+// ══════════════════════════════════
+// PREVIEW
+// ══════════════════════════════════
+async function startPreview() {
+  show('s-preview');
+  // Photo thumbnail
+  document.getElementById('prev-thumb').src=S.capturedUrl;
+  // Loading state
+  document.getElementById('prev-loading').style.display='flex';
+  document.getElementById('prev-summary').style.display='none';
+  document.getElementById('prev-bubbles').style.display='none';
+  document.getElementById('prev-title').textContent='Identificando respostas…';
+  S.editadas.clear();
+
+  // Load simulado details if we have ID from QR
+  if(S.qr?.simuladoId && !S.simulado) {
+    await loadSimuladoDetails(S.qr.simuladoId);
+  }
+  // Load aluno if we have ID from QR
+  if(S.qr?.alunoId && !S.aluno) {
+    S.aluno = {id:S.qr.alunoId, nome:'Aluno #'+S.qr.alunoId};
+    await loadAlunoDetails(S.qr.alunoId, S.qr.turmaId);
+  }
+
+  const numQ = S.simulado?.numQuestoes || 10;
+
+  // Process image
+  let result = null;
+  try { result = await sendToBackend(S.capturedBlob, numQ); } catch {}
+  if(!result) {
+    try { result = await sendToOMR(S.capturedBlob, numQ); } catch {}
+  }
+
+  // Load gabarito
+  try { S.gabarito = await loadGabarito(); } catch { S.gabarito={}; }
+
+  // Normalize answers
+  if(result?.respostas) {
+    const r = result.respostas;
+    if(Array.isArray(r)) {
+      S.respostas = Array.from({length:numQ},(_,i)=>(r[i]||'').toUpperCase());
+    } else {
+      S.respostas = Array.from({length:numQ},(_,i)=>(r[String(i+1)]||'').toUpperCase());
+    }
+  } else {
+    S.respostas = Array(numQ).fill('');
+  }
+
+  renderBubbles();
+  updateSummary();
+  document.getElementById('prev-loading').style.display='none';
+  document.getElementById('prev-summary').style.display='flex';
+  document.getElementById('prev-bubbles').style.display='flex';
+  document.getElementById('prev-title').textContent = numQ+' respostas detectadas';
+}
+
+async function loadSimuladoDetails(id) {
+  try {
+    const r = await api('/api/simulados/'+id+'/detalhes/');
+    if(r.ok) {
+      const d = await r.json();
+      S.simulado = {id:d.id, nome:d.titulo, numQuestoes:d.numero_questoes||10, notaMaxima:d.pontuacao_total||10};
+    }
+  } catch {}
+  if(!S.simulado && S.qr?.pontuacaoTotal) {
+    S.simulado = {id, nome:'Simulado #'+id, numQuestoes:10, notaMaxima:S.qr.pontuacaoTotal};
+  }
+}
+
+async function loadAlunoDetails(alunoId, turmaId) {
+  if(!turmaId) return;
+  try {
+    const r = await api('/api/classes/'+turmaId+'/students/');
+    if(r.ok) {
+      const d = await r.json();
+      const list = Array.isArray(d)?d:(d.results||[]);
+      const a = list.find(x=>x.id===alunoId);
+      if(a) S.aluno = {id:a.id, nome:a.nome||a.name||'Aluno #'+alunoId};
+    }
+  } catch {}
+}
+
+async function sendToBackend(blob, numQ) {
+  const fd=new FormData(); fd.append('file',blob,'cartao.jpg'); fd.append('num_questoes',numQ);
+  const r=await fetch(BASE+'/api/processar-imagem-cartao/',{method:'POST',headers:{'Authorization':'Bearer '+S.token},body:fd,signal:(() => { const c=new AbortController(); setTimeout(()=>c.abort(),60000); return c.signal; })()});
+  if(!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+async function sendToOMR(blob, numQ) {
+  const cols=numQ<=23?1:numQ<=45?2:3;
+  const fd=new FormData(); fd.append('file',blob,'cartao.jpg');
+  fd.append('num_questoes',numQ); fd.append('num_colunas',cols);
+  fd.append('threshold','150'); fd.append('retornar_imagens','true');
+  const r=await fetch(OMR,{method:'POST',body:fd,signal:(() => { const c=new AbortController(); setTimeout(()=>c.abort(),60000); return c.signal; })()});
+  if(!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+async function loadGabarito() {
+  if(!S.simulado?.id || !S.qr?.tipo) return {};
+  let url='/api/simulados/'+S.simulado.id+'/gabarito/?versao=versao'+S.qr.tipo+'&tipo='+S.qr.tipo;
+  if(S.qr.versionCode) url+='&versao_id='+encodeURIComponent(S.qr.versionCode);
+  const r=await api(url);
+  if(!r.ok) return {};
+  const d=await r.json();
+  if(!d.gabarito) return {};
+  const g={};
+  Object.entries(d.gabarito).forEach(([k,v])=>{g[String(k)]=String(v).toUpperCase();});
+  return g;
+}
+
+// ── Bubble render ──────────────────
+function renderBubbles() {
+  const numQ = S.respostas.length;
+  const wrap  = document.getElementById('prev-bubbles');
+  wrap.innerHTML='';
+  const hasGab = Object.keys(S.gabarito).length>0;
+
+  if(numQ<=23) {
+    wrap.appendChild(buildBubbleCol(1, numQ));
+  } else {
+    const half = Math.ceil(numQ/2);
+    const row  = document.createElement('div');
+    row.className='bubble-cols'; row.style.flex='1';
+    row.appendChild(buildBubbleCol(1, half));
+    row.appendChild(buildBubbleCol(half+1, numQ));
+    wrap.appendChild(row);
+  }
+}
+
+function buildBubbleCol(from, to) {
+  const card = document.createElement('div');
+  card.className='bubble-col-card';
+  // Header
+  const head = document.createElement('div');
+  head.className='bub-head';
+  head.innerHTML='<div class="bub-head-cell"></div>'+LETTERS.map(l=>`<div class="bub-head-cell">${l}</div>`).join('');
+  card.appendChild(head);
+  for(let q=from;q<=to;q++) {
+    card.appendChild(buildBubbleRow(q, (q-from)%2===1));
+  }
+  return card;
+}
+
+function buildBubbleRow(q, even) {
+  const row = document.createElement('div');
+  row.className='bub-row'+(even?' even':'');
+  row.dataset.q=q;
+
+  const num=document.createElement('div');
+  num.className='bub-num'; num.textContent=String(q).padStart(2,'0');
+  row.appendChild(num);
+
+  LETTERS.forEach(l=>{
+    const b=document.createElement('div');
+    b.className='bub'; b.textContent=l; b.dataset.l=l; b.dataset.q=q;
+    b.addEventListener('click',()=>onBubbleTap(q,l));
+    applyBubbleClass(b,q,l);
+    row.appendChild(b);
+  });
+  return row;
+}
+
+function applyBubbleClass(el, q, letter) {
+  const detected = (S.respostas[q-1]||'').toUpperCase();
+  const gab      = S.gabarito[String(q)];
+  const isHit    = detected===letter;
+  el.className='bub';
+  if(S.editadas.has(q-1)) el.classList.add('edited-dot');
+  if(isHit) {
+    if(!gab) el.classList.add('hit-n');
+    else if(detected===gab) el.classList.add('hit-g');
+    else el.classList.add('hit-r');
+  }
+}
+
+function refreshRow(q) {
+  const row = document.querySelector(`.bub-row[data-q="${q}"]`);
+  if(!row) return;
+  row.querySelectorAll('.bub').forEach(b=>applyBubbleClass(b,q,b.dataset.l));
+}
+
+function onBubbleTap(q, letter) {
+  const idx = q-1;
+  const cur = (S.respostas[idx]||'').toUpperCase();
+  S.respostas[idx] = cur===letter ? '' : letter;
+  S.editadas.add(idx);
+  refreshRow(q);
+  updateSummary();
+}
+
+function updateSummary() {
+  const gab   = S.gabarito;
+  const hasG  = Object.keys(gab).length>0;
+  let acertos=0, erros=0;
+  S.respostas.forEach((r,i)=>{
+    const correct=gab[String(i+1)];
+    if(!correct||!r) return;
+    if(r===correct) acertos++; else erros++;
+  });
+  const total = hasG ? Object.keys(gab).length : S.respostas.length;
+  const pct   = total>0 ? Math.round((acertos/total)*100) : 0;
+  document.getElementById('sum-acertos').textContent=acertos;
+  document.getElementById('sum-erros').textContent=erros;
+  document.getElementById('sum-pct').textContent=pct;
+}
+
+function refazer() { stopCam(false); goCamera(); }
+
+async function confirmar() {
+  if(S.confirmando) return;
+  S.confirmando=true;
+  const btn=document.getElementById('btn-confirm');
+  btn.innerHTML='<span class="spin"></span> Aguarde…';
+  btn.classList.add('btn-disabled');
+
+  // 1. Consumir crédito
+  let creditOk=false;
+  if(S.aluno?.id && S.simulado?.id) {
+    try {
+      const r=await api('/api/consume_credit/',{method:'POST',body:JSON.stringify({student_id:S.aluno.id,simulado_id:S.simulado.id,action:'correction',timestamp:new Date().toISOString(),app_version:'pwa-1.0'})});
+      creditOk=r.ok||r.status===201;
+    } catch {}
+    if(!creditOk) { snack('Sem créditos para confirmar!','r'); btn.innerHTML='Confirmar →'; btn.classList.remove('btn-disabled'); S.confirmando=false; return; }
+  } else { creditOk=true; } // sem ID não verifica
+
+  // 2. Calcular nota
+  const gab=S.gabarito; const hasG=Object.keys(gab).length>0;
+  const numQ=S.respostas.length;
+  const notaMax=S.simulado?.notaMaxima||10;
+  let acertos=0,erros=0;
+  const resMap={};
+  S.respostas.forEach((r,i)=>{resMap[String(i+1)]=r;const c=gab[String(i+1)];if(c&&r){if(r===c)acertos++;else erros++;}});
+  const nota=hasG&&numQ>0?+(acertos*notaMax/numQ).toFixed(2):null;
+  const gabMap={};
+  Object.entries(gab).forEach(([k,v])=>{gabMap[k]=v;});
+
+  // 3. Enviar resultado
+  let foiEnviado=false;
+  if(S.aluno?.id && S.simulado?.id) {
+    try {
+      const body={aluno_id:S.aluno.id,simulado_id:S.simulado.id,versao:'versao'+(S.qr?.tipo||1),nota_final:nota??0,respostas_aluno:resMap,gabarito:gabMap,percentual_acerto:nota!=null?((nota/notaMax)*100).toFixed(1):'0',...(S.qr?.versionCode?{versao_gabarito_code:S.qr.versionCode}:{})};
+      const rr=await api('/api/resultados/submit/',{method:'POST',body:JSON.stringify(body)});
+      foiEnviado=rr.ok||rr.status===201;
+    } catch {}
+  }
+
+  S._lastResult={resMap,gabMap,nota,notaMax,acertos,erros,numQ,foiEnviado};
+  btn.innerHTML='Confirmar →'; btn.classList.remove('btn-disabled'); S.confirmando=false;
+  showResult();
+}
+
+// ══════════════════════════════════
+// RESULT
+// ══════════════════════════════════
+function showResult() {
+  show('s-result');
+  const {resMap,gabMap,nota,notaMax,acertos,erros,numQ,foiEnviado}=S._lastResult;
+  const hasG=Object.keys(gabMap).length>0;
+  const pct=hasG&&numQ>0?Math.round((acertos/numQ)*100):null;
+
+  // Header
+  document.getElementById('res-name').textContent=S.aluno?.nome||'Aluno';
+  const simLabel=(S.simulado?.nome||'Simulado')+(S.qr?.tipo?' · Tipo '+S.qr.tipo:'');
+  document.getElementById('res-sim').textContent=simLabel;
+
+  // Score
+  const scoreEl=document.getElementById('res-score');
+  const denomEl=document.getElementById('res-denom');
+  const circEl=document.getElementById('res-circle');
+  if(nota!==null){
+    scoreEl.textContent=nota%1===0?nota:nota.toFixed(1);
+    denomEl.textContent='/ '+notaMax;
+    const p=nota/notaMax;
+    circEl.style.borderColor=p>=.7?'var(--green)':p>=.5?'var(--amber)':'var(--red)';
+    scoreEl.style.color=p>=.7?'var(--green)':p>=.5?'var(--amber)':'var(--red)';
+  } else {
+    scoreEl.textContent='—'; denomEl.textContent='sem gabarito';
+    circEl.style.borderColor='rgba(255,255,255,.5)';
+  }
+  document.getElementById('res-acertos').textContent=hasG?acertos:'—';
+  document.getElementById('res-erros').textContent=hasG?erros:'—';
+  document.getElementById('res-pct').textContent=pct!==null?pct:'—';
+
+  // Submit status
+  const statusEl=document.getElementById('res-submit-status');
+  if(foiEnviado) statusEl.innerHTML='<div class="alert alert-g">✅ Resultado enviado ao servidor.</div>';
+  else if(S.aluno?.id) statusEl.innerHTML='<div class="alert alert-y">⚠️ Resultado não enviado. Verifique a conexão.</div>';
+  else statusEl.innerHTML='<div class="alert alert-b">ℹ️ QR sem dados de aluno — resultado não enviado automaticamente.</div>';
+
+  // Question list
+  const ql=document.getElementById('res-q-list');
+  const nums=Object.keys(resMap).sort((a,b)=>+a-+b);
+  ql.innerHTML=nums.map(q=>{
+    const aluno=resMap[q]||'?';
+    const gab=gabMap[q];
+    const ok=gab&&aluno===gab;
+    return`<div class="q-list-row">
+      <div class="q-list-num">${q}</div>
+      <div class="q-list-aluno ${gab?(ok?'q-list-correct':'q-list-wrong'):''}">${aluno}</div>
+      ${gab&&!ok?`<div class="q-list-gab">→ ${gab}</div>`:''}
+      ${gab?`<div class="q-list-icon">${ok?'✅':'❌'}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function novaCorrecao() { S.qr=null; S.simulado=null; S.aluno=null; S.respostas=[]; S.gabarito={}; S.editadas.clear(); goQR(); }
+function proxCorrecao() { S.respostas=[]; S.gabarito={}; S.editadas.clear(); goQR(); }
+function goHome() { stopQR(false); stopCam(false); show('s-home'); }
+
+// ══════════════════════════════════
+// UTILS
+// ══════════════════════════════════
+function stopStream(s){if(s)s.getTracks().forEach(t=>t.stop());}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ══════════════════════════════════
+// INIT
+// ══════════════════════════════════
+function init() {
+  loadAuth();
+  if(S.token) {
+    const u=localStorage.getItem('_u');
+    if(u){S.user=JSON.parse(u);updateHomeUser();}
+    show('s-home');
+    loadUserInfo();
+    loadCredits();
+  } else show('s-login');
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+init();
+</script>
+</body>
+</html>

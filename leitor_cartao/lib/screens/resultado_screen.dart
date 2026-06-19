@@ -16,6 +16,7 @@ class ResultadoScreen extends StatefulWidget {
   final int? turmaId;
   final String? nomeTurma;
   final String? nomeSimulado;
+  final String? versionCode;
 
   const ResultadoScreen({
     super.key,
@@ -30,6 +31,7 @@ class ResultadoScreen extends StatefulWidget {
     this.turmaId,
     this.nomeTurma,
     this.nomeSimulado,
+    this.versionCode,
   });
 
   @override
@@ -767,6 +769,7 @@ class _ResultadoScreenState extends State<ResultadoScreen> {
         nota: widget.notaFinal,
         respostasAluno: widget.respostasAluno,
         gabarito: widget.gabarito,
+        versionCode: widget.versionCode,
       );
 
       setState(() {

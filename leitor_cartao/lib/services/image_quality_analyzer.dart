@@ -8,6 +8,35 @@ import 'package:image/image.dart' as img;
 /// Estado de qualidade ao vivo para feedback em tempo real
 enum LiveQualityState { analyzing, excellent, good, warning, bad }
 
+/// Métricas brutas da análise ao vivo da moldura (para logs/ajuste fino).
+/// Permite ver POR QUE a moldura ficou verde/amarela/vermelha.
+class LiveFrameMetrics {
+  final LiveQualityState state;
+  final double brightness;     // 0-255 (canal Y), ideal 150-220
+  final double illumination;   // 0-1, uniformidade entre quadrantes (>0.75 ideal)
+  final bool hasPaper;         // papel branco detectado na região central da moldura
+  final int cornersFound;      // 0-4 fiduciais escuros detectados nos cantos do cartão
+  final double coberturaPapel; // 0-1, fração do frame ocupada por papel (proxy de distância)
+
+  const LiveFrameMetrics({
+    required this.state,
+    required this.brightness,
+    required this.illumination,
+    required this.hasPaper,
+    required this.cornersFound,
+    required this.coberturaPapel,
+  });
+
+  @override
+  String toString() =>
+      'brilho=${brightness.toStringAsFixed(0)} '
+      'luz_uniforme=${illumination.toStringAsFixed(2)} '
+      'papel=${hasPaper ? "sim" : "nao"} '
+      'cantos=$cornersFound/4 '
+      'cobertura=${coberturaPapel.toStringAsFixed(2)} '
+      '=> ${state.name}';
+}
+
 /// Resultado da análise de qualidade
 class ImageQualityResult {
   final double brightness;      // 0-255, ideal: 150-220
@@ -144,52 +173,178 @@ class ImageQualityAnalyzer {
     int width,
     int height,
   ) async {
+    return analyzeLiveFrameFastMetrics(lumaBytes, width, height).state;
+  }
+
+  /// Versão detalhada: retorna as métricas brutas além do estado, para logs/ajuste.
+  /// É a fonte única da decisão da moldura (analyzeLiveFrameFast delega aqui).
+  static LiveFrameMetrics analyzeLiveFrameFastMetrics(
+    List<int> lumaBytes,
+    int width,
+    int height,
+  ) {
     try {
       if (lumaBytes.isEmpty) {
-        return LiveQualityState.analyzing;
+        return const LiveFrameMetrics(
+          state: LiveQualityState.analyzing,
+          brightness: 0,
+          illumination: 0,
+          hasPaper: false,
+          cornersFound: 0,
+          coberturaPapel: 0,
+        );
       }
 
       // Calcular brilho médio (amostragem rápida)
-      double brightness = _calculateBrightnessFromBytes(lumaBytes, width, height);
+      final double brightness =
+          _calculateBrightnessFromBytes(lumaBytes, width, height);
 
       // Calcular uniformidade de iluminação (amostragem rápida)
-      double illumination =
+      final double illumination =
           _calculateIlluminationFromBytes(lumaBytes, width, height);
 
-      // ✨ NOVO: Verificar se há papel branco na área central da moldura
-      final hasPaper = _hasPaperInFrameRegion(lumaBytes, width, height);
+      // Verificar se há papel branco na área central da moldura
+      final bool hasPaper = _hasPaperInFrameRegion(lumaBytes, width, height);
 
-      // Determinar estado baseado em brightness e illumination
+      // Contagem dos 4 fiduciais — APENAS diagnóstico/log.
+      // A detecção ao vivo no buffer da câmera mostrou-se pouco confiável para
+      // travar a captura (buffer em paisagem + cartão em retrato), e o leitor
+      // geométrico do servidor reancora pelos fiduciais mesmo com enquadramento
+      // "warning". Por isso NÃO entra na decisão de readiness.
+      final int corners = _detectCornerFiducials(lumaBytes, width, height);
+
+      // Cobertura de papel no frame inteiro = proxy de DISTÂNCIA.
+      // Longe → cartão pequeno → cobertura baixa. Perto/ideal → cobertura alta.
+      // Será calibrado contra as fotos que dão ~100% para definir a faixa ideal.
+      final double cobertura = _brightFraction(lumaBytes, 150);
+
+      LiveQualityState state;
       if (brightness < 100) {
-        return LiveQualityState.bad; // Muito escuro
+        state = LiveQualityState.bad; // Muito escuro
       } else if (brightness > 240) {
-        return LiveQualityState.bad; // Muito claro
+        state = LiveQualityState.bad; // Muito claro
+      } else if (!hasPaper) {
+        state = LiveQualityState.warning; // Cartão fora da moldura
+      } else if (illumination < 0.55) {
+        state = LiveQualityState.warning; // Sombra detectada
+      } else if (brightness >= 150 &&
+          brightness <= 220 &&
+          illumination > 0.75) {
+        state = LiveQualityState.excellent;
+      } else if (brightness >= 120 &&
+          brightness <= 230 &&
+          illumination > 0.65) {
+        state = LiveQualityState.good;
+      } else {
+        state = LiveQualityState.warning;
       }
 
-      // ✨ NOVO: Se não há papel na moldura, avisar usuário
-      if (!hasPaper) {
-        return LiveQualityState.warning; // Cartão fora da moldura
-      }
-
-      // Se iluminação ruim, warning
-      if (illumination < 0.55) {
-        return LiveQualityState.warning; // Sombra detectada
-      }
-
-      // Se tudo bom
-      if (brightness >= 150 && brightness <= 220 && illumination > 0.75) {
-        return LiveQualityState.excellent;
-      }
-
-      if (brightness >= 120 && brightness <= 230 && illumination > 0.65) {
-        return LiveQualityState.good;
-      }
-
-      return LiveQualityState.warning;
+      return LiveFrameMetrics(
+        state: state,
+        brightness: brightness,
+        illumination: illumination,
+        hasPaper: hasPaper,
+        cornersFound: corners,
+        coberturaPapel: cobertura,
+      );
     } catch (e) {
       print('❌ Erro na análise rápida: $e');
-      return LiveQualityState.analyzing;
+      return const LiveFrameMetrics(
+        state: LiveQualityState.analyzing,
+        brightness: 0,
+        illumination: 0,
+        hasPaper: false,
+        cornersFound: 0,
+        coberturaPapel: 0,
+      );
     }
+  }
+
+  /// Fração do frame inteiro com brilho acima de [threshold] (papel claro).
+  /// Proxy de distância: quanto mais o cartão preenche o quadro, maior o valor.
+  static double _brightFraction(List<int> luma, int threshold) {
+    int bright = 0;
+    int total = 0;
+    for (int i = 0; i < luma.length; i += 7) {
+      total++;
+      if (luma[i] > threshold) bright++;
+    }
+    return total > 0 ? bright / total : 0.0;
+  }
+
+  /// Detecta os 4 marcadores de canto (fiduciais) do cartão no frame ao vivo.
+  ///
+  /// Os fiduciais são círculos sólidos escuros próximos aos 4 cantos do cartão.
+  /// Quando o cartão preenche a moldura, eles caem perto dos 4 cantos da região
+  /// central do buffer. A checagem é INVARIANTE à rotação (um canto continua
+  /// sendo um canto sob giro de 90°/180°), então funciona mesmo com o buffer da
+  /// câmera em paisagem e o cartão em retrato.
+  ///
+  /// Retorna quantos cantos (0-4) têm um aglomerado escuro = fiducial.
+  static int _detectCornerFiducials(List<int> luma, int w, int h) {
+    // Região central onde o cartão deve estar (alinhada com _hasPaperInFrameRegion)
+    final cl = (w * 0.12).round();
+    final cr = (w * 0.88).round();
+    final ct = (h * 0.15).round();
+    final cb = (h * 0.85).round();
+    final cw = cr - cl;
+    final ch = cb - ct;
+    if (cw < 60 || ch < 60) return 0;
+
+    // Caixa de cada canto: ~20% da região central (tolera variação de distância)
+    final bw = (cw * 0.20).round();
+    final bh = (ch * 0.20).round();
+
+    // Brilho do papel = média do miolo central (longe das bordas e dos cantos)
+    final paper = _meanRegion(
+      luma, w, h,
+      cl + (cw / 3).round(), ct + (ch / 3).round(),
+      cr - (cw / 3).round(), cb - (ch / 3).round(),
+    );
+    // Fiducial = bem mais escuro que o papel
+    final darkThresh = paper * 0.55;
+
+    final boxes = <List<int>>[
+      [cl, ct, cl + bw, ct + bh],   // canto 1
+      [cr - bw, ct, cr, ct + bh],   // canto 2
+      [cl, cb - bh, cl + bw, cb],   // canto 3
+      [cr - bw, cb - bh, cr, cb],   // canto 4
+    ];
+
+    int found = 0;
+    for (final b in boxes) {
+      int dark = 0;
+      int total = 0;
+      for (int y = b[1]; y < b[3]; y += 3) {
+        for (int x = b[0]; x < b[2]; x += 3) {
+          final idx = y * w + x;
+          if (idx >= 0 && idx < luma.length) {
+            total++;
+            if (luma[idx] < darkThresh) dark++;
+          }
+        }
+      }
+      // Um fiducial sólido ocupa uma fração perceptível da caixa do canto.
+      if (total > 0 && dark / total > 0.03) found++;
+    }
+    return found;
+  }
+
+  /// Média de brilho de uma região retangular do buffer luma (amostrada).
+  static double _meanRegion(
+    List<int> luma, int w, int h, int x0, int y0, int x1, int y1) {
+    int sum = 0;
+    int count = 0;
+    for (int y = y0; y < y1 && y < h; y += 4) {
+      for (int x = x0; x < x1 && x < w; x += 4) {
+        final idx = y * w + x;
+        if (idx >= 0 && idx < luma.length) {
+          sum += luma[idx];
+          count++;
+        }
+      }
+    }
+    return count > 0 ? sum / count : 128.0;
   }
 
   /// ✨ NOVO: Verificar se há papel branco na área central da moldura

@@ -1,7 +1,6 @@
 // cartao_result_screen.dart
 // Tela 5: Resultado e Análise do Cartão Processado
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
 import '../widgets/custom_app_bar.dart';
 import 'simulado_selection_screen.dart';
 
@@ -18,6 +17,8 @@ class CartaoResultData {
   final String qualidade;
   final Map<int, String> gabarito;
   final String? versionCode;
+  final bool foiEnviado;
+  final String? erroEnvio;
 
   CartaoResultData({
     required this.simulado,
@@ -32,6 +33,8 @@ class CartaoResultData {
     required this.qualidade,
     required this.gabarito,
     this.versionCode,
+    this.foiEnviado = false,
+    this.erroEnvio,
   });
 }
 
@@ -46,7 +49,6 @@ const _kTextMain  = Color(0xFF1A1A2E);
 const _kTextSub   = Color(0xFF6B7280);
 const _kDivider   = Color(0xFFE5E7EB);
 
-const _kLetras = ['A', 'B', 'C', 'D', 'E', '—'];
 
 /// Tela 5: Resultado e Análise do Cartão Processado
 class CartaoResultScreen extends StatefulWidget {
@@ -62,12 +64,7 @@ class CartaoResultScreen extends StatefulWidget {
 }
 
 class _CartaoResultScreenState extends State<CartaoResultScreen> {
-  bool _enviando = false;
-  bool _enviado = false;
-  String? _erroEnvio;
-
   late List<String> _respostasEditadas;
-  final Set<int> _questoesEditadas = {}; // índices (0-based) editados manualmente
 
   @override
   void initState() {
@@ -122,141 +119,6 @@ class _CartaoResultScreenState extends State<CartaoResultScreen> {
     return _kRed;
   }
 
-  // ─── Edição ──────────────────────────────────────────────────────────────
-
-  void _editarQuestao(int index) {
-    final atual = _respostasEditadas[index];
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40, height: 4,
-                    decoration: BoxDecoration(
-                      color: _kDivider,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Questão ${index + 1} — selecione a resposta correta',
-                  style: const TextStyle(
-                    color: _kTextMain,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Detectado pelo Claude: ${atual.isEmpty || atual == '?' ? '—' : atual.toUpperCase()}',
-                  style: const TextStyle(color: _kTextSub, fontSize: 12),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: _kLetras.map((letra) {
-                    final selecionado = (atual.isEmpty || atual == '?')
-                        ? letra == '—'
-                        : atual.toUpperCase() == letra;
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        setState(() {
-                          _respostasEditadas[index] = letra == '—' ? '' : letra;
-                          _questoesEditadas.add(index);
-                        });
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        width: 46,
-                        height: 46,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: selecionado ? _kBlue : _kBgColor,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: selecionado ? _kBlue : _kDivider,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Text(
-                          letra,
-                          style: TextStyle(
-                            color: selecionado ? Colors.white : _kTextMain,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ─── Envio ───────────────────────────────────────────────────────────────
-
-  Future<void> _submeterResultado() async {
-    setState(() {
-      _enviando = true;
-      _erroEnvio = null;
-    });
-
-    try {
-      final Map<String, String> respostasMap = {};
-      for (int i = 0; i < _respostasEditadas.length; i++) {
-        respostasMap[(i + 1).toString()] = _respostasEditadas[i];
-      }
-
-      final Map<String, String> gabaritoMap = {};
-      widget.result.gabarito.forEach((k, v) => gabaritoMap[k.toString()] = v);
-
-      final versao = 'versao${widget.result.tipoProva}';
-
-      final apiService = ApiService();
-      final sucesso = await apiService.submitStudentResults(
-        studentId: widget.result.aluno.id,
-        simuladoId: widget.result.simulado.id,
-        versao: versao,
-        nota: _notaCalculada,
-        respostasAluno: respostasMap,
-        gabarito: gabaritoMap,
-      );
-
-      if (mounted) {
-        setState(() {
-          _enviando = false;
-          _enviado = sucesso;
-          _erroEnvio = sucesso ? null : 'Erro ao enviar resultado';
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _enviando = false;
-          _erroEnvio = 'Erro: $e';
-        });
-      }
-    }
-  }
-
   // ─── Build ───────────────────────────────────────────────────────────────
 
   @override
@@ -274,65 +136,6 @@ class _CartaoResultScreenState extends State<CartaoResultScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildIdentCard(),
-                    const SizedBox(height: 12),
-                    _buildNotaCard(),
-                    const SizedBox(height: 12),
-                    _buildQuestoesCard(),
-                    const SizedBox(height: 24),
-                    if (!_enviado) ...[
-                      // Aviso de edições pendentes
-                      if (_questoesEditadas.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.edit_rounded, color: _kOrange, size: 14),
-                              const SizedBox(width: 6),
-                              Text(
-                                '${_questoesEditadas.length} questão(ões) corrigida(s) manualmente',
-                                style: const TextStyle(
-                                  color: _kOrange,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      // Botão ENVIAR
-                      ElevatedButton.icon(
-                        onPressed: _enviando ? null : _submeterResultado,
-                        icon: _enviando
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.send_rounded, size: 18),
-                        label: Text(
-                          _enviando ? 'ENVIANDO...' : 'CONFIRMAR E ENVIAR',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _kGreen,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                    // Botão NOVO CARTÃO
                     ElevatedButton.icon(
                       onPressed: () {
                         Navigator.of(context).popUntil((route) => route.isFirst);
@@ -346,15 +149,21 @@ class _CartaoResultScreenState extends State<CartaoResultScreen> {
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _enviado ? _kBlue : const Color(0xFF64748B),
+                        backgroundColor: _kBlue,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         elevation: 0,
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    _buildIdentCard(),
+                    const SizedBox(height: 12),
+                    _buildNotaCard(),
+                    const SizedBox(height: 12),
+                    _buildQuestoesCard(),
                     const SizedBox(height: 16),
                   ],
                 ),
@@ -369,28 +178,7 @@ class _CartaoResultScreenState extends State<CartaoResultScreen> {
   // ─── Widgets ─────────────────────────────────────────────────────────────
 
   Widget _buildStatusBanner() {
-    if (_enviando) {
-      return _bannerContainer(
-        color: const Color(0xFFEFF6FF),
-        borderColor: const Color(0xFFBFDBFE),
-        child: const Row(
-          children: [
-            SizedBox(
-              width: 14, height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2, color: _kBlue),
-            ),
-            SizedBox(width: 10),
-            Text(
-              'Enviando resultado...',
-              style: TextStyle(
-                color: _kBlue, fontSize: 13, fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    if (_enviado) {
+    if (widget.result.foiEnviado) {
       return _bannerContainer(
         color: const Color(0xFFF0FDF4),
         borderColor: const Color(0xFFBBF7D0),
@@ -408,7 +196,7 @@ class _CartaoResultScreenState extends State<CartaoResultScreen> {
         ),
       );
     }
-    if (_erroEnvio != null) {
+    if (widget.result.erroEnvio != null) {
       return _bannerContainer(
         color: const Color(0xFFFFF1F2),
         borderColor: const Color(0xFFFECACA),
@@ -416,45 +204,11 @@ class _CartaoResultScreenState extends State<CartaoResultScreen> {
           children: [
             const Icon(Icons.error_outline_rounded, color: _kRed, size: 16),
             const SizedBox(width: 10),
-            const Expanded(
-              child: Text(
-                'Erro ao enviar resultado',
-                style: TextStyle(
-                  color: _kRed, fontSize: 13, fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            GestureDetector(
-              onTap: _submeterResultado,
-              child: const Text(
-                'TENTAR NOVAMENTE',
-                style: TextStyle(
-                  color: _kRed,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  decoration: TextDecoration.underline,
-                  decorationColor: _kRed,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    // Banner informativo: aguardando confirmação
-    if (!_enviado && !_enviando) {
-      return _bannerContainer(
-        color: const Color(0xFFFFFBEB),
-        borderColor: const Color(0xFFFDE68A),
-        child: const Row(
-          children: [
-            Icon(Icons.touch_app_rounded, color: _kOrange, size: 16),
-            SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Toque em uma resposta para corrigir manualmente',
-                style: TextStyle(
-                  color: _kOrange, fontSize: 13, fontWeight: FontWeight.w600,
+                widget.result.erroEnvio!,
+                style: const TextStyle(
+                  color: _kRed, fontSize: 13, fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -586,7 +340,7 @@ class _CartaoResultScreenState extends State<CartaoResultScreen> {
           _cardTitle('Gabarito Detalhado'),
           const SizedBox(height: 4),
           Text(
-            '${_respostasEditadas.length} questões — toque para corrigir',
+            '${_respostasEditadas.length} questões',
             style: const TextStyle(color: _kTextSub, fontSize: 12),
           ),
           const SizedBox(height: 12),
@@ -639,13 +393,12 @@ class _CartaoResultScreenState extends State<CartaoResultScreen> {
                 marcou != '?' &&
                 marcou != '—' &&
                 marcou.toUpperCase() == correto.toUpperCase();
-            final foiEditado = _questoesEditadas.contains(i);
             final isEven = i % 2 == 0;
 
             return Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: _enviado ? null : () => _editarQuestao(i),
+                onTap: null,
                 borderRadius: BorderRadius.circular(6),
                 child: Container(
                   decoration: BoxDecoration(
@@ -668,37 +421,13 @@ class _CartaoResultScreenState extends State<CartaoResultScreen> {
                       ),
                       Expanded(
                         child: Center(
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              _bubbleChip(
-                                label: marcou.isEmpty || marcou == '?'
-                                    ? '—'
-                                    : marcou.toUpperCase(),
-                                color: acertou ? _kGreen : _kRed,
-                                light: !acertou &&
-                                    (marcou.isEmpty || marcou == '?'),
-                              ),
-                              // Ícone de lápis se foi editado
-                              if (foiEditado)
-                                Positioned(
-                                  top: -4,
-                                  right: -6,
-                                  child: Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: const BoxDecoration(
-                                      color: _kOrange,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.edit_rounded,
-                                      size: 7,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                            ],
+                          child: _bubbleChip(
+                            label: marcou.isEmpty || marcou == '?'
+                                ? '—'
+                                : marcou.toUpperCase(),
+                            color: acertou ? _kGreen : _kRed,
+                            light: !acertou &&
+                                (marcou.isEmpty || marcou == '?'),
                           ),
                         ),
                       ),

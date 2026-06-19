@@ -1,0 +1,18 @@
+{
+  "name": "SimuladoApp - Leitor de Cartão",
+  "short_name": "CartãoApp",
+  "description": "Leitura e correção automática de cartões-resposta",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F8FAFC",
+  "theme_color": "#0DA6F2",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

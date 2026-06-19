@@ -10,8 +10,17 @@ class QRScanResult {
   final String? versionCode;
   final int? simuladoId;
   final double? pontuacaoTotal;
+  final int? alunoId;
+  final int? turmaId;
 
-  QRScanResult({required this.tipo, this.versionCode, this.simuladoId, this.pontuacaoTotal});
+  QRScanResult({
+    required this.tipo,
+    this.versionCode,
+    this.simuladoId,
+    this.pontuacaoTotal,
+    this.alunoId,
+    this.turmaId,
+  });
 }
 
 /// Tela 2: Leitura de QR Code (somente scanner)
@@ -59,7 +68,20 @@ class _QRCaptureScreenState extends State<QRCaptureScreen> {
       final pontuacaoMatch = RegExp(r'\|P:([\d.]+)').firstMatch(rawData);
       final pontuacaoTotal = pontuacaoMatch != null ? double.tryParse(pontuacaoMatch.group(1)!) : null;
 
-      return QRScanResult(tipo: tipo, versionCode: versionCode, simuladoId: simuladoId, pontuacaoTotal: pontuacaoTotal);
+      final alunoMatch = RegExp(r'\|A:(\d+)').firstMatch(rawData);
+      final alunoId = alunoMatch != null ? int.tryParse(alunoMatch.group(1)!) : null;
+
+      final turmaMatch = RegExp(r'\|C:(\d+)').firstMatch(rawData);
+      final turmaId = turmaMatch != null ? int.tryParse(turmaMatch.group(1)!) : null;
+
+      return QRScanResult(
+        tipo: tipo,
+        versionCode: versionCode,
+        simuladoId: simuladoId,
+        pontuacaoTotal: pontuacaoTotal,
+        alunoId: alunoId,
+        turmaId: turmaId,
+      );
     } catch (e) {
       return null;
     }
@@ -93,6 +115,50 @@ class _QRCaptureScreenState extends State<QRCaptureScreen> {
   void _avancar() {
     if (_scannedResult == null) return;
 
+    // Se o QR identifica um aluno e ele não bate com o aluno selecionado, avisa
+    final qrAlunoId = _scannedResult!.alunoId;
+    if (qrAlunoId != null && qrAlunoId != widget.aluno.id) {
+      _isScanning = false;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          title: const Text('Cartão não corresponde ao aluno'),
+          content: Text(
+            'Este cartão pertence ao aluno #$qrAlunoId, '
+            'mas o aluno selecionado é ${widget.aluno.nome} (#${widget.aluno.id}).\n\n'
+            'Deseja continuar mesmo assim?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                setState(() {
+                  _isScanning = true;
+                  _scannedResult = null;
+                  _lastScannedCode = null;
+                });
+                _controller.start();
+              },
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _navegarParaProcessamento();
+              },
+              child: const Text('Continuar assim mesmo'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    _navegarParaProcessamento();
+  }
+
+  void _navegarParaProcessamento() {
     Navigator.push(
       context,
       MaterialPageRoute(

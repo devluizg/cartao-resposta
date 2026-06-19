@@ -27,6 +27,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final ApiService _apiService = ApiService();
   StreamSubscription<Uri>? _deepLinkSubscription;
 
+  // Configuração de servidor
+  bool _showServerConfig = false;
+  final _localUrlController = TextEditingController();
+
   // Design System - Tema Claro com Cyan e Azul
   static const Color primary = Color(0xFF0DA6F2);        // Azul corporativo
   static const Color primaryLight = Color(0xFF4FA3F7);   // Azul claro
@@ -110,15 +114,12 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _initializeApp() async {
-    // Configurar para servidor de produção na Hetzner
-    _apiService.setBaseUrl('https://simuladoapp.com.br');
+    await _apiService.loadSavedUrl();
+    _localUrlController.text = _apiService.baseUrl != ApiService.prodUrl
+        ? _apiService.baseUrl
+        : '';
     print('=== INICIALIZAÇÃO DO APP ===');
-    debugPrint('App inicializado em modo PRODUÇÃO');
-    debugPrint('URL do servidor: https://simuladoapp.com.br');
-    print('URL configurada: https://simuladoapp.com.br');
-
-    // Verificar conexão
-    print('Testando conexão com servidor...');
+    print('URL configurada: ${_apiService.baseUrl}');
     await _checkConnection();
   }
 
@@ -204,63 +205,72 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// Garante que a URL local tenha esquema e porta.
+  String _normalizeLocalUrl(String raw) {
+    var url = raw.trim();
+    if (!url.startsWith('http')) url = 'http://$url';
+    // Adiciona porta padrão Django se não houver nenhuma porta
+    final uri = Uri.tryParse(url);
+    if (uri != null && uri.port == 0) url = '$url:8000';
+    return url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+  }
+
   Future<void> _login() async {
-    print('\n=== INICIANDO LOGIN NORMAL (EMAIL/SENHA) ===');
-
-    if (!_formKey.currentState!.validate()) {
-      print('❌ Validação de formulário falhou');
-      return;
-    }
-
-    print('✅ Formulário validado com sucesso');
-    print('Email: ${_usernameController.text.trim()}');
-    print('Senha: ${_passwordController.text.isNotEmpty ? "[SENHA FORNECIDA - ${_passwordController.text.length} caracteres]" : "[SENHA VAZIA]"}');
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
 
+    final email    = _usernameController.text.trim();
+    final password = _passwordController.text;
+
+    // Determina a ordem de tentativa: local primeiro se configurado, senão prod
+    final localRaw = _localUrlController.text.trim();
+    final localUrl = localRaw.isNotEmpty ? _normalizeLocalUrl(localRaw) : null;
+
+    final serversToTry = (localUrl != null && localUrl != ApiService.prodUrl)
+        ? [localUrl, ApiService.prodUrl]
+        : [ApiService.prodUrl, if (localUrl != null) localUrl];
+
     try {
-      print('Chamando _apiService.login()...');
-      final success = await _apiService.login(
-        _usernameController.text.trim(),
-        _passwordController.text,
-      );
+      bool success = false;
+      String? usedUrl;
 
-      print('Resultado da chamada login(): $success');
+      for (final url in serversToTry) {
+        print('Tentando login em: $url');
+        _apiService.setBaseUrl(url);
+        try {
+          success = await _apiService.login(email, password);
+        } catch (_) {
+          success = false;
+        }
+        if (success) {
+          usedUrl = url;
+          break;
+        }
+      }
 
-      if (success) {
-        print('✅ Login bem-sucedido! Navegando para SelectionScreen...');
+      if (success && usedUrl != null) {
+        await _apiService.saveCurrentUrl();
+        print('✅ Login em: $usedUrl');
         if (!mounted) return;
-
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const SelectionScreen()),
         );
       } else {
-        print('❌ Login falhou: Credenciais inválidas');
         setState(() {
           _errorMessage = 'Credenciais inválidas. Verifique seu Email e Senha.';
         });
       }
-    } catch (e, stackTrace) {
-      print('❌ EXCEÇÃO durante o login:');
-      print('Erro: $e');
-      print('Tipo do erro: ${e.runtimeType}');
-      print('Stack trace:');
-      print(stackTrace);
-      setState(() {
-        _errorMessage =
-            'Erro de conexão com o servidor. Tente novamente mais tarde.';
-      });
+    } catch (e) {
       debugPrint('Exception during login: $e');
+      setState(() {
+        _errorMessage = 'Erro de conexão com o servidor. Tente novamente mais tarde.';
+      });
     } finally {
-      if (mounted) {
-        print('Finalizando processo de login, _isLoading = false');
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -508,7 +518,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
             // Campo de Senha
             _buildPasswordField(),
-            const SizedBox(height: 28),
+            const SizedBox(height: 16),
+
+            // Painel de servidor (oculto por padrão)
+            _buildServerPanel(),
+            const SizedBox(height: 12),
 
             // Botão de Login
             _buildLoginButton(),
@@ -841,6 +855,85 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  Widget _buildServerPanel() {
+    final isLocal = _apiService.baseUrl != ApiService.prodUrl;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: () => setState(() => _showServerConfig = !_showServerConfig),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _showServerConfig
+                    ? Icons.keyboard_arrow_up_rounded
+                    : Icons.settings_rounded,
+                size: 14,
+                color: isLocal
+                    ? const Color(0xFFEA580C)
+                    : textSubLight.withOpacity(0.5),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                isLocal
+                    ? '⚙ Servidor: local'
+                    : '⚙ Servidor',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isLocal
+                      ? const Color(0xFFEA580C)
+                      : textSubLight.withOpacity(0.5),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (_showServerConfig) ...[
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _localUrlController,
+            style: const TextStyle(fontSize: 13),
+            decoration: InputDecoration(
+              labelText: 'IP do servidor local (deixe vazio para produção)',
+              hintText: 'ex: 192.168.1.10:8000',
+              prefixIcon: const Icon(Icons.dns_rounded, size: 18),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Dica: no emulador Android use 10.0.2.2. No celular real, use o IP da sua máquina na rede Wi-Fi.',
+            style: TextStyle(
+              fontSize: 10,
+              color: textSubLight.withOpacity(0.6),
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          if (_localUrlController.text.trim().isNotEmpty)
+            TextButton.icon(
+              onPressed: () async {
+                _localUrlController.clear();
+                await _apiService.resetToProduction();
+                setState(() {});
+              },
+              icon: const Icon(Icons.restore_rounded, size: 14),
+              label: const Text('Voltar para produção', style: TextStyle(fontSize: 11)),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFEA580C),
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildLoginButton() {
     return SizedBox(
       height: 56,
@@ -956,6 +1049,7 @@ class _LoginScreenState extends State<LoginScreen> {
     _deepLinkSubscription?.cancel();
     _usernameController.dispose();
     _passwordController.dispose();
+    _localUrlController.dispose();
     super.dispose();
   }
 }

@@ -5,8 +5,10 @@ import '../services/api_service.dart';
 import '../services/models/class_model.dart';
 import '../services/models/simulado_model.dart';
 import '../widgets/custom_app_bar.dart';
+import 'cartao_processing_screen.dart';
 import 'login_screen.dart';
 import 'quick_selection_screen.dart';
+import 'simulado_selection_screen.dart' show SimuladoData, AlunoData;
 
 class SelectionScreen extends StatefulWidget {
   const SelectionScreen({super.key});
@@ -120,6 +122,51 @@ class _SelectionScreenState extends State<SelectionScreen> {
       final turmasFiltradas = _turmas
           .where((t) => simulado.classes.contains(t.id))
           .toList();
+
+      final int? alunoId = qrData['alunoId'] as int?;
+      final int? turmaId = qrData['turmaId'] as int?;
+
+      // Auto-identificação: QR tem dados do aluno → pular seleção manual
+      if (alunoId != null && turmaId != null && turmasFiltradas.isNotEmpty) {
+        try {
+          final students = await _apiService.getStudentsByClass(turmaId);
+          final matching = students.where((s) => s.id == alunoId).toList();
+          if (matching.isNotEmpty && mounted) {
+            final student = matching.first;
+            final turma = turmasFiltradas.firstWhere(
+              (t) => t.id == turmaId,
+              orElse: () => turmasFiltradas.first,
+            );
+            setState(() => _carregandoQR = false);
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CartaoProcessingScreen(
+                  simulado: SimuladoData(
+                    id: simulado.id,
+                    nome: simulado.titulo,
+                    numQuestoes: simulado.questoes.length,
+                    dataCriacao: simulado.dataCriacao,
+                    notaMaxima: simulado.notaMaxima,
+                  ),
+                  aluno: AlunoData(
+                    id: student.id,
+                    nome: student.name,
+                    matricula: student.studentId?.toString() ?? 'N/A',
+                    turmaNome: turma.name,
+                  ),
+                  tipoProva: qrData['tipo'] as int? ?? 1,
+                  versionCode: qrData['versionCode'] as String?,
+                ),
+              ),
+            );
+            if (mounted) _carregarCreditos();
+            return;
+          }
+        } catch (_) {
+          // Falhou ao buscar aluno — cai no fluxo manual abaixo
+        }
+      }
 
       setState(() => _carregandoQR = false);
 
@@ -333,6 +380,8 @@ class _QRSimuladoScannerScreenState extends State<_QRSimuladoScannerScreen> {
       final tipoMatch    = RegExp(r'\|T:(\d+)|\bT:(\d+)').firstMatch(code);
       final versionMatch = RegExp(r'ID:([^\|]+)').firstMatch(code);
       final pontuacaoMatch = RegExp(r'\|P:([\d.]+)').firstMatch(code);
+      final alunoMatch  = RegExp(r'\|A:(\d+)').firstMatch(code);
+      final turmaMatch  = RegExp(r'\|C:(\d+)').firstMatch(code);
 
       if (simuladoMatch != null && tipoMatch != null) {
         _scanned = true;
@@ -345,6 +394,8 @@ class _QRSimuladoScannerScreenState extends State<_QRSimuladoScannerScreen> {
           'pontuacaoTotal': pontuacaoMatch != null
               ? double.tryParse(pontuacaoMatch.group(1)!)
               : null,
+          'alunoId': alunoMatch != null ? int.tryParse(alunoMatch.group(1)!) : null,
+          'turmaId': turmaMatch != null ? int.tryParse(turmaMatch.group(1)!) : null,
         });
         break;
       }

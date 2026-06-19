@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import '../services/api_service.dart';
-import '../services/claude_vision_service.dart';
 import 'simulado_selection_screen.dart';
 import 'cartao_result_screen.dart' show CartaoResultData, CartaoResultScreen;
 
@@ -45,6 +44,29 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
   }
 
   String _metodoUsado = '';
+  final Set<int> _questoesEditadas = {};
+
+  void _onBubbleTapped(int qIndex, String letter) {
+    if (_respostasDetectadas == null) return;
+    setState(() {
+      final current = _respostasDetectadas![qIndex].toUpperCase();
+      _respostasDetectadas![qIndex] = current == letter ? '' : letter;
+      _questoesEditadas.add(qIndex);
+
+      final gabarito = _gabaritoCarregado ?? {};
+      int acertos = 0;
+      int erros = 0;
+      for (int i = 0; i < _respostasDetectadas!.length; i++) {
+        if (gabarito.containsKey(i + 1)) {
+          if (_respostasDetectadas![i].toUpperCase() == gabarito[i + 1]) acertos++;
+          else erros++;
+        }
+      }
+      _acertos = acertos;
+      _erros = erros;
+      _score = (acertos / widget.simulado.numQuestoes) * 100;
+    });
+  }
 
   Future<void> _processarComClaudeVision() async {
     setState(() {
@@ -55,35 +77,28 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
     try {
       Map<String, dynamic>? jsonData;
 
-      // === PRIMÁRIO: Backend Django (Claude Vision + OpenCV fallback) ===
-      // try {
-      //   final apiService = ApiService();
-      //   jsonData = await apiService.processCardImageViaBackend(
-      //     imageFilePath: widget.imageFile.path,
-      //     numQuestoes: widget.simulado.numQuestoes,
-      //   );
-      //   if (jsonData != null) {
-      //     _metodoUsado = jsonData['metodo'] as String? ?? 'backend';
-      //   }
-      // } catch (e) {
-      //   print('⚠️ Backend Django falhou: $e');
-      // }
+      // === Backend Django (leitor geométrico determinístico + fallback IA) ===
+      // Mesmo fluxo do PWA: a foto vai para o servidor, que roda o leitor
+      // geométrico (OpenCV puro) como método principal e só aciona IA como
+      // fallback do lado do servidor. Nenhuma chave de IA fica no app.
+      final apiService = ApiService();
+      jsonData = await apiService.processCardImageViaBackend(
+        imageFilePath: widget.imageFile.path,
+        numQuestoes: widget.simulado.numQuestoes,
+      );
 
-      // === Claude Vision direto ===
-      // if (jsonData == null) {
-      try {
-        jsonData = await ClaudeVisionService.processarCartao(
-          imageFile: widget.imageFile,
-          numQuestoes: widget.simulado.numQuestoes,
-        );
-        _metodoUsado = 'claude_vision_direto';
-      } catch (e) {
-        print('⚠️ Claude Vision direto falhou: $e');
-        rethrow;
+      if (jsonData == null) {
+        throw Exception('Não foi possível ler o cartão no servidor');
       }
-      // }
+      _metodoUsado = jsonData['metodo'] as String? ?? 'backend';
 
-      final respostasJson = jsonData!['respostas'] as Map<String, dynamic>;
+      // LOG: como o servidor leu o cartão (mesmo debug do PWA).
+      // Mostra se o deskew pelos fiduciais funcionou, como ancorou a grade
+      // (retângulo vs fiduciais) e a fração de tinta de cada bolha — é o que
+      // permite saber se a FOTO está no padrão certo (deskew_ok=true, ancora=retangulo).
+      _logLeituraServidor(jsonData);
+
+      final respostasJson = jsonData['respostas'] as Map<String, dynamic>;
       final List<String> respostas = List.generate(
         widget.simulado.numQuestoes,
         (i) => (respostasJson[(i + 1).toString()] as String?) ?? '',
@@ -123,14 +138,62 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
     }
   }
 
+  /// Loga, de forma legível, como o servidor leu o cartão.
+  /// Espelha o `debug` do leitor geométrico (api/omr/leitor_geometrico.py).
+  void _logLeituraServidor(Map<String, dynamic> jsonData) {
+    try {
+      final metodo = jsonData['metodo'] ?? 'desconhecido';
+      final taxa = jsonData['taxa_deteccao'];
+      final qualidade = jsonData['qualidade_imagem'];
+      final obs = jsonData['observacoes'] ?? '';
+      print('🧾 [SERVIDOR] metodo=$metodo '
+          '| taxa_deteccao=$taxa | qualidade=$qualidade '
+          '${obs.toString().isNotEmpty ? "| obs=$obs" : ""}');
+
+      final debug = jsonData['debug'] as Map<String, dynamic>?;
+      if (debug == null) {
+        // Fallback IA (gpt4o/claude) não devolve debug geométrico.
+        print('🧾 [SERVIDOR] sem debug geométrico (provável fallback de IA)');
+        return;
+      }
+
+      final origem = debug['origem'];
+      print('🧾 [SERVIDOR] origem=${origem?['w']}x${origem?['h']} '
+          '| deskew_ok=${debug['deskew_ok']} | ancora=${debug['ancora']}');
+
+      // Calibração da grade por coluna (onde as bolhas foram travadas)
+      final colunas = debug['colunas'] as List?;
+      if (colunas != null) {
+        for (final c in colunas) {
+          print('🧾 [SERVIDOR] coluna ${c['col']}: '
+              'linhas(start=${c['linhas_start']} pitch=${c['linhas_pitch']}) '
+              'colunas(start=${c['colunas_start']} pitch=${c['colunas_pitch']}) '
+              'ink_thresh=${c['ink_thresh']} canon=${c['canon_w']}x${c['canon_h']}');
+        }
+      }
+
+      // Fração de tinta por questão (A B C D E) — a base da decisão de marcação
+      final questoes = debug['questoes'] as List?;
+      if (questoes != null) {
+        for (final q in questoes) {
+          final fracs = (q['fracs'] as List?)?.join(' ') ?? '';
+          print('🧾 [SERVIDOR] Q${q['q']} -> ${q['letra']}  [A B C D E] = $fracs');
+        }
+      }
+    } catch (e) {
+      print('🧾 [SERVIDOR] erro ao logar debug: $e');
+    }
+  }
+
   bool _confirmando = false;
 
   Future<void> _confirmar() async {
     if (_confirmando) return;
     setState(() => _confirmando = true);
 
-    // Consumir crédito antes de registrar o resultado
     final apiService = ApiService();
+
+    // 1. Consumir crédito
     final creditoConsumido = await apiService.consumeCredit(
       studentId: widget.aluno.id,
       simuladoId: widget.simulado.id,
@@ -156,19 +219,52 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
       return;
     }
 
+    // 2. Enviar resultado automaticamente
+    final gabarito = _gabaritoCarregado ?? {};
+    final totalQuestoes = widget.simulado.numQuestoes;
+    final nota = totalQuestoes > 0
+        ? _acertos * widget.simulado.notaMaxima / totalQuestoes
+        : 0.0;
+
+    final Map<String, String> respostasMap = {};
+    for (int i = 0; i < _respostasDetectadas!.length; i++) {
+      respostasMap[(i + 1).toString()] = _respostasDetectadas![i];
+    }
+    final Map<String, String> gabaritoMap = {};
+    gabarito.forEach((k, v) => gabaritoMap[k.toString()] = v);
+
+    bool foiEnviado = false;
+    String? erroEnvio;
+    try {
+      foiEnviado = await apiService.submitStudentResults(
+        studentId: widget.aluno.id,
+        simuladoId: widget.simulado.id,
+        versao: 'versao${widget.tipoProva}',
+        nota: nota,
+        respostasAluno: respostasMap,
+        gabarito: gabaritoMap,
+        versionCode: widget.versionCode,
+      );
+      if (!foiEnviado) erroEnvio = 'Erro ao enviar resultado para o servidor';
+    } catch (e) {
+      erroEnvio = 'Erro ao enviar: $e';
+    }
+
     final result = CartaoResultData(
       simulado: widget.simulado,
       aluno: widget.aluno,
       tipoProva: widget.tipoProva,
-      totalQuestoes: widget.simulado.numQuestoes,
+      totalQuestoes: totalQuestoes,
       acertos: _acertos,
       erros: _erros,
       score: _score,
       respostasMarcadas: _respostasDetectadas!,
       tempoProcessamento: _metodoUsado,
       qualidade: _metodoUsado,
-      gabarito: _gabaritoCarregado ?? {},
+      gabarito: gabarito,
       versionCode: widget.versionCode,
+      foiEnviado: foiEnviado,
+      erroEnvio: erroEnvio,
     );
 
     if (mounted) {
@@ -188,6 +284,7 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
       final gabaritoString = await apiService.getGabarito(
         widget.simulado.id,
         tipo: widget.tipoProva.toString(),
+        versionCode: widget.versionCode,
       );
       if (gabaritoString == null || gabaritoString.isEmpty) return {};
       final Map<int, String> gabarito = {};
@@ -461,7 +558,7 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'Confira o gabarito abaixo',
+                  'Toque em uma bolinha para corrigir',
                   style: TextStyle(color: Color(0xFF6B7280), fontSize: 11),
                 ),
               ],
@@ -649,6 +746,8 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
   }) {
     final detectedUpper = detected.toUpperCase();
     final hasGabarito = gabAnswer != null;
+    final qIndex = q - 1;
+    final isEdited = _questoesEditadas.contains(qIndex);
 
     return Container(
       color: isEven ? const Color(0xFFF9FAFB) : Colors.white,
@@ -657,23 +756,44 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
         children: [
           SizedBox(
             width: 24,
-            child: Text(
-              q.toString().padLeft(2, '0'),
-              style: const TextStyle(
-                color: Color(0xFF9CA3AF),
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.right,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Text(
+                  q.toString().padLeft(2, '0'),
+                  style: const TextStyle(
+                    color: Color(0xFF9CA3AF),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.right,
+                ),
+                if (isEdited)
+                  const Positioned(
+                    top: -3,
+                    right: -2,
+                    child: CircleAvatar(
+                      radius: 4,
+                      backgroundColor: Color(0xFFF59E0B),
+                    ),
+                  ),
+              ],
             ),
           ),
           for (final letter in _letters)
             Expanded(
               child: Center(
-                child: _buildBubble(
-                  letter: letter,
-                  detectedUpper: detectedUpper,
-                  gabAnswer: hasGabarito ? gabAnswer : null,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _onBubbleTapped(qIndex, letter),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: _buildBubble(
+                      letter: letter,
+                      detectedUpper: detectedUpper,
+                      gabAnswer: hasGabarito ? gabAnswer : null,
+                    ),
+                  ),
                 ),
               ),
             ),

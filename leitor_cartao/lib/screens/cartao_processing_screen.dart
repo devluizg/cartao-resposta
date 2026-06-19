@@ -66,6 +66,12 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
   bool _flashSuggestionShown = false;
   int _badFrameCount = 0;
 
+  // Throttle do log de métricas da moldura (evita spam: ~1 log/seg)
+  int _lastLiveLogMs = 0;
+
+  // Última cobertura de papel medida (proxy de distância) — p/ calibração
+  double _liveCobertura = 0;
+
   @override
   void initState() {
     super.initState();
@@ -170,13 +176,25 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
       final height = frame.height;
 
       // Executar análise rápida em isolate para não travar a UI
-      final liveState = await compute(
+      final metrics = await compute(
         _analyzeLiveFrameInIsolate,
         _FrameAnalysisData(lumaBytes, width, height),
       );
+      final liveState = metrics.state;
+
+      // LOG (throttle ~1/seg): mostra POR QUE a moldura está nessa cor.
+      // Útil para calibrar os limiares (brilho/luz/papel) que decidem a captura.
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      if (nowMs - _lastLiveLogMs >= 1000) {
+        _lastLiveLogMs = nowMs;
+        print('📐 [MOLDURA] frame=${width}x$height $metrics '
+            '| estaveis=$_stableFrameCount/$_requiredStableFrames '
+            '| flash=${_currentFlashMode.name}');
+      }
 
       if (mounted) {
         setState(() {
+          _liveCobertura = metrics.coberturaPapel;
           _liveQuality = liveState;
           _liveTip =
               ImageQualityAnalyzer.getTipForLiveQualityState(liveState);
@@ -213,10 +231,10 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
   }
 
   /// Função estática para rodar em isolate
-  static Future<LiveQualityState> _analyzeLiveFrameInIsolate(
+  static LiveFrameMetrics _analyzeLiveFrameInIsolate(
     _FrameAnalysisData data,
-  ) async {
-    return ImageQualityAnalyzer.analyzeLiveFrameFast(
+  ) {
+    return ImageQualityAnalyzer.analyzeLiveFrameFastMetrics(
       data.lumaBytes,
       data.width,
       data.height,
@@ -328,6 +346,7 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
 
   bool get _isReadyToCapture =>
       _isStabilized &&
+      _currentFlashMode != FlashMode.off && // 100% só com flash (confirmado em teste)
       (_liveQuality == LiveQualityState.excellent ||
           _liveQuality == LiveQualityState.good);
 
@@ -353,6 +372,14 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
         'cartao_${DateTime.now().millisecondsSinceEpoch}.jpg',
       );
       final File arquivoFinal = await File(foto.path).copy(novoPath);
+
+      // LOG: foto que será enviada ao servidor (tamanho aproxima a resolução real).
+      final int tamBytes = await arquivoFinal.length();
+      print('📸 [CAPTURA] foto salva: ${(tamBytes / 1024).toStringAsFixed(0)}KB '
+          '| qualidade_ultima_moldura=${_liveQuality.name} '
+          '| cobertura=${_liveCobertura.toStringAsFixed(2)} '
+          '| estabilizada=$_isStabilized | flash=${_currentFlashMode.name} '
+          '| path=$novoPath');
 
       if (mounted) {
         Navigator.push(
@@ -670,11 +697,13 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
               Text(
                 _isReadyToCapture
                     ? '✅ PRONTO — Pode fotografar!'
-                    : _stableFrameCount > 0
-                        ? 'Estabilizando... mantenha firme'
-                        : _liveQuality == LiveQualityState.bad
-                            ? '🔦 Ative o flash ou melhore a luz'
-                            : 'Encaixe o cartão na moldura',
+                    : _currentFlashMode == FlashMode.off
+                        ? '🔦 Ligue o flash para leitura perfeita'
+                        : _stableFrameCount > 0
+                            ? 'Estabilizando... mantenha firme'
+                            : _liveQuality == LiveQualityState.bad
+                                ? '🔦 Ative o flash ou melhore a luz'
+                                : 'Encaixe o cartão na moldura',
                 style: TextStyle(
                   color: badgeColor,
                   fontSize: 11,
