@@ -2,7 +2,7 @@
 // Tela 5: Resultado e Análise do Cartão Processado
 import 'package:flutter/material.dart';
 import '../widgets/custom_app_bar.dart';
-import 'simulado_selection_screen.dart';
+import 'shared_data.dart';
 
 class CartaoResultData {
   final SimuladoData simulado;
@@ -256,7 +256,6 @@ class _CartaoResultScreenState extends State<CartaoResultScreen> {
 
   Widget _buildNotaCard() {
     final nota = _notaCalculada;
-    final notaMax = widget.result.simulado.notaMaxima;
     final acertos = _acertosEditados;
     final total = widget.result.totalQuestoes;
     final erros = _errosEditados;
@@ -271,24 +270,16 @@ class _CartaoResultScreenState extends State<CartaoResultScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
+              // Mostra só a nota do aluno (sem "/ máximo"), com vírgula decimal.
               Text(
-                nota.toStringAsFixed(nota % 1 == 0 ? 0 : 1),
+                nota
+                    .toStringAsFixed(nota % 1 == 0 ? 0 : 1)
+                    .replaceAll('.', ','),
                 style: TextStyle(
                   color: color,
                   fontSize: 64,
                   fontWeight: FontWeight.w900,
                   height: 1,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  ' / ${notaMax.toStringAsFixed(notaMax % 1 == 0 ? 0 : 1)}',
-                  style: const TextStyle(
-                    color: _kTextSub,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                  ),
                 ),
               ),
             ],
@@ -389,6 +380,11 @@ class _CartaoResultScreenState extends State<CartaoResultScreen> {
             final qNum = i + 1;
             final marcou = _respostasEditadas[i];
             final correto = widget.result.gabarito[qNum] ?? '—';
+            // Questão sem resposta clara: em branco OU o app ficou em dúvida.
+            // Nos dois casos o quadradinho mostra um asterisco.
+            final semResposta = marcou == '?' ||
+                _isBranco(marcou) ||
+                _isAmbigua(marcou);
             final acertou = marcou.isNotEmpty &&
                 marcou != '?' &&
                 marcou != '—' &&
@@ -422,12 +418,9 @@ class _CartaoResultScreenState extends State<CartaoResultScreen> {
                       Expanded(
                         child: Center(
                           child: _bubbleChip(
-                            label: marcou.isEmpty || marcou == '?'
-                                ? '—'
-                                : marcou.toUpperCase(),
+                            label: semResposta ? '*' : marcou.toUpperCase(),
                             color: acertou ? _kGreen : _kRed,
-                            light: !acertou &&
-                                (marcou.isEmpty || marcou == '?'),
+                            light: !acertou && semResposta,
                           ),
                         ),
                       ),
@@ -462,6 +455,18 @@ class _CartaoResultScreenState extends State<CartaoResultScreen> {
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────
+
+  // App ficou em dúvida (marcação dupla/borrada não cravada).
+  bool _isAmbigua(String r) {
+    final v = r.trim().toUpperCase();
+    return v == 'AMBIGUA' || v == 'AMBÍGUA' || v == 'AMBIGUO' || v == 'AMBÍGUO';
+  }
+
+  // Sem resposta de fato (em branco, vazio ou sem leitura).
+  bool _isBranco(String r) {
+    final v = r.trim().toUpperCase();
+    return v == 'EM_BRANCO' || v == 'EM BRANCO' || v == '' || v == 'NÃO RESPONDIDA';
+  }
 
   Widget _card({required Widget child}) {
     return Container(

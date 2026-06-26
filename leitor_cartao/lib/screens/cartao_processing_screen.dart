@@ -5,13 +5,14 @@ import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import 'dart:io';
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/image_quality_analyzer.dart';
 import '../services/frame_alignment_analyzer.dart';
 import '../widgets/frame_guide_painter.dart';
-import 'simulado_selection_screen.dart';
+import 'shared_data.dart';
 import 'cartao_preview_screen.dart';
 import 'capture_tips_screen.dart';
 
@@ -21,6 +22,10 @@ class CartaoProcessingScreen extends StatefulWidget {
   final AlunoData aluno;
   final int tipoProva;
   final String? versionCode;
+  /// Versão do LAYOUT do cartão (V: do QR). 3 = fiduciais ao redor da grade
+  /// (máscara apertada na grade + deskew apertado no backend). null = v2 legado
+  /// (fiduciais nos cantos da folha A4, máscara A4, caminho congelado).
+  final int? cartaoVersao;
 
   const CartaoProcessingScreen({
     super.key,
@@ -28,6 +33,7 @@ class CartaoProcessingScreen extends StatefulWidget {
     required this.aluno,
     required this.tipoProva,
     this.versionCode,
+    this.cartaoVersao,
   });
 
   @override
@@ -72,11 +78,202 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
   // Última cobertura de papel medida (proxy de distância) — p/ calibração
   double _liveCobertura = 0;
 
-  // Auto-disparo por FIDUCIAIS: dispara quando os 4 fiduciais estão na posição
-  // certa (cartão bem enquadrado) por alguns frames seguidos. Dispara uma vez só.
+  // Auto-disparo por REGISTRO: dispara quando os 4 fiduciais do cartão estão EM
+  // CIMA dos círculos da moldura (registro), por alguns frames seguidos.
   bool _autoCaptureDone = false;
-  bool _liveFiduciaisOk = false;
-  int _fiducialOkFrames = 0;
+  bool _liveFiduciaisOk = false;   // pré-filtro: 4 fiduciais formando retângulo A4
+  bool _liveRegistrado = false;    // fiduciais sobre os círculos da moldura
+  double _liveErroReg = 1.0;       // maior distância detectado↔alvo (0-1) p/ calibração
+  int _registroOkFrames = 0;
+
+  // ALVO dos fiduciais em coords NORMALIZADAS do buffer (TL,TR,BL,BR).
+  // É onde os fiduciais caem quando o cartão está na POSIÇÃO IDEAL (papel rente, reto).
+  //
+  // v2 (cartão antigo, fiduciais nos cantos da folha A4): posição salva calibrada
+  // por aparelho (SM A256E, 23/06/2026). PERMANECE INTACTA — é o fallback.
+  static const List<double> _alvoFiduciaisV2 = [
+    0.06, 0.12,  // TL
+    0.95, 0.09,  // TR
+    0.04, 0.92,  // BL
+    0.95, 0.93,  // BR
+  ];
+
+  // v3 (fiduciais ao redor da grade): alvo DERIVADO da geometria da moldura
+  // (não depende mais de aparelho). Computado em _alvoFiduciaisV3Derivado().
+  // Cache: recálculado quando o Stack size muda.
+  List<double> _alvoFiduciaisV3Cache = const [];
+  Size? _lastStackSizeForAlvo;
+  double _lastCameraAspectForAlvo = 0;
+
+  // Stack size + aspect da câmera, capturados no build (em _buildCameraWithGuide)
+  // para o cálculo do alvo v3.
+  Size? _stackSize;
+  double _cameraAspectForAlvo = 0;
+
+  static const double _tolRegistro = 0.12; // tolerância (fração do buffer) — maior = encaixa mais fácil
+
+  /// Alvo ativo conforme a versão do cartão.
+  /// v3 → derivado da geometria da moldura (grade).
+  /// v2/legado → _alvoFiduciaisV2 (hardcoded por aparelho).
+  List<double> _alvoFiduciaisAtivo() {
+    if (widget.cartaoVersao == 3) {
+      final derivado = _alvoFiduciaisV3Derivado();
+      if (derivado.length == 8) return derivado;
+    }
+    return _alvoFiduciaisV2;
+  }
+
+  /// Deriva o alvo v3 no espaço do buffer da câmera a partir do retângulo da
+  /// moldura desenhada no canvas. Converte canvas→buffer assumindo o caso mais
+  /// comum (Android back camera: sensorOrientation=90, app em retrato, buffer
+  /// landscape rotacionado 90° horária no display).
+  ///
+  /// Mapeamento canvas(retrato)→buffer(landscape) para rotação 90° horária:
+  ///   x_buf_norm = y_disp_norm
+  ///   y_buf_norm = 1 - x_disp_norm
+  /// E a convenção do _detectarFiduciais (TL=menor soma, TR=maior diff,
+  /// BR=maior soma, BL=menor diff) remapeia os cantos:
+  ///   TL_detect ← TR_display,  TR_detect ← BR_display,
+  ///   BL_detect ← TL_display,  BR_detect ← BL_display
+  ///
+  /// ⚠️ Se o sensor do aparelho usar rotação 270° (anti-horária), o sentido
+  /// inverte — neste caso o alvo v3 não engata e o auto-disparo fica desligado
+  /// (fallback: fotografe manualmente). A fórmula está isolada aqui pra ajuste.
+  List<double> _alvoFiduciaisV3Derivado() {
+    final stack = _stackSize;
+    if (stack == null || _cameraAspectForAlvo <= 0) return const [];
+
+    // Reaproveita o cache se nada mudou.
+    if (_lastStackSizeForAlvo == stack &&
+        _lastCameraAspectForAlvo == _cameraAspectForAlvo &&
+        _alvoFiduciaisV3Cache.length == 8) {
+      return _alvoFiduciaisV3Cache;
+    }
+
+    // displayAspect = W/H do preview em retrato (= 1/cameraAspect).
+    // O AspectRatio widget tenta preencher a altura; se ultrapassar a largura, clipa.
+    final cameraAspect = _cameraAspectForAlvo;
+    final displayAspect = 1 / cameraAspect;
+    double cameraW = stack.height * displayAspect; // tenta altura total
+    double cameraH = stack.height;
+    if (cameraW > stack.width) {
+      // Limitado pela largura do Stack.
+      cameraW = stack.width;
+      cameraH = cameraW / displayAspect;
+    }
+    final cameraLeft = (stack.width - cameraW) / 2;
+    final cameraTop = (stack.height - cameraH) / 2;
+
+    // Área real do preview (pode ter barras pretas acima/abaixo).
+    // Passamos ao molduraGeometria para que os círculos-guia fiquem DENTRO dela.
+    final cameraPreviewRect =
+        Rect.fromLTWH(cameraLeft, cameraTop, cameraW, cameraH);
+
+    // Geometria da moldura v3 no canvas (retrato). Mesma fonte do painter.
+    final g = molduraGeometria(stack, widget.simulado.numQuestoes,
+        cameraPreviewRect: cameraPreviewRect);
+    final rect = g.rect; // (left, top, width, height) no Stack
+
+    // Rect da moldura em coords da câmera display (normalizado 0-1 na câmera).
+    final rxn = (rect.left - cameraLeft) / cameraW;
+    final ryn = (rect.top - cameraTop) / cameraH;
+    final rwn = rect.width / cameraW;
+    final rhn = rect.height / cameraH;
+
+    // Clampa (se a moldura extrapola a câmera, algo está errado).
+    if (rxn < -0.02 || ryn < -0.02 || rxn + rwn > 1.02 || ryn + rhn > 1.02) {
+      return const [];
+    }
+
+    // Cantos da moldura no display (retrato), normalizados:
+    //   TL_disp=(rxn, ryn), TR_disp=(rxn+rwn, ryn),
+    //   BR_disp=(rxn+rwn, ryn+rhn), BL_disp=(rxn, ryn+rhn)
+    // Converter display→buffer (90° horária): (xd, yd) → (xb=yd, yb=1-xd)
+    // E remapear para a convenção do _detectarFiduciais:
+    //   TL_detect = TR_disp = (rxn+rwn, ryn)      → (ryn, 1-rxn-rwn)
+    //   TR_detect = BR_disp = (rxn+rwn, ryn+rhn)   → (ryn+rhn, 1-rxn-rwn)
+    //   BL_detect = TL_disp = (rxn, ryn)          → (ryn, 1-rxn)
+    //   BR_detect = BL_disp = (rxn, ryn+rhn)       → (ryn+rhn, 1-rxn)
+    final alvo = <double>[
+      ryn,           1 - rxn - rwn,  // TL_detect
+      ryn + rhn,     1 - rxn - rwn,  // TR_detect
+      ryn,           1 - rxn,        // BL_detect
+      ryn + rhn,     1 - rxn,        // BR_detect
+    ];
+
+    _alvoFiduciaisV3Cache = alvo;
+    _lastStackSizeForAlvo = stack;
+    _lastCameraAspectForAlvo = _cameraAspectForAlvo;
+    return alvo;
+  }
+
+  // ── GATE GEOMÉTRICO do disparo (além do registro): só dispara/fica verde quando a foto
+  // está REALMENTE reta + centralizada + na distância certa. Sem isso o verde acendia em
+  // ângulo torto (perspectiva lr~0.88, rot até 4.8°) e os extremos de coluna saíam AMBIGUA.
+  //
+  // ⚠️ v3 (cartaoVersao==3): a máscara enquadra SÓ a grade (não a folha A4), então a
+  // cobertura de papel no buffer SOBE (a grade preenche mais a tela que a folha A4).
+  // Os limites abaixo foram calibrados para v2 (folha A4). Para v3, RECALIBRAR no
+  // aparelho: fotografe um cartão v3 na distância ideal e leia `cobertura` no log
+  // [MOLDURA]. Ajuste _gateCoberturaMin/Max para a faixa observada (provável ~0.85-0.98).
+  // Por enquanto, v3 usa os mesmos limites do v2 — se a cobertura passar de _gateCoberturaMax,
+  // o auto-disparo não engata (fallback: fotografe manualmente).
+  static const double _gateCoberturaMin = 0.74; // exige papel RENTE (ideal medido = 0.80-0.83)
+  static const double _gateCoberturaMax = 0.95; // rejeita perto demais
+  static const double _gateRotMax = 3.5;         // graus de rotação máx da borda de cima (ideal ≤3)
+  static const double _gateTbMin = 0.90, _gateTbMax = 1.10; // razão topo/base (perspectiva V)
+  static const double _gateLrMin = 0.82, _gateLrMax = 1.18; // razão esq/dir (perspectiva H)
+
+  /// Geometria dos 4 fiduciais (TL,TR,BL,BR) p/ o log: o quanto a foto está inclinada.
+  /// tb = razão lado-de-cima/lado-de-baixo, lr = esq/dir (1.00 = plano; >1 = perspectiva),
+  /// rot = rotação da borda de cima em graus. Quanto mais longe de 1.00/0°, mais torto.
+  String _geoFiduciais(List<double> p) {
+    if (p.length < 8) return 'tb=- lr=- rot=-';
+    double d(int a, int b) {
+      final dx = p[a] - p[b], dy = p[a + 1] - p[b + 1];
+      return math.sqrt(dx * dx + dy * dy);
+    }
+    final top = d(0, 2), bottom = d(4, 6), left = d(0, 4), right = d(2, 6);
+    final tb = top / (bottom == 0 ? 1e-6 : bottom);
+    final lr = left / (right == 0 ? 1e-6 : right);
+    final rot = (math.atan2(p[3] - p[1], p[2] - p[0]) * 180 / math.pi).abs();
+    return 'tb=${tb.toStringAsFixed(2)} lr=${lr.toStringAsFixed(2)} '
+        'rot=${rot.toStringAsFixed(1)}';
+  }
+
+  /// Gate geométrico: a foto está reta (tb/lr ~1, rot baixo) e na distância certa
+  /// (cobertura na faixa)? Só então vale como "registrado" p/ ficar verde e disparar.
+  bool _geoGateOk(List<double> p, double cobertura) {
+    if (p.length < 8) return false;
+    double d(int a, int b) {
+      final dx = p[a] - p[b], dy = p[a + 1] - p[b + 1];
+      return math.sqrt(dx * dx + dy * dy);
+    }
+    final top = d(0, 2), bottom = d(4, 6), left = d(0, 4), right = d(2, 6);
+    if (bottom == 0 || right == 0) return false;
+    final tb = top / bottom;
+    final lr = left / right;
+    final rot = (math.atan2(p[3] - p[1], p[2] - p[0]) * 180 / math.pi).abs();
+    return cobertura >= _gateCoberturaMin && cobertura <= _gateCoberturaMax &&
+        rot <= _gateRotMax &&
+        tb >= _gateTbMin && tb <= _gateTbMax &&
+        lr >= _gateLrMin && lr <= _gateLrMax;
+  }
+
+  /// Maior distância entre cada fiducial detectado e seu alvo (0-1). 1.0 se inválido.
+  double _erroRegistro(List<double> pts) {
+    if (pts.length < 8) return 1.0;
+    final alvo = _alvoFiduciaisAtivo();
+    if (alvo.length < 8) return 1.0;
+    double maxD = 0.0;
+    for (int i = 0; i < 4; i++) {
+      final double dx = pts[i * 2] - alvo[i * 2];
+      final double dy = pts[i * 2 + 1] - alvo[i * 2 + 1];
+      final double d = math.sqrt(dx * dx + dy * dy);
+      if (d > maxD) maxD = d;
+    }
+    return maxD;
+  }
 
   @override
   void initState() {
@@ -141,6 +338,10 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
         await _controller!.setFocusMode(FocusMode.auto);
         await _controller!.setFlashMode(_currentFlashMode);
         _startLiveQualityAnalysis();
+
+        // ✨ Re-aplica o torch DEPOIS que o stream já está rodando (vários Android não
+        // engatam o LED se setFlashMode é chamado antes do stream ativo / após restart).
+        _reaplicarTorchComAtraso();
       }
 
       if (mounted) {
@@ -156,6 +357,24 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
           _errorMessage = 'Erro ao iniciar câmera: $e';
         });
       }
+    }
+  }
+
+  /// Re-aplica o torch algumas vezes com atraso. Necessário porque o restart do stream /
+  /// a reconfiguração da sessão da câmera APAGA o LED no A256E (o ícone fica "ligado" mas
+  /// a luz não sai). Re-aplicar com o stream já ativo religa o LED de verdade.
+  void _reaplicarTorchComAtraso() {
+    if (_currentFlashMode == FlashMode.off) return;
+    for (final ms in const [350, 900, 1600]) {
+      Future.delayed(Duration(milliseconds: ms), () async {
+        if (!mounted ||
+            _controller == null ||
+            !_controller!.value.isInitialized ||
+            _currentFlashMode == FlashMode.off) return;
+        try {
+          await _controller!.setFlashMode(_currentFlashMode);
+        } catch (_) {}
+      });
     }
   }
 
@@ -184,31 +403,46 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
       // Executar análise rápida em isolate para não travar a UI
       final metrics = await compute(
         _analyzeLiveFrameInIsolate,
-        _FrameAnalysisData(lumaBytes, width, height),
+        _FrameAnalysisData(lumaBytes, width, height,
+            numQuestoes: widget.simulado.numQuestoes,
+            cartaoVersao: widget.cartaoVersao),
       );
       final liveState = metrics.state;
 
-      // LOG (throttle ~1/seg): mostra POR QUE a moldura está nessa cor.
-      // Útil para calibrar os limiares (brilho/luz/papel) que decidem a captura.
+      // REGISTRO: os 4 fiduciais detectados estão sobre os círculos da moldura?
+      final double erroReg = _erroRegistro(metrics.fiduciaisPontos);
+      final bool geoOk = _geoGateOk(metrics.fiduciaisPontos, metrics.coberturaPapel);
+      final bool registrado = metrics.fiduciaisOk && erroReg < _tolRegistro && geoOk;
+      if (registrado) {
+        _registroOkFrames++;
+      } else {
+        _registroOkFrames = 0;
+      }
+
+      // LOG (throttle ~1/seg) — inclui os pts detectados para CALIBRAR o alvo.
       final nowMs = DateTime.now().millisecondsSinceEpoch;
       if (nowMs - _lastLiveLogMs >= 1000) {
         _lastLiveLogMs = nowMs;
+        final pts = metrics.fiduciaisPontos
+            .map((v) => v.toStringAsFixed(2))
+            .join(',');
+        final alvoAtivo = _alvoFiduciaisAtivo();
+        final alvoStr = alvoAtivo.length == 8
+            ? alvoAtivo.map((v) => v.toStringAsFixed(2)).join(',')
+            : 'fallback-v2';
+        final rot = widget.cartaoVersao == 3 ? 'v3' : 'v2';
         print('📐 [MOLDURA] frame=${width}x$height $metrics '
-            '| estaveis=$_stableFrameCount/$_requiredStableFrames '
-            '| flash=${_currentFlashMode.name}');
-      }
-
-      // Contador de frames consecutivos com fiduciais na posição certa
-      if (metrics.fiduciaisOk) {
-        _fiducialOkFrames++;
-      } else {
-        _fiducialOkFrames = 0;
+            '| registro=${registrado ? "OK" : "nao"} err=${erroReg.toStringAsFixed(2)} '
+            '| geo_ok=$geoOk geo(${_geoFiduciais(metrics.fiduciaisPontos)}) '
+            '| pts=[$pts] alvo_$rot=[$alvoStr] | flash=${_currentFlashMode.name}');
       }
 
       if (mounted) {
         setState(() {
           _liveCobertura = metrics.coberturaPapel;
           _liveFiduciaisOk = metrics.fiduciaisOk;
+          _liveRegistrado = registrado;
+          _liveErroReg = erroReg;
           _liveQuality = liveState;
           _liveTip =
               ImageQualityAnalyzer.getTipForLiveQualityState(liveState);
@@ -238,17 +472,20 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
         });
       }
 
-      // ✨ AUTO-DISPARO POR FIDUCIAIS: dispara quando os 4 fiduciais ficam na
-      // posição certa (cartão bem enquadrado, distância certa) por alguns frames
-      // seguidos. É o gatilho ideal — não depende de tempo, mas de enquadramento.
-      const int framesFiducialParaAuto = 8; // ~2s assentado/reto antes de disparar
-      if (_fiducialOkFrames >= framesFiducialParaAuto &&
+      // ✨ AUTO-DISPARO POR REGISTRO: dispara quando os 4 fiduciais ficam SOBRE os
+      // círculos da moldura (registro) por alguns frames seguidos.
+      // Religado: o alvo (_alvoFiduciais) agora é a POSIÇÃO IDEAL salva, então o auto-disparo
+      // trava exatamente nesse enquadramento. Pra testar posições no manual, ponha false.
+      const bool autoDisparoHabilitado = true;
+      const int framesRegistroParaAuto = 8; // ~2s registrado antes de disparar
+      if (autoDisparoHabilitado &&
+          _registroOkFrames >= framesRegistroParaAuto &&
           _currentFlashMode != FlashMode.off &&
           !_isCapturing &&
           !_autoCaptureDone) {
         _autoCaptureDone = true;
-        print('🤖 [AUTO] 4 fiduciais na posição (${_fiducialOkFrames} frames) — '
-            'disparando (cobertura=${_liveCobertura.toStringAsFixed(2)})');
+        print('🤖 [AUTO] Fiduciais registrados na moldura '
+            '(${_registroOkFrames} frames, err=${_liveErroReg.toStringAsFixed(2)}) — disparando');
         _capturarFoto();
       }
     } catch (e) {
@@ -266,6 +503,8 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
       data.lumaBytes,
       data.width,
       data.height,
+      numQuestoes: data.numQuestoes,
+      cartaoVersao: data.cartaoVersao,
     );
   }
 
@@ -365,15 +604,29 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
     if (_liveQuality == LiveQualityState.bad) {
       return const Color(0xFFEF4444); // vermelho — muito escuro
     }
-    if (_fiducialOkFrames >= 2 && _currentFlashMode != FlashMode.off) {
-      return const Color(0xFF22C55E); // verde — 4 cantos alinhados
+    if (_registroOkFrames >= 2 && _currentFlashMode != FlashMode.off) {
+      return const Color(0xFF22C55E); // verde — fiduciais SOBRE os círculos da moldura
     }
     return const Color(0xFFF59E0B); // laranja — posicionando
   }
 
-  // PRONTO = 4 fiduciais na posição certa (cartão bem enquadrado) + flash ligado.
+  // PRONTO = fiduciais registrados sobre os círculos da moldura + flash ligado.
   bool get _isReadyToCapture =>
-      _liveFiduciaisOk && _currentFlashMode != FlashMode.off;
+      _liveRegistrado && _currentFlashMode != FlashMode.off;
+
+  // Mensagem-guia que reflete o ESTADO REAL (flash → registro → pronto).
+  String get _mensagemGuia {
+    if (_currentFlashMode == FlashMode.off) {
+      return '🔦 Ligue o flash para leitura perfeita';
+    }
+    if (_liveQuality == LiveQualityState.bad) {
+      return '🔦 Muito escuro — melhore a luz';
+    }
+    if (_isReadyToCapture) {
+      return '✅ Encaixado — disparando...';
+    }
+    return '⊡ Encaixe os 4 cantos do cartão nos círculos';
+  }
 
   Future<void> _capturarFoto() async {
     if (_controller == null ||
@@ -390,9 +643,11 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
 
       final XFile foto = await _controller!.takePicture();
 
-      // Desligar flash imediatamente após a foto
+      // ✨ Desliga o torch ao sair da tela de captura (preview/resultado não precisam de luz).
+      // No "Refazer" (Navigator.pop de volta pra cá) o bloco de RE-ARME abaixo religa o torch
+      // — por isso agora pode desligar sem deixar o retake no escuro.
       await _controller!.setFlashMode(FlashMode.off);
-      setState(() => _currentFlashMode = FlashMode.off);
+      if (mounted) setState(() => _currentFlashMode = FlashMode.off);
 
       final dir = await getTemporaryDirectory();
       final String novoPath = path.join(
@@ -400,6 +655,23 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
         'cartao_${DateTime.now().millisecondsSinceEpoch}.jpg',
       );
       final File arquivoFinal = await File(foto.path).copy(novoPath);
+
+      // ✨ DEBUG v3: salva uma CÓPIA acessível da foto na pasta Documents do app
+      // para diagnóstico via `adb pull` ou gerenciador de arquivos. Só ativa quando
+      // v3 (cartaoVersao==3) — em v2 não polui o storage. Remover após calibrar.
+      if (widget.cartaoVersao == 3) {
+        try {
+          final docsDir = await getApplicationDocumentsDirectory();
+          final String debugPath = path.join(
+            docsDir.path,
+            'debug_v3_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+          await File(foto.path).copy(debugPath);
+          print('🔬 [DEBUG-v3] cópia acessível salva: $debugPath');
+        } catch (e) {
+          print('⚠️ [DEBUG-v3] falhou ao salvar cópia: $e');
+        }
+      }
 
       // LOG: foto que será enviada ao servidor (tamanho aproxima a resolução real).
       final int tamBytes = await arquivoFinal.length();
@@ -410,7 +682,7 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
           '| path=$novoPath');
 
       if (mounted) {
-        Navigator.push(
+        await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => CartaoPreviewScreen(
@@ -419,9 +691,29 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
               aluno: widget.aluno,
               tipoProva: widget.tipoProva,
               versionCode: widget.versionCode,
+              cartaoVersao: widget.cartaoVersao,
             ),
           ),
         );
+
+        // ✨ Voltou da pré-visualização (ex.: "Refazer" faz Navigator.pop pra ESTA tela).
+        // Re-arma a captura: o stream foi parado e _autoCaptureDone/_isCapturing ficaram
+        // travados — sem isto o retake fica numa tela morta (sem análise/auto-disparo/flash).
+        if (mounted) {
+          setState(() {
+            _isCapturing = false;
+            _autoCaptureDone = false;
+            _registroOkFrames = 0;
+            _stableFrameCount = 0;
+            _isStabilized = false;
+            _currentFlashMode = FlashMode.torch;
+          });
+          try {
+            _startLiveQualityAnalysis(); // reinicia o stream de análise ao vivo
+            // Re-aplica o torch DEPOIS do restart (o restart da sessão apaga o LED).
+            _reaplicarTorchComAtraso();
+          } catch (_) {}
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -601,6 +893,24 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
         final cameraAspect = _controller!.value.aspectRatio;
         final displayAspect = 1 / cameraAspect;
 
+        // Captura o tamanho do Stack + aspect da câmera para o cálculo do
+        // alvo v3 (derivado da geometria da moldura).
+        _stackSize = Size(constraints.maxWidth, constraints.maxHeight);
+        _cameraAspectForAlvo = cameraAspect;
+
+        // Área real do preview (pode ter barras pretas acima/abaixo).
+        final double screenW = constraints.maxWidth;
+        final double screenH = constraints.maxHeight;
+        final Rect camPreviewRect;
+        if (displayAspect * screenH <= screenW) {
+          final double pw = screenH * displayAspect;
+          camPreviewRect = Rect.fromLTWH((screenW - pw) / 2, 0, pw, screenH);
+        } else {
+          final double ph = screenW / displayAspect;
+          camPreviewRect =
+              Rect.fromLTWH(0, (screenH - ph) / 2, screenW, ph);
+        }
+
         return Stack(
           fit: StackFit.expand,
           children: [
@@ -619,7 +929,9 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
                 frameColor: _frameColor,
                 alignmentState: _frameAlignment,
                 skewAngle: _skewAngle,
+                numQuestoes: widget.simulado.numQuestoes,
                 showAdvancedGuides: true,
+                cameraPreviewRect: camPreviewRect,
               ),
             ),
 
@@ -659,7 +971,7 @@ class _CartaoProcessingScreenState extends State<CartaoProcessingScreen>
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
-                        _liveTip,
+                        _mensagemGuia,
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 11,
@@ -827,5 +1139,8 @@ class _FrameAnalysisData {
   final List<int> lumaBytes;
   final int width;
   final int height;
-  _FrameAnalysisData(this.lumaBytes, this.width, this.height);
+  final int numQuestoes;
+  final int? cartaoVersao;
+  _FrameAnalysisData(this.lumaBytes, this.width, this.height,
+      {this.numQuestoes = 0, this.cartaoVersao});
 }

@@ -1,7 +1,80 @@
 // frame_guide_painter.dart
 // CustomPainter para desenhar guia de enquadramento proporcional ao PDF
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../services/frame_alignment_analyzer.dart';
+
+// ── Geometria da grade v3 (espelha questions/pdf_generator.py) ───────────────
+const double _kLarguraNecessariaMm = 36.2;
+const double _kLarguraIndiceMm = 8.0;
+const double _kEspacoColunasMm = 18.0;
+const double _kEspacoQuestoesMm = 7.0;
+const double _kMargemInternaMm = 4.0;
+const double _kFiducialPaddingMm = 8.0;
+
+/// Divisão de questões por coluna (espelha split_colunas do backend).
+List<int> questoesPorColunaApp(int n) {
+  final ncol = n <= 23 ? 1 : 2;
+  if (ncol == 1) return [n];
+  if (n % 2 == 0) return [n ~/ 2, n ~/ 2];
+  return [n ~/ 2 + 1, n ~/ 2];
+}
+
+/// Largura/altura (mm) do retângulo dos CENTROS dos 4 fiduciais v3 — o bloco de
+/// bolhas + 8mm de folga em cada lado. Depende de num_questoes.
+({double wMm, double hMm}) retanguloFiduciaisMm(int numQuestoes) {
+  final qpc = questoesPorColunaApp(numQuestoes);
+  final ncol = qpc.length;
+  final larguraTotal = _kLarguraNecessariaMm * ncol +
+      _kEspacoColunasMm * (ncol - 1) +
+      _kLarguraIndiceMm * ncol;
+  final alturaBloco =
+      qpc.reduce(math.max) * _kEspacoQuestoesMm + 2 * _kMargemInternaMm;
+  return (
+    wMm: larguraTotal + 2 * _kFiducialPaddingMm,
+    hMm: alturaBloco + 2 * _kFiducialPaddingMm,
+  );
+}
+
+/// Geometria da moldura v3 (FONTE ÚNICA — usada pelo painter E pela tela de
+/// captura). A moldura agora enquadra SÓ a grade (não a folha A4): os 4 fiduciais
+/// ficam ao redor do bloco de bolhas, então os 4 centros SÃO os cantos do
+/// retângulo. Aspecto vem de num_questoes. Retorna os centros (TL,TR,BL,BR em
+/// coords do canvas/preview), o retângulo e a escala px/mm.
+///
+/// [cameraPreviewRect] — área visível do preview da câmera dentro do canvas (pode
+/// ter barras pretas acima/abaixo). Quando fornecido, a moldura é posicionada
+/// DENTRO dessa área para garantir que os círculos-guia nunca fiquem nas barras.
+({List<Offset> centros, double pxPerMm, Rect rect}) molduraGeometria(
+    Size size, int numQuestoes, {Rect? cameraPreviewRect}) {
+  final fid = retanguloFiduciaisMm(numQuestoes);
+  final double aspect = fid.wMm / fid.hMm;
+
+  // Área utilizável: preview real da câmera (sem barras pretas) ou tela completa.
+  final Rect area = cameraPreviewRect ??
+      Rect.fromLTWH(0, 0, size.width, size.height);
+
+  // Cobertura alta = "zoom" na grade (bolhas maiores, mais certeza na leitura).
+  double frameWidth = area.width * 0.88;
+  double frameHeight = frameWidth / aspect;
+  if (frameHeight > area.height * 0.84) {
+    frameHeight = area.height * 0.84;
+    frameWidth = frameHeight * aspect;
+  }
+  final double left = area.left + (area.width - frameWidth) / 2;
+  final double top  = area.top  + (area.height - frameHeight) / 2;
+  final double pxPerMm = frameWidth / fid.wMm;
+  return (
+    centros: <Offset>[
+      Offset(left, top),                                // TL
+      Offset(left + frameWidth, top),                   // TR
+      Offset(left, top + frameHeight),                  // BL
+      Offset(left + frameWidth, top + frameHeight),     // BR
+    ],
+    pxPerMm: pxPerMm,
+    rect: Rect.fromLTWH(left, top, frameWidth, frameHeight),
+  );
+}
 
 /// Painter que desenha a moldura com proporções EXATAS do PDF A4
 class FrameGuidePainter extends CustomPainter {
@@ -9,6 +82,7 @@ class FrameGuidePainter extends CustomPainter {
   final FrameAlignmentState alignmentState;
   final double skewAngle; // ângulo em graus
   final bool showAdvancedGuides;
+  final int numQuestoes; // v3: define o aspecto da moldura da grade
 
   // ✨ CONSTANTES A4 EM MM (do PDF Django)
   static const double PAPER_WIDTH_MM = 210;
@@ -30,51 +104,86 @@ class FrameGuidePainter extends CustomPainter {
   static const double INNER_MARGIN_MM = 12; // Header, footer, laterais
   static const double SAFETY_MARGIN_MM = 8; // Borda de segurança
 
+  /// Área do preview real da câmera dentro do canvas.
+  /// Fornecida pela tela de captura para evitar que os círculos-guia
+  /// caiam nas barras pretas acima/abaixo do preview.
+  final Rect? cameraPreviewRect;
+
   FrameGuidePainter({
     required this.frameColor,
     required this.alignmentState,
     required this.skewAngle,
+    required this.numQuestoes,
     this.showAdvancedGuides = true,
+    this.cameraPreviewRect,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // ✨ CORRIGIDO: frame com largura como constraint primária
-    // A4 retrato tem largura < altura, então a tela limita pela largura
-    final double maxByWidth = size.width * 0.92;
-    final double maxByHeight = size.height * 0.85;
-    double frameWidth = maxByWidth;
-    double frameHeight = frameWidth / CARTAO_ASPECT_RATIO; // ÷ (210/297) → × (297/210)
-    // Caso raro de tela quadrada: se altura ultrapassar, recalcular pela altura
-    if (frameHeight > maxByHeight) {
-      frameHeight = maxByHeight;
-      frameWidth = frameHeight * CARTAO_ASPECT_RATIO;
-    }
-    final frameLeft = (size.width - frameWidth) / 2;
-    final frameTop = (size.height - frameHeight) / 2;
+    // Fonte única da geometria (mesma usada pela tela para o registro).
+    // v3: a moldura é o retângulo dos fiduciais (ao redor da grade); os 4 centros
+    // SÃO os cantos, então o retângulo é o próprio bounding box.
+    // cameraPreviewRect garante que os círculos fiquem DENTRO do preview da câmera.
+    final g = molduraGeometria(size, numQuestoes,
+        cameraPreviewRect: cameraPreviewRect);
+    final rect = g.rect;
 
-    // ✨ NOVA: Calcular escala mm → px
-    final pxPerMm = frameWidth / PAPER_WIDTH_MM;
+    _drawMolduraRetangulo(canvas, rect);                 // o retângulo (em torno da grade)
+    _drawCornerRings(canvas, g.centros, g.pxPerMm);      // anéis nos 4 fiduciais
+    _drawMensagem(canvas, size, rect);                   // mensagem-guia
+  }
 
-    if (showAdvancedGuides) {
-      _drawAdvancedGuides(
-        canvas,
-        size,
-        frameLeft,
-        frameTop,
-        frameWidth,
-        frameHeight,
-        pxPerMm,
-      );
-    } else {
-      _drawSimpleFrame(
-        canvas,
-        frameLeft,
-        frameTop,
-        frameWidth,
-        frameHeight,
-        pxPerMm,
-      );
+  /// Retângulo da moldura — a folha deve encaixar EXATAMENTE nessa borda. Vira verde
+  /// (via frameColor) quando o cartão está registrado.
+  void _drawMolduraRetangulo(Canvas canvas, Rect rect) {
+    final paint = Paint()
+      ..color = frameColor
+      ..strokeWidth = 3.5
+      ..style = PaintingStyle.stroke;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, const Radius.circular(10)),
+      paint,
+    );
+  }
+
+  /// Mensagem-guia acima da moldura.
+  void _drawMensagem(Canvas canvas, Size size, Rect rect) {
+    final tp = TextPainter(
+      text: const TextSpan(
+        text: '🎯 Aproxime e encaixe as 4 bolinhas em torno das colunas',
+        style: TextStyle(
+            color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+      ),
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    )..layout(maxWidth: size.width - 32);
+    final x = (size.width - tp.width) / 2;
+    final y = (rect.top - tp.height - 14).clamp(8.0, size.height);
+    final bg = Paint()..color = Colors.black54;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(x - 10, y - 5, tp.width + 20, tp.height + 10),
+        const Radius.circular(8),
+      ),
+      bg,
+    );
+    tp.paint(canvas, Offset(x, y));
+  }
+
+  /// Desenha os 4 anéis-alvo (onde encaixar as bolinhas pretas do cartão).
+  void _drawCornerRings(Canvas canvas, List<Offset> centros, double pxPerMm) {
+    // Anel maior que o fiducial (12mm) p/ dar área de encaixe (mais fácil mirar).
+    final double markerRadius = (MARKER_DIAMETER_MM / 2) * pxPerMm * 1.5;
+    final ring = Paint()
+      ..color = frameColor
+      ..strokeWidth = 3.5
+      ..style = PaintingStyle.stroke;
+    final centerDot = Paint()
+      ..color = frameColor
+      ..style = PaintingStyle.fill;
+    for (final c in centros) {
+      canvas.drawCircle(c, markerRadius, ring);
+      canvas.drawCircle(c, 2.0, centerDot); // pontinho central p/ mirar
     }
   }
 
@@ -321,6 +430,8 @@ class FrameGuidePainter extends CustomPainter {
   bool shouldRepaint(FrameGuidePainter oldDelegate) {
     return oldDelegate.frameColor != frameColor ||
         oldDelegate.alignmentState != alignmentState ||
-        oldDelegate.skewAngle != skewAngle;
+        oldDelegate.skewAngle != skewAngle ||
+        oldDelegate.numQuestoes != numQuestoes ||
+        oldDelegate.cameraPreviewRect != cameraPreviewRect;
   }
 }

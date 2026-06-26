@@ -802,6 +802,7 @@ class ApiService {
   Future<Map<String, dynamic>?> processCardImageViaBackend({
     required String imageFilePath,
     required int numQuestoes,
+    int? cartaoVersao,
   }) async {
     try {
       final token = await getAccessToken();
@@ -815,8 +816,15 @@ class ApiService {
         imageFilePath,
       ));
       request.fields['num_questoes'] = numQuestoes.toString();
+      // v3: informa ao backend qual layout do cartão foi fotografado.
+      // 3 = fiduciais ao redor da grade → deskew apertado. null/ausente = v2
+      // legado (caminho congelado). O backend já aceita o campo (views_omr.py).
+      if (cartaoVersao != null) {
+        request.fields['cartao_versao'] = cartaoVersao.toString();
+      }
 
-      print('📤 Enviando imagem para backend Django (Claude Vision + OpenCV)...');
+      print('📤 Enviando imagem para backend Django '
+          '(num_questoes=$numQuestoes, cartao_versao=${cartaoVersao ?? "v2"})...');
 
       final streamedResponse = await request.send().timeout(
         const Duration(seconds: 60),

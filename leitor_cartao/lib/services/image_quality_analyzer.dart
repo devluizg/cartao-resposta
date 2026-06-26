@@ -6,18 +6,59 @@ import 'dart:ui' as ui;
 import 'package:camera/camera.dart';
 import 'package:image/image.dart' as img;
 
+// ── Geometria da grade v3 (espelha questions/pdf_generator.py e
+// frame_guide_painter.dart — MANTER SINCRONIZADO entre os 3 arquivos). ──────────
+// Duplicada aqui (e não importada do painter) porque este arquivo roda em
+// isolate e o painter depende de Flutter Material (não disponível em isolate).
+const double _kLarguraNecessariaMm = 36.2;
+const double _kLarguraIndiceMm = 8.0;
+const double _kEspacoColunasMm = 18.0;
+const double _kEspacoQuestoesMm = 7.0;
+const double _kMargemInternaMm = 4.0;
+const double _kFiducialPaddingMm = 8.0;
+
+/// Divisão de questões por coluna (espelha split_colunas do backend).
+List<int> _questoesPorColuna(int n) {
+  final ncol = n <= 23 ? 1 : 2;
+  if (ncol == 1) return [n];
+  if (n % 2 == 0) return [n ~/ 2, n ~/ 2];
+  return [n ~/ 2 + 1, n ~/ 2];
+}
+
+/// Razão (≤1) esperada do retângulo dos 4 fiduciais para um cartão com
+/// [numQuestoes] e versão de layout [cartaoVersao].
+/// v3 (cartaoVersao==3): fiduciais ao redor da grade → razão da grade.
+/// v2/legado (null): fiduciais nos cantos da folha A4 → 186/273 = 0.681.
+/// Retorna null quando não há razão específica (usa fallback 0.681 com
+/// tolerância larga para aceitar tanto v2 quanto v3 com 1 coluna).
+double _razaoFiduciaisEsperada(int numQuestoes, int? cartaoVersao) {
+  if (cartaoVersao != 3) return 0.681; // v2 legado
+  final qpc = _questoesPorColuna(numQuestoes);
+  final ncol = qpc.length;
+  final larguraTotal = _kLarguraNecessariaMm * ncol +
+      _kEspacoColunasMm * (ncol - 1) +
+      _kLarguraIndiceMm * ncol;
+  final alturaBloco =
+      qpc.reduce(max) * _kEspacoQuestoesMm + 2 * _kMargemInternaMm;
+  final wMm = larguraTotal + 2 * _kFiducialPaddingMm;
+  final hMm = alturaBloco + 2 * _kFiducialPaddingMm;
+  return min(wMm, hMm) / max(wMm, hMm);
+}
+
 /// Resultado da detecção dos 4 fiduciais (círculos pretos da borda do cartão).
 /// É o gatilho ideal do auto-disparo: só captura quando o cartão está bem
 /// enquadrado (4 fiduciais formando o retângulo A4 na distância certa).
 class FiducialResult {
-  final bool ok;          // 4 fiduciais formando o retângulo do cartão na posição certa
+  final bool ok;          // 4 fiduciais formando um retângulo A4 válido (pré-filtro)
   final int blobs;        // nº de blobs escuros candidatos (para calibração via log)
-  final double preenche;  // fração do frame coberta pelo retângulo dos fiduciais
+  // 4 centros dos fiduciais NORMALIZADOS no buffer (0-1), na ordem TL,TR,BL,BR:
+  // [TLx,TLy, TRx,TRy, BLx,BLy, BRx,BRy]. Vazio se ok=false.
+  final List<double> pontos;
 
   const FiducialResult({
     required this.ok,
     required this.blobs,
-    required this.preenche,
+    required this.pontos,
   });
 }
 
@@ -33,8 +74,9 @@ class LiveFrameMetrics {
   final bool hasPaper;         // papel branco detectado na região central da moldura
   final int cornersFound;      // 0-4 fiduciais escuros detectados nos cantos do cartão
   final double coberturaPapel; // 0-1, fração do frame ocupada por papel (proxy de distância)
-  final bool fiduciaisOk;      // 4 fiduciais formando o retângulo do cartão na posição certa
+  final bool fiduciaisOk;      // 4 fiduciais formando um retângulo A4 válido (pré-filtro)
   final int blobsEscuros;      // nº de blobs escuros candidatos (para calibração via log)
+  final List<double> fiduciaisPontos; // 4 centros normalizados no buffer (TL,TR,BL,BR), vazio se !ok
 
   const LiveFrameMetrics({
     required this.state,
@@ -45,6 +87,7 @@ class LiveFrameMetrics {
     required this.coberturaPapel,
     required this.fiduciaisOk,
     required this.blobsEscuros,
+    this.fiduciaisPontos = const [],
   });
 
   @override
@@ -198,11 +241,17 @@ class ImageQualityAnalyzer {
 
   /// Versão detalhada: retorna as métricas brutas além do estado, para logs/ajuste.
   /// É a fonte única da decisão da moldura (analyzeLiveFrameFast delega aqui).
+  ///
+  /// [numQuestoes]/[cartaoVersao]: definem a razão esperada do retângulo dos
+  /// fiduciais (v3 = grade apertada; v2/legado = A4-corner 0.681). Se omitted,
+  /// usa o fallback v2 (compatível com cartões antigos).
   static LiveFrameMetrics analyzeLiveFrameFastMetrics(
     List<int> lumaBytes,
     int width,
-    int height,
-  ) {
+    int height, {
+    int numQuestoes = 0,
+    int? cartaoVersao,
+  }) {
     try {
       if (lumaBytes.isEmpty) {
         return const LiveFrameMetrics(
@@ -239,7 +288,14 @@ class ImageQualityAnalyzer {
       final double cobertura = _brightFraction(lumaBytes, 150);
 
       // Detecção dos 4 fiduciais (círculos pretos da borda) — gatilho ideal.
-      final FiducialResult fid = _detectarFiduciais(lumaBytes, width, height);
+      // A razão esperada do retângulo depende da versão do cartão (v3 = grade
+      // apertada; v2 = A4-corner). Sem isso, a v3 com 1 coluna (razão ~0.77)
+      // é rejeitada pelo filtro que esperava 0.681.
+      final FiducialResult fid = _detectarFiduciais(
+        lumaBytes, width, height,
+        numQuestoes: numQuestoes,
+        cartaoVersao: cartaoVersao,
+      );
 
       LiveQualityState state;
       if (brightness < 100) {
@@ -266,6 +322,7 @@ class ImageQualityAnalyzer {
         coberturaPapel: cobertura,
         fiduciaisOk: fid.ok,
         blobsEscuros: fid.blobs,
+        fiduciaisPontos: fid.pontos,
       );
     } catch (e) {
       print('❌ Erro na análise rápida: $e');
@@ -285,15 +342,20 @@ class ImageQualityAnalyzer {
   /// Detecta os 4 fiduciais (círculos pretos sólidos da borda) no frame ao vivo.
   ///
   /// É ORIENTAÇÃO-AGNÓSTICO: acha todos os blobs escuros sólidos e verifica se 4
-  /// deles formam um retângulo com a proporção do cartão (fiduciais a 186x273mm →
-  /// razão 0.681), grande o bastante (distância certa). Assim o auto-disparo só
-  /// acontece quando o cartão está realmente bem enquadrado.
-  static FiducialResult _detectarFiduciais(List<int> luma, int w, int h) {
+  /// deles formam um retângulo com a proporção esperada do cartão (v3 = razão da
+  /// grade por numQuestoes; v2 = 186x273mm → 0.681), grande o bastante (distância
+  /// certa). Assim o auto-disparo só acontece quando o cartão está realmente bem
+  /// enquadrado.
+  static FiducialResult _detectarFiduciais(
+    List<int> luma, int w, int h, {
+    int numQuestoes = 0,
+    int? cartaoVersao,
+  }) {
     const int sc = 4; // downsample p/ velocidade
     final int sw = w ~/ sc;
     final int sh = h ~/ sc;
     if (sw < 40 || sh < 40) {
-      return const FiducialResult(ok: false, blobs: 0, preenche: 0);
+      return const FiducialResult(ok: false, blobs: 0, pontos: []);
     }
 
     // Limiar adaptativo: fiduciais são bem mais escuros que o resto.
@@ -372,7 +434,7 @@ class ImageQualityAnalyzer {
     }
 
     final int blobs = cx.length;
-    if (blobs < 4) return FiducialResult(ok: false, blobs: blobs, preenche: 0);
+    if (blobs < 4) return FiducialResult(ok: false, blobs: blobs, pontos: const []);
 
     // 4 cantos pelos extremos das diagonais (robusto a rotação moderada)
     int iTL = 0, iBR = 0, iTR = 0, iBL = 0;
@@ -386,7 +448,7 @@ class ImageQualityAnalyzer {
       if (d < dMin) { dMin = d; iBL = i; }
     }
     if ({iTL, iTR, iBR, iBL}.length < 4) {
-      return FiducialResult(ok: false, blobs: blobs, preenche: 0);
+      return FiducialResult(ok: false, blobs: blobs, pontos: const []);
     }
 
     double dist(int a, int b) => sqrt((cx[a] - cx[b]) * (cx[a] - cx[b]) +
@@ -399,38 +461,39 @@ class ImageQualityAnalyzer {
     // Lados opostos quase iguais (retângulo de verdade, NÃO trapézio/inclinado).
     // Apertado de propósito: cartão inclinado vira cisalhamento na leitura.
     if ((top - bottom).abs() > 0.12 * max(top, bottom)) {
-      return FiducialResult(ok: false, blobs: blobs, preenche: 0);
+      return FiducialResult(ok: false, blobs: blobs, pontos: const []);
     }
     if ((left - right).abs() > 0.12 * max(left, right)) {
-      return FiducialResult(ok: false, blobs: blobs, preenche: 0);
+      return FiducialResult(ok: false, blobs: blobs, pontos: const []);
     }
 
     final double wAvg = (top + bottom) / 2;
     final double hAvg = (left + right) / 2;
     if (wAvg < 5 || hAvg < 5) {
-      return FiducialResult(ok: false, blobs: blobs, preenche: 0);
+      return FiducialResult(ok: false, blobs: blobs, pontos: const []);
     }
 
-    // Proporção do retângulo dos fiduciais do A4: 186x273mm => 0.681
+    // Proporção esperada do retângulo dos fiduciais:
+    //   v3 → razão da grade (depende de numQuestoes: 1 col estreita, 2 cols larga)
+    //   v2 → 186x273mm = 0.681 (A4-corner, legado)
+    // Tolerância: ±0.12 (cobre variação de enquadramento + 1 col vs 2 cols).
+    final double ratioEsperado = _razaoFiduciaisEsperada(numQuestoes, cartaoVersao);
     final double ratio = min(wAvg, hAvg) / max(wAvg, hAvg);
-    if ((ratio - 0.681).abs() > 0.11) {
-      return FiducialResult(ok: false, blobs: blobs, preenche: 0);
+    if ((ratio - ratioEsperado).abs() > 0.12) {
+      return FiducialResult(ok: false, blobs: blobs, pontos: const []);
     }
 
-    // Centralização: o cartão deve estar no centro do quadro (alinhado à moldura).
-    final double centroX = (cx[iTL] + cx[iTR] + cx[iBL] + cx[iBR]) / 4;
-    final double centroY = (cy[iTL] + cy[iTR] + cy[iBL] + cy[iBR]) / 4;
-    if (centroX < 0.32 * sw || centroX > 0.68 * sw ||
-        centroY < 0.32 * sh || centroY > 0.68 * sh) {
-      return FiducialResult(ok: false, blobs: blobs, preenche: 0);
-    }
-
-    // Distância: o retângulo precisa preencher boa parte do frame (nem longe, nem perto demais)
-    final double lado = max(wAvg, hAvg) / max(sw, sh);
-    final bool distanciaOk = lado > 0.58 && lado < 0.95;
-    final double preenche = (wAvg * hAvg) / frameArea;
-
-    return FiducialResult(ok: distanciaOk, blobs: blobs, preenche: preenche);
+    // Pré-filtro OK: 4 fiduciais formando um retângulo A4 válido (reto, proporção).
+    // A REGISTRAÇÃO (estar em cima dos círculos da moldura) é decidida na TELA,
+    // que compara estes pontos com os alvos desenhados. Aqui só devolvemos os 4
+    // centros NORMALIZADOS (0-1) no buffer, na ordem TL,TR,BL,BR.
+    final List<double> pontos = [
+      cx[iTL] / sw, cy[iTL] / sh,
+      cx[iTR] / sw, cy[iTR] / sh,
+      cx[iBL] / sw, cy[iBL] / sh,
+      cx[iBR] / sw, cy[iBR] / sh,
+    ];
+    return FiducialResult(ok: true, blobs: blobs, pontos: pontos);
   }
 
   /// Fração do frame inteiro com brilho acima de [threshold] (papel claro).

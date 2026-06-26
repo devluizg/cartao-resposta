@@ -8,7 +8,7 @@ import '../widgets/custom_app_bar.dart';
 import 'cartao_processing_screen.dart';
 import 'login_screen.dart';
 import 'quick_selection_screen.dart';
-import 'simulado_selection_screen.dart' show SimuladoData, AlunoData;
+import 'shared_data.dart';
 
 class SelectionScreen extends StatefulWidget {
   const SelectionScreen({super.key});
@@ -157,6 +157,7 @@ class _SelectionScreenState extends State<SelectionScreen> {
                   ),
                   tipoProva: qrData['tipo'] as int? ?? 1,
                   versionCode: qrData['versionCode'] as String?,
+                  cartaoVersao: qrData['cartaoVersao'] as int?,
                 ),
               ),
             );
@@ -178,6 +179,7 @@ class _SelectionScreenState extends State<SelectionScreen> {
             turmas: turmasFiltradas,
             tipoProva: qrData['tipo'] as int? ?? 1,
             versionCode: qrData['versionCode'] as String?,
+            cartaoVersao: qrData['cartaoVersao'] as int?,
           ),
         ),
       );
@@ -382,6 +384,10 @@ class _QRSimuladoScannerScreenState extends State<_QRSimuladoScannerScreen> {
       final pontuacaoMatch = RegExp(r'\|P:([\d.]+)').firstMatch(code);
       final alunoMatch  = RegExp(r'\|A:(\d+)').firstMatch(code);
       final turmaMatch  = RegExp(r'\|C:(\d+)').firstMatch(code);
+      // v3: versão do LAYOUT do cartão (V:3 = fiduciais ao redor da grade) e
+      // nº de questões (Q:45) — definem o aspecto da moldura e o deskew do backend.
+      final layoutMatch = RegExp(r'\bV:(\d+)\b').firstMatch(code);
+      final numMatch    = RegExp(r'\bQ:(\d+)\b').firstMatch(code);
 
       if (simuladoMatch != null && tipoMatch != null) {
         _scanned = true;
@@ -396,6 +402,8 @@ class _QRSimuladoScannerScreenState extends State<_QRSimuladoScannerScreen> {
               : null,
           'alunoId': alunoMatch != null ? int.tryParse(alunoMatch.group(1)!) : null,
           'turmaId': turmaMatch != null ? int.tryParse(turmaMatch.group(1)!) : null,
+          'cartaoVersao':  layoutMatch != null ? int.tryParse(layoutMatch.group(1)!) : null,
+          'numQuestoesQR': numMatch != null ? int.tryParse(numMatch.group(1)!) : null,
         });
         break;
       }

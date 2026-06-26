@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import '../services/api_service.dart';
-import 'simulado_selection_screen.dart';
+import 'shared_data.dart';
 import 'cartao_result_screen.dart' show CartaoResultData, CartaoResultScreen;
 
 /// Tela 4: Preview do Cartão e Processamento
@@ -13,6 +13,7 @@ class CartaoPreviewScreen extends StatefulWidget {
   final AlunoData aluno;
   final int tipoProva;
   final String? versionCode;
+  final int? cartaoVersao;
 
   const CartaoPreviewScreen({
     super.key,
@@ -21,6 +22,7 @@ class CartaoPreviewScreen extends StatefulWidget {
     required this.aluno,
     required this.tipoProva,
     this.versionCode,
+    this.cartaoVersao,
   });
 
   @override
@@ -85,6 +87,7 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
       jsonData = await apiService.processCardImageViaBackend(
         imageFilePath: widget.imageFile.path,
         numQuestoes: widget.simulado.numQuestoes,
+        cartaoVersao: widget.cartaoVersao,
       );
 
       if (jsonData == null) {
@@ -153,7 +156,18 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
       final debug = jsonData['debug'] as Map<String, dynamic>?;
       if (debug == null) {
         // Fallback IA (gpt4o/claude) não devolve debug geométrico.
-        print('🧾 [SERVIDOR] sem debug geométrico (provável fallback de IA)');
+        // PLANO B: logar as respostas + as questões marcadas para revisão.
+        print('🧾 [SERVIDOR] sem debug geométrico (fallback IA)');
+        final respostas = jsonData['respostas'] as Map<String, dynamic>?;
+        if (respostas != null) {
+          final ordenado = respostas.entries.toList()
+            ..sort((a, b) =>
+                (int.tryParse(a.key) ?? 0).compareTo(int.tryParse(b.key) ?? 0));
+          print('🧾 [SERVIDOR] respostas: '
+              '${ordenado.map((e) => "${e.key}:${e.value}").join(" ")}');
+        }
+        final revisar = jsonData['revisar'];
+        if (revisar != null) print('🧾 [SERVIDOR] revisar=$revisar');
         return;
       }
 
@@ -738,6 +752,14 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
     );
   }
 
+  // App ficou em DÚVIDA nesta questão (leu marcação dupla/borrada e não cravou).
+  // É diferente do aluno ter deixado em branco de verdade — aqui a linha precisa
+  // de revisão/marcação manual, por isso é destacada em laranja.
+  bool _isAmbigua(String r) {
+    final v = r.trim().toUpperCase();
+    return v == 'AMBIGUA' || v == 'AMBÍGUA' || v == 'AMBIGUO' || v == 'AMBÍGUO';
+  }
+
   Widget _buildQuestionRow({
     required int q,
     required String detected,
@@ -748,9 +770,13 @@ class _CartaoPreviewScreenState extends State<CartaoPreviewScreen> {
     final hasGabarito = gabAnswer != null;
     final qIndex = q - 1;
     final isEdited = _questoesEditadas.contains(qIndex);
+    // Enquanto não for corrigida manualmente, uma questão ambígua fica laranja.
+    final isAmbigua = _isAmbigua(detected);
 
     return Container(
-      color: isEven ? const Color(0xFFF9FAFB) : Colors.white,
+      color: isAmbigua
+          ? const Color(0xFFFFE0B2) // laranja claro: app teve dúvida, revise
+          : (isEven ? const Color(0xFFF9FAFB) : Colors.white),
       padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 6),
       child: Row(
         children: [

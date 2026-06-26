@@ -4,7 +4,7 @@ import '../services/models/class_model.dart';
 import '../services/models/simulado_model.dart';
 import '../services/models/student_model.dart';
 import '../widgets/custom_app_bar.dart';
-import 'simulado_selection_screen.dart';
+import 'shared_data.dart';
 import 'cartao_processing_screen.dart';
 
 /// Tela exibida após o QR scan — mostra apenas turma (se múltiplas) + aluno.
@@ -13,6 +13,7 @@ class QuickSelectionScreen extends StatefulWidget {
   final List<ClassModel> turmas; // já filtradas para este simulado
   final int tipoProva;
   final String? versionCode;
+  final int? cartaoVersao;
 
   const QuickSelectionScreen({
     super.key,
@@ -20,6 +21,7 @@ class QuickSelectionScreen extends StatefulWidget {
     required this.turmas,
     required this.tipoProva,
     this.versionCode,
+    this.cartaoVersao,
   });
 
   @override
@@ -112,6 +114,7 @@ class _QuickSelectionScreenState extends State<QuickSelectionScreen> {
           aluno: alunoData,
           tipoProva: widget.tipoProva,
           versionCode: widget.versionCode,
+          cartaoVersao: widget.cartaoVersao,
         ),
       ),
     );
